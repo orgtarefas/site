@@ -125,15 +125,22 @@
                             <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaPrioridade">Prioridade *</label>
+                            <label for="tarefaSistema"><i class="fas fa-project-diagram"></i> Vincular ao Sistema</label>
+                            <select id="tarefaSistema">
+                                <option value="">Nenhum sistema (tarefa independente)</option>
+                                <!-- Sistemas serão carregados dinamicamente -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarefaPrioridade"><i class="fas fa-flag"></i> Prioridade *</label>
                             <select id="tarefaPrioridade" required>
                                 <option value="baixa">Baixa</option>
-                                <option value="media">Média</option>
+                                <option value="media" selected>Média</option>
                                 <option value="alta">Alta</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaStatus">Status *</label>
+                            <label for="tarefaStatus"><i class="fas fa-tasks"></i> Status *</label>
                             <select id="tarefaStatus" required>
                                 <option value="pendente">Pendente</option>
                                 <option value="andamento">Em Andamento</option>
@@ -141,15 +148,15 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaDataInicio">Data Início</label>
+                            <label for="tarefaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início</label>
                             <input type="date" id="tarefaDataInicio">
                         </div>
                         <div class="form-group">
-                            <label for="tarefaDataFim">Data Final *</label>
+                            <label for="tarefaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
                             <input type="date" id="tarefaDataFim" required>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaResponsavel">Responsável</label>
+                            <label for="tarefaResponsavel"><i class="fas fa-user"></i> Responsável</label>
                             <select id="tarefaResponsavel">
                                 <option value="">Selecionar...</option>
                             </select>
