@@ -2,6 +2,7 @@
 
 console.log('=== WORK MANAGER INICIANDO ===');
 
+
 // Sistema de Gerenciamento de Grupos
 class WorkManager {
     constructor() {
@@ -18,48 +19,131 @@ class WorkManager {
         console.log('🚀 Inicializando Work Manager...');
         
         try {
-            // 1. Verificar autenticação
+            // DEBUG: Verificar se Firebase está carregado
+            console.log('Firebase está disponível?', window.db ? '✅ SIM' : '❌ NÃO');
+            console.log('Firebase.apps:', firebase.apps);
+            console.log('Firebase.db:', window.db);
+            
+            // 1. Verificar autenticação (SEM REDIRECIONAMENTO AUTOMÁTICO)
             await this.verificarAutenticacao();
             
-            // 2. Carregar dados iniciais
-            await this.carregarDadosIniciais();
+            if (!this.usuarioAtual) {
+                console.log('⚠️ Usuário não autenticado, mas continuando para debug');
+                // Mesmo sem usuário, vamos mostrar a interface
+                this.forcarMostrarInterface();
+                return;
+            }
             
-            // 3. Configurar listeners em tempo real
-            this.configurarListeners();
+            // 2. Tentar carregar dados (mesmo que falhe)
+            await this.tentarCarregarDados();
             
-            // 4. Configurar eventos da interface
+            // 3. Configurar eventos
             this.configurarEventos();
             
-            console.log('✅ Work Manager inicializado com sucesso!');
+            // 4. Forçar mostrar interface após timeout
+            setTimeout(() => {
+                this.forcarMostrarInterface();
+                console.log('✅ Interface forçada a aparecer');
+            }, 2000);
             
         } catch (error) {
-            console.error('❌ Erro na inicialização:', error);
-            this.mostrarErro('Erro ao inicializar o sistema');
+            console.error('❌ Erro crítico na inicialização:', error);
+            this.forcarMostrarInterface();
+            this.mostrarNotificacao('Erro ao conectar com o banco de dados', 'error');
         }
     }
 
+    forcarMostrarInterface() {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        this.atualizarStatusSincronizacao('⚠️ Modo offline');
+        
+        // Mostrar dados de exemplo para debug
+        this.mostrarDadosExemplo();
+    }
+
+    mostrarDadosExemplo() {
+        const container = document.getElementById('groupsContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-tools"></i>
+                <h3>Modo de Demonstração</h3>
+                <p>O sistema está funcionando, mas o Firebase pode não estar conectado.</p>
+                <div style="margin-top: 20px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <p><strong>Para resolver:</strong></p>
+                    <ol style="text-align: left; margin-left: 20px;">
+                        <li>Verifique se está logado</li>
+                        <li>Recarregue a página (F5)</li>
+                        <li>Verifique o console do navegador (F12)</li>
+                    </ol>
+                </div>
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.reload()">
+                    <i class="fas fa-redo"></i> Recarregar Página
+                </button>
+            </div>
+        `;
+    }
+
     async verificarAutenticacao() {
-        const usuarioLogado = localStorage.getItem('usuarioLogado');
-        
-        if (!usuarioLogado) {
-            console.log('❌ Usuário não autenticado');
-            window.location.href = 'login.html';
-            return;
+        try {
+            const usuarioLogado = localStorage.getItem('usuarioLogado');
+            
+            if (!usuarioLogado) {
+                console.log('⚠️ Nenhum usuário logado encontrado no localStorage');
+                // Não redirecionar imediatamente, apenas marcar como não autenticado
+                this.usuarioAtual = null;
+                return;
+            }
+            
+            this.usuarioAtual = JSON.parse(usuarioLogado);
+            console.log('👤 Usuário encontrado:', this.usuarioAtual.usuario);
+            
+            // Atualizar interface
+            if (document.getElementById('userName')) {
+                document.getElementById('userName').textContent = 
+                    this.usuarioAtual.nome || this.usuarioAtual.usuario;
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao verificar autenticação:', error);
+            this.usuarioAtual = null;
         }
-        
-        this.usuarioAtual = JSON.parse(usuarioLogado);
-        
-        // Atualizar interface
-        if (document.getElementById('userName')) {
-            document.getElementById('userName').textContent = 
-                this.usuarioAtual.nome || this.usuarioAtual.usuario;
+    }
+
+    async tentarCarregarDados() {
+        try {
+            console.log('📊 Tentando carregar dados do Firebase...');
+            
+            // Verificar se o Firebase está realmente funcionando
+            if (!window.db || typeof window.db.collection !== 'function') {
+                throw new Error('Firebase não está disponível');
+            }
+            
+            // Testar uma consulta simples
+            const testSnapshot = await db.collection('usuarios').limit(1).get();
+            console.log('✅ Teste do Firebase bem-sucedido:', testSnapshot.size, 'documentos');
+            
+            // Carregar usuários
+            const usuariosSnapshot = await db.collection('usuarios').get();
+            this.usuarios = usuariosSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log(`✅ ${this.usuarios.length} usuários carregados`);
+            
+            // Configurar listeners apenas se o usuário estiver autenticado
+            if (this.usuarioAtual) {
+                this.configurarListeners();
+                this.atualizarStatusSincronizacao('✅ Conectado');
+            } else {
+                this.atualizarStatusSincronizacao('⚠️ Modo visualização');
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados:', error);
+            this.atualizarStatusSincronizacao('❌ Erro de conexão');
+            throw error;
         }
-        
-        // Esconder loading e mostrar conteúdo
-        setTimeout(() => {
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-        }, 500);
     }
 
     async carregarDadosIniciais() {
