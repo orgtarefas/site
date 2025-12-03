@@ -194,7 +194,20 @@ body {
 }
 
 .task-header {
+    position: relative;
     margin-bottom: 15px;
+}
+
+/* Indicador visual de tarefa vinculada */
+.task-card.vinculada-sistema .task-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -8px;
+    width: 4px;
+    height: 100%;
+    background: #3498db;
+    border-radius: 2px;
 }
 
 .task-title {
@@ -266,6 +279,69 @@ body {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+}
+
+
+.task-card.vinculada-sistema {
+    border-left: 4px solid #3498db;
+    border-left-style: dashed;
+}
+
+.sistema-vinculado {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.sistema-vinculado i {
+    color: #3498db;
+}
+
+.sistema-nome {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.atividades-sistema {
+    margin: 10px 0;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    border-left: 3px solid #4caf50;
+}
+
+.atividades-sistema small {
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.atividades-sistema i {
+    color: #4caf50;
+}
+
+/* Indicador visual de tarefa vinculada */
+
+
+.task-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -8px;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+    border-radius: 2px;
+}
+
+.task-card.vinculada-sistema .task-header::before {
+    background: #3498db;
 }
 
 .empty-state {
