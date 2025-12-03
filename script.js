@@ -149,8 +149,12 @@ function abrirModalTarefa(tarefaId = null) {
         limparFormulario();
     }
     
+    // Carregar sistemas disponíveis
+    carregarSistemasParaVinculo();
+    
     modal.style.display = 'flex';
 }
+
 
 function fecharModalTarefa() {
     document.getElementById('modalTarefa').style.display = 'none';
@@ -163,6 +167,7 @@ function preencherFormulario(tarefaId) {
     
     document.getElementById('tarefaTitulo').value = tarefa.titulo;
     document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
+    document.getElementById('tarefaSistema').value = tarefa.sistemaId || '';
     document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
     document.getElementById('tarefaStatus').value = tarefa.status;
     document.getElementById('tarefaDataInicio').value = tarefa.dataInicio || '';
@@ -182,6 +187,7 @@ async function salvarTarefa() {
     const tarefa = {
         titulo: document.getElementById('tarefaTitulo').value,
         descricao: document.getElementById('tarefaDescricao').value,
+        sistemaId: document.getElementById('tarefaSistema').value || null,
         prioridade: document.getElementById('tarefaPrioridade').value,
         status: document.getElementById('tarefaStatus').value,
         dataInicio: document.getElementById('tarefaDataInicio').value,
@@ -209,6 +215,43 @@ async function salvarTarefa() {
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa:', error);
         mostrarNotificacao('Erro ao salvar tarefa: ' + error.message, 'error');
+    }
+}
+
+// Função para carregar sistemas para vinculação
+async function carregarSistemasParaVinculo() {
+    console.log('📊 Carregando sistemas para vinculação...');
+    
+    try {
+        const snapshot = await db.collection('sistemas').get();
+        const sistemas = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Sistemas carregados:', sistemas.length);
+
+        // Preencher select de sistemas
+        const selectSistema = document.getElementById('tarefaSistema');
+        selectSistema.innerHTML = '<option value="">Nenhum sistema (tarefa independente)</option>';
+        
+        sistemas.forEach(sistema => {
+            const option = `<option value="${sistema.id}">${sistema.nome}</option>`;
+            selectSistema.innerHTML += option;
+        });
+        
+        // Também preencher em um filtro opcional
+        const selectFiltroSistema = document.getElementById('filterSistema');
+        if (selectFiltroSistema) {
+            selectFiltroSistema.innerHTML = '<option value="">Todos os sistemas</option>';
+            sistemas.forEach(sistema => {
+                const option = `<option value="${sistema.id}">${sistema.nome}</option>`;
+                selectFiltroSistema.innerHTML += option;
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar sistemas:', error);
     }
 }
 
