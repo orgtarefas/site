@@ -80,7 +80,7 @@ function configurarFirebase() {
     db.collection("tarefas")
         .orderBy("dataCriacao", "desc")
         .onSnapshot(
-            (snapshot) => {
+            async (snapshot) => {
                 console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
                 tarefas = snapshot.docs.map(doc => ({
                     id: doc.id,
@@ -92,7 +92,8 @@ function configurarFirebase() {
                 document.getElementById('mainContent').style.display = 'block';
                 document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Tempo Real';
                 
-                atualizarInterface();
+                // Usar a nova função que busca atividades
+                await atualizarListaTarefas();
                 console.log('🎉 Sistema carregado com sucesso!');
             },
             (error) => {
@@ -219,6 +220,57 @@ async function salvarTarefa() {
     }
 }
 
+
+// Função para buscar atividades de um sistema específico
+async function buscarAtividadesDoSistema(sistemaId) {
+    console.log(`🔍 Buscando atividades do sistema: ${sistemaId}`);
+    
+    try {
+        const snapshot = await db.collection('atividades')
+            .where('sistemaId', '==', sistemaId)
+            .get();
+        
+        if (!snapshot.empty) {
+            const atividades = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            console.log(`✅ ${atividades.length} atividades encontradas para o sistema ${sistemaId}`);
+            return atividades;
+        } else {
+            console.log(`📂 Nenhuma atividade encontrada para o sistema ${sistemaId}`);
+            return [];
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividades do sistema:', error);
+        return [];
+    }
+}
+
+// Função para buscar informações do sistema pelo ID
+async function buscarInformacoesSistema(sistemaId) {
+    console.log(`🔍 Buscando informações do sistema: ${sistemaId}`);
+    
+    try {
+        const doc = await db.collection('sistemas').doc(sistemaId).get();
+        
+        if (doc.exists) {
+            const sistema = { id: doc.id, ...doc.data() };
+            console.log(`✅ Sistema encontrado: ${sistema.nome}`);
+            return sistema;
+        } else {
+            console.log(`❌ Sistema não encontrado: ${sistemaId}`);
+            return null;
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar informações do sistema:', error);
+        return null;
+    }
+}
+
 // Função para carregar sistemas para vinculação
 async function carregarSistemasParaVinculo() {
     console.log('📊 Carregando sistemas para vinculação...');
@@ -288,7 +340,7 @@ function atualizarEstatisticas() {
     document.getElementById('tarefas-concluidas').textContent = concluidas;
 }
 
-function atualizarListaTarefas() {
+async function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
@@ -302,6 +354,116 @@ function atualizarListaTarefas() {
         `;
         return;
     }
+
+    // Usar Promise.all para buscar atividades de todas as tarefas vinculadas
+    const tarefasComAtividades = await Promise.all(
+        tarefasFiltradas.map(async (tarefa) => {
+            let sistemaInfo = '';
+            let atividadesSistema = '';
+            
+            if (tarefa.sistemaId) {
+                // Buscar informações do sistema
+                const sistema = await buscarInformacoesSistema(tarefa.sistemaId);
+                
+                if (sistema) {
+                    sistemaInfo = `
+                        <div class="sistema-vinculado">
+                            <i class="fas fa-project-diagram"></i>
+                            <span class="sistema-nome">Sistema: ${sistema.nome}</span>
+                            <span class="sistema-status">${sistema.descricao || ''}</span>
+                        </div>
+                    `;
+                    
+                    // Buscar atividades do sistema
+                    const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
+                    
+                    if (atividades.length > 0) {
+                        atividadesSistema = `
+                            <div class="atividades-sistema">
+                                <div class="atividades-header">
+                                    <i class="fas fa-list-check"></i>
+                                    <strong>Atividades do Sistema:</strong>
+                                </div>
+                                <div class="atividades-lista">
+                                    ${atividades.map(atividade => `
+                                        <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''}">
+                                            <i class="fas fa-${getIconStatusAtividade(atividade.status)}"></i>
+                                            <span class="atividade-titulo">${atividade.titulo}</span>
+                                            <span class="atividade-status badge status-${atividade.status}">
+                                                ${atividade.status === 'pendente' ? 'Pendente' : 
+                                                  atividade.status === 'andamento' ? 'Em Andamento' : 'Concluída'}
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        atividadesSistema = `
+                            <div class="atividades-sistema sem-atividades">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Este sistema ainda não tem atividades cadastradas</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    sistemaInfo = `
+                        <div class="sistema-vinculado erro">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Sistema não encontrado (ID: ${tarefa.sistemaId})</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            return { ...tarefa, sistemaInfo, atividadesSistema };
+        })
+    );
+
+    // Renderizar as tarefas com as atividades
+    container.innerHTML = tarefasComAtividades.map(tarefa => `
+        <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
+            <div class="task-header">
+                <div>
+                    <div class="task-title">${tarefa.titulo}</div>
+                    ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
+                    ${tarefa.sistemaInfo || ''}
+                </div>
+            </div>
+            
+            <div class="task-meta">
+                <span class="badge prioridade-${tarefa.prioridade}">
+                    ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
+                </span>
+                <span class="badge status-${tarefa.status}">
+                    ${tarefa.status === 'pendente' ? 'Pendente' : 
+                      tarefa.status === 'andamento' ? 'Em Andamento' : 'Concluído'}
+                </span>
+                ${tarefa.responsavel ? `
+                    <span class="task-responsavel">
+                        <i class="fas fa-user"></i> ${tarefa.responsavel}
+                    </span>
+                ` : ''}
+            </div>
+
+            ${tarefa.atividadesSistema || ''}
+
+            <div class="task-meta">
+                ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
+                <small><i class="fas fa-flag-checkered"></i> ${formatarData(tarefa.dataFim)}</small>
+            </div>
+
+            <div class="task-actions">
+                <button class="btn btn-outline btn-sm" onclick="abrirModalTarefa('${tarefa.id}')">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="excluirTarefa('${tarefa.id}')">
+                    <i class="fas fa-trash"></i> Excluir
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
 
     container.innerHTML = tarefasFiltradas.map(tarefa => {
         // Buscar informações do sistema se estiver vinculada
@@ -369,6 +531,17 @@ function atualizarListaTarefas() {
         </div>
     `}).join('');
 }
+
+// Função auxiliar para ícone de status
+function getIconStatusAtividade(status) {
+    switch(status) {
+        case 'pendente': return 'clock';
+        case 'andamento': return 'spinner';
+        case 'concluido': return 'check-circle';
+        default: return 'question-circle';
+    }
+}
+
 
 function filtrarTarefas() {
     const termo = document.getElementById('searchInput').value.toLowerCase();
