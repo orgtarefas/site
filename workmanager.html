@@ -95,20 +95,31 @@
                             <label for="grupoCor"><i class="fas fa-palette"></i> Cor de Identificação</label>
                             <input type="color" id="grupoCor" class="form-control" value="#4a6fa5">
                         </div>
-                        <!-- Adicionar membros inicial -->
-                        <div class="form-group" id="membrosContainer">
+                        <!-- Buscar usuários -->
+                        <div class="form-group" id="usuariosContainer">
                             <label><i class="fas fa-user-plus"></i> Adicionar Membros (opcional)</label>
                             <div class="input-group">
-                                <input type="text" id="novoMembro" class="form-control" 
-                                       placeholder="Digite o email do membro...">
-                                <button type="button" class="btn btn-outline" onclick="adicionarMembro()">
-                                    <i class="fas fa-plus"></i> Adicionar
+                                <input type="text" id="buscarUsuario" class="form-control" 
+                                       placeholder="Buscar usuários pelo nome ou email..."
+                                       onkeyup="filtrarUsuarios(this.value)">
+                                <button type="button" class="btn btn-outline" onclick="carregarUsuarios()">
+                                    <i class="fas fa-sync-alt"></i>
                                 </button>
                             </div>
-                            <div class="membros-lista" id="membrosLista">
-                                <!-- Membros serão adicionados aqui -->
+                            <div class="usuarios-lista" id="usuariosLista" style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
+                                <!-- Usuários serão carregados aqui -->
+                                <div class="empty-membros">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Carregando usuários...</span>
+                                </div>
                             </div>
-                            <small class="text-muted">Os membros adicionados receberão um convite para o grupo.</small>
+                            <div class="membros-selecionados" id="membrosSelecionados" style="margin-top: 15px;">
+                                <h4>Membros Selecionados:</h4>
+                                <div id="listaMembrosSelecionados">
+                                    <!-- Membros selecionados aparecerão aqui -->
+                                </div>
+                            </div>
+                            <small class="text-muted">Selecione os usuários que deseja adicionar ao grupo.</small>
                         </div>
                     </form>
                 </div>
@@ -135,11 +146,15 @@
                     <div class="form-group" style="margin-top: 20px;">
                         <label><i class="fas fa-user-plus"></i> Adicionar Novo Membro</label>
                         <div class="input-group">
-                            <input type="text" id="novoMembroConvite" class="form-control" 
-                                   placeholder="Digite o email do novo membro...">
-                            <button type="button" class="btn btn-primary" onclick="convidarMembro()">
+                            <input type="text" id="buscarUsuarioParaConvite" class="form-control" 
+                                   placeholder="Buscar usuários pelo nome ou email..."
+                                   onkeyup="filtrarUsuariosParaConvite(this.value)">
+                            <button type="button" class="btn btn-primary" onclick="convidarUsuarioSelecionado()">
                                 <i class="fas fa-paper-plane"></i> Convidar
                             </button>
+                        </div>
+                        <div class="usuarios-lista" id="usuariosParaConvite" style="max-height: 150px; overflow-y: auto; margin-top: 10px;">
+                            <!-- Usuários para convite -->
                         </div>
                     </div>
                 </div>
@@ -167,7 +182,7 @@
         </div>
     </div>
 
-    <!-- Firebase v12 COMPLETO -->
+    <!-- Firebase v12 -->
     <script type="module">
         console.log('=== INICIANDO FIREBASE v12 ===');
         
@@ -246,10 +261,12 @@
                 this.grupos = [];
                 this.filtroAtual = 'meus';
                 this.grupoEditando = null;
-                this.membrosParaAdicionar = [];
+                this.usuarios = []; // Lista de usuários do sistema
+                this.membrosSelecionados = new Set(); // Usuários selecionados para adicionar
                 this.grupoSelecionado = null;
                 this.acaoConfirmacao = null;
                 this.dadosConfirmacao = null;
+                this.usuarioParaConvitar = null;
             }
             
             async init() {
@@ -263,6 +280,9 @@
                 
                 // 3. Carregar dados
                 await this.carregarDados();
+                
+                // 4. Carregar usuários
+                await this.carregarUsuarios();
             }
             
             verificarLogin() {
@@ -311,10 +331,6 @@
                     
                     this.atualizarStatus('📡 Conectando ao banco de dados...');
                     
-                    // Testar conexão
-                    const testRef = modules.collection(modules.db, 'usuarios');
-                    await modules.getDocs(testRef);
-                    
                     // Carregar grupos do usuário
                     await this.carregarGrupos();
                     
@@ -327,13 +343,43 @@
                 }
             }
             
+            async carregarUsuarios() {
+                try {
+                    const modules = window.firebaseModules;
+                    const usuariosRef = modules.collection(modules.db, 'usuarios');
+                    const snapshot = await modules.getDocs(usuariosRef);
+                    
+                    this.usuarios = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            ...data
+                        };
+                    }).filter(usuario => 
+                        // Filtrar o usuário atual
+                        usuario.id !== this.usuarioAtual.usuario
+                    );
+                    
+                    console.log(`✅ ${this.usuarios.length} usuários carregados`);
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao carregar usuários:', error);
+                    this.usuarios = [];
+                }
+            }
+            
             async carregarGrupos() {
                 try {
                     const modules = window.firebaseModules;
                     
-                    // Buscar todos os grupos e filtrar localmente
+                    // Buscar grupos onde o usuário é membro
                     const gruposRef = modules.collection(modules.db, 'grupos');
-                    const snapshot = await modules.getDocs(gruposRef);
+                    const q = modules.query(
+                        gruposRef,
+                        modules.where('membros', 'array-contains', this.usuarioAtual.usuario)
+                    );
+                    
+                    const snapshot = await modules.getDocs(q);
                     
                     this.grupos = snapshot.docs.map(doc => {
                         const data = doc.data();
@@ -343,13 +389,13 @@
                             minhaPermissao: this.obterMinhaPermissao(data),
                             membroAtual: this.obterMembroAtual(data)
                         };
-                    }).filter(grupo => grupo.minhaPermissao !== null); // Filtra grupos onde o usuário tem acesso
+                    });
                     
                     console.log(`✅ ${this.grupos.length} grupos carregados`);
                     this.atualizarStatus('✅ Conectado - ' + this.grupos.length + ' grupos');
                     
                     // Configurar listener em tempo real
-                    this.configurarListenerTempoReal();
+                    this.configurarListenerTempoReal(q);
                     
                 } catch (error) {
                     console.error('❌ Erro ao carregar grupos:', error);
@@ -360,22 +406,32 @@
             obterMinhaPermissao(grupo) {
                 if (!grupo.membros || !Array.isArray(grupo.membros)) return null;
                 
+                // Primeiro verifica se é uma string simples
+                if (grupo.membros.some(m => m === this.usuarioAtual.usuario)) {
+                    return 'membro';
+                }
+                
+                // Depois verifica se é um objeto
                 for (const membro of grupo.membros) {
-                    if (typeof membro === 'string') {
-                        if (membro === this.usuarioAtual.usuario) return 'membro';
-                    } else if (membro && typeof membro === 'object') {
+                    if (membro && typeof membro === 'object') {
                         if (membro.usuarioId === this.usuarioAtual.usuario) {
                             return membro.permissao || 'membro';
                         }
                     }
                 }
                 
-                return null; // Usuário não é membro
+                return null;
             }
             
             obterMembroAtual(grupo) {
                 if (!grupo.membros || !Array.isArray(grupo.membros)) return null;
                 
+                // Primeiro verifica se é uma string simples
+                if (grupo.membros.some(m => m === this.usuarioAtual.usuario)) {
+                    return { usuarioId: this.usuarioAtual.usuario, permissao: 'membro' };
+                }
+                
+                // Depois verifica se é um objeto
                 for (const membro of grupo.membros) {
                     if (membro && typeof membro === 'object') {
                         if (membro.usuarioId === this.usuarioAtual.usuario) {
@@ -387,12 +443,11 @@
                 return null;
             }
             
-            configurarListenerTempoReal() {
+            configurarListenerTempoReal(q) {
                 try {
                     const modules = window.firebaseModules;
-                    const gruposRef = modules.collection(modules.db, 'grupos');
                     
-                    const unsubscribe = modules.onSnapshot(gruposRef, 
+                    const unsubscribe = modules.onSnapshot(q, 
                         (snapshot) => {
                             console.log('🔄 Grupos atualizados em tempo real:', snapshot.size);
                             
@@ -404,7 +459,7 @@
                                     minhaPermissao: this.obterMinhaPermissao(data),
                                     membroAtual: this.obterMembroAtual(data)
                                 };
-                            }).filter(grupo => grupo.minhaPermissao !== null);
+                            });
                             
                             this.atualizarInterfaceGrupos();
                             this.atualizarBadgeConvites();
@@ -601,24 +656,6 @@
                 }
             }
             
-            atualizarInterfaceComGrupos(gruposFiltrados) {
-                const container = document.getElementById('groupsContainer');
-                if (!container) return;
-                
-                if (gruposFiltrados.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-search"></i>
-                            <h3>Nenhum grupo encontrado</h3>
-                            <p>Tente usar outros termos de busca.</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                this.atualizarInterfaceGrupos();
-            }
-            
             atualizarBadgeConvites() {
                 const badge = document.getElementById('badgeConvites');
                 if (badge) {
@@ -636,9 +673,9 @@
             
             // ========== CRIAÇÃO DE GRUPOS ==========
             
-            abrirModalGrupo(grupoId = null) {
+            async abrirModalGrupo(grupoId = null) {
                 this.grupoEditando = grupoId;
-                this.membrosParaAdicionar = [];
+                this.membrosSelecionados.clear();
                 
                 const modal = document.getElementById('modalGrupo');
                 const titulo = document.getElementById('modalGrupoTitulo');
@@ -655,6 +692,16 @@
                     document.getElementById('grupoNome').value = grupo.nome || '';
                     document.getElementById('grupoDescricao').value = grupo.descricao || '';
                     document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
+                    
+                    // Carregar membros já existentes
+                    if (grupo.membros && Array.isArray(grupo.membros)) {
+                        for (const membro of grupo.membros) {
+                            if (membro && typeof membro === 'object' && membro.usuarioId !== this.usuarioAtual.usuario) {
+                                this.membrosSelecionados.add(membro.usuarioId);
+                            }
+                        }
+                    }
+                    
                 } else {
                     // Modo criação
                     titulo.textContent = 'Novo Grupo de Trabalho';
@@ -665,7 +712,11 @@
                     document.getElementById('grupoCor').value = '#4a6fa5';
                 }
                 
-                this.atualizarListaMembros();
+                // Atualizar lista de usuários e membros selecionados
+                await this.carregarUsuarios();
+                this.exibirUsuarios();
+                this.atualizarListaMembrosSelecionados();
+                
                 modal.style.display = 'block';
             }
             
@@ -673,7 +724,7 @@
                 const modal = document.getElementById('modalGrupo');
                 modal.style.display = 'none';
                 this.grupoEditando = null;
-                this.membrosParaAdicionar = [];
+                this.membrosSelecionados.clear();
             }
             
             async salvarGrupo() {
@@ -703,35 +754,26 @@
                             descricao: descricao || '',
                             cor: cor,
                             criador: this.usuarioAtual.usuario,
+                            criadorNome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
                             dataCriacao: modules.serverTimestamp(),
                             dataAtualizacao: modules.serverTimestamp(),
                             membros: [
-                                {
-                                    usuarioId: this.usuarioAtual.usuario,
-                                    nome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
-                                    email: this.usuarioAtual.email || '',
-                                    permissao: 'admin',
-                                    dataIngresso: modules.serverTimestamp()
-                                }
+                                this.usuarioAtual.usuario // Criador como primeiro membro (string simples)
                             ],
                             tarefas: []
                         };
                         
-                        // Adicionar outros membros se houver
-                        if (this.membrosParaAdicionar.length > 0) {
-                            this.membrosParaAdicionar.forEach(email => {
-                                grupoData.membros.push({
-                                    usuarioId: email,
-                                    email: email,
-                                    permissao: 'pendente',
-                                    dataConvite: modules.serverTimestamp()
-                                });
-                            });
+                        // Adicionar outros membros selecionados
+                        for (const usuarioId of this.membrosSelecionados) {
+                            grupoData.membros.push(usuarioId);
                         }
                         
-                        const gruposRef = modules.collection(modules.db, 'grupos');
-                        await modules.addDoc(gruposRef, grupoData);
+                        console.log('📝 Salvando grupo:', grupoData);
                         
+                        const gruposRef = modules.collection(modules.db, 'grupos');
+                        const docRef = await modules.addDoc(gruposRef, grupoData);
+                        
+                        console.log('✅ Grupo criado com ID:', docRef.id);
                         this.mostrarAlerta('✅ Grupo criado com sucesso!', 'success');
                     }
                     
@@ -755,66 +797,189 @@
                 });
             }
             
-            adicionarMembro() {
-                const input = document.getElementById('novoMembro');
-                const email = input.value.trim().toLowerCase();
-                
-                if (!email) {
-                    this.mostrarAlerta('⚠️ Por favor, informe um email', 'warning');
-                    return;
+            // ========== GERENCIAMENTO DE USUÁRIOS ==========
+            
+            async carregarUsuarios() {
+                try {
+                    const modules = window.firebaseModules;
+                    const usuariosRef = modules.collection(modules.db, 'usuarios');
+                    const snapshot = await modules.getDocs(usuariosRef);
+                    
+                    this.usuarios = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            ...data
+                        };
+                    }).filter(usuario => 
+                        // Filtrar o usuário atual
+                        usuario.id !== this.usuarioAtual.usuario
+                    );
+                    
+                    console.log(`✅ ${this.usuarios.length} usuários carregados`);
+                    return this.usuarios;
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao carregar usuários:', error);
+                    this.usuarios = [];
+                    return [];
                 }
-                
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    this.mostrarAlerta('⚠️ Por favor, informe um email válido', 'warning');
-                    return;
-                }
-                
-                if (email === this.usuarioAtual.email?.toLowerCase() || 
-                    email === this.usuarioAtual.usuario?.toLowerCase()) {
-                    this.mostrarAlerta('⚠️ Você já é o administrador deste grupo', 'info');
-                    return;
-                }
-                
-                if (this.membrosParaAdicionar.includes(email)) {
-                    this.mostrarAlerta('⚠️ Este membro já foi adicionado', 'info');
-                    return;
-                }
-                
-                this.membrosParaAdicionar.push(email);
-                this.atualizarListaMembros();
-                input.value = '';
-                input.focus();
             }
             
-            removerMembro(index) {
-                this.membrosParaAdicionar.splice(index, 1);
-                this.atualizarListaMembros();
-            }
-            
-            atualizarListaMembros() {
-                const container = document.getElementById('membrosLista');
+            exibirUsuarios(termoBusca = '') {
+                const container = document.getElementById('usuariosLista');
                 if (!container) return;
                 
-                if (this.membrosParaAdicionar.length === 0) {
+                let usuariosFiltrados = this.usuarios;
+                
+                if (termoBusca) {
+                    const termo = termoBusca.toLowerCase();
+                    usuariosFiltrados = usuariosFiltrados.filter(usuario =>
+                        (usuario.nome && usuario.nome.toLowerCase().includes(termo)) ||
+                        (usuario.email && usuario.email.toLowerCase().includes(termo)) ||
+                        usuario.id.toLowerCase().includes(termo)
+                    );
+                }
+                
+                if (usuariosFiltrados.length === 0) {
                     container.innerHTML = `
                         <div class="empty-membros">
-                            <i class="fas fa-user-plus"></i>
-                            <span>Nenhum membro adicionado ainda</span>
+                            <i class="fas fa-search"></i>
+                            <span>Nenhum usuário encontrado</span>
                         </div>
                     `;
                     return;
                 }
                 
-                container.innerHTML = this.membrosParaAdicionar.map((email, index) => `
-                    <div class="membro-item">
-                        <i class="fas fa-user"></i>
-                        <span>${email}</span>
-                        <button type="button" class="btn-remover" onclick="workManager.removerMembro(${index})">
-                            <i class="fas fa-times"></i>
-                        </button>
+                container.innerHTML = usuariosFiltrados.map(usuario => {
+                    const estaSelecionado = this.membrosSelecionados.has(usuario.id);
+                    
+                    return `
+                        <div class="usuario-item ${estaSelecionado ? 'selecionado' : ''}" 
+                             onclick="workManager.toggleSelecaoUsuario('${usuario.id}')">
+                            <i class="fas fa-user${estaSelecionado ? '-check' : ''}"></i>
+                            <div class="usuario-info">
+                                <strong>${usuario.nome || usuario.id}</strong>
+                                <small>${usuario.email || usuario.id}</small>
+                            </div>
+                            ${estaSelecionado ? '<i class="fas fa-check-circle" style="color: #28a745;"></i>' : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            exibirUsuariosParaConvite(termoBusca = '') {
+                const container = document.getElementById('usuariosParaConvite');
+                if (!container || !this.grupoSelecionado) return;
+                
+                // Obter membros atuais do grupo
+                const grupo = this.grupos.find(g => g.id === this.grupoSelecionado);
+                const membrosAtuais = new Set();
+                
+                if (grupo && grupo.membros) {
+                    grupo.membros.forEach(membro => {
+                        if (typeof membro === 'string') {
+                            membrosAtuais.add(membro);
+                        } else if (membro && typeof membro === 'object') {
+                            membrosAtuais.add(membro.usuarioId);
+                        }
+                    });
+                }
+                
+                let usuariosFiltrados = this.usuarios.filter(usuario => 
+                    !membrosAtuais.has(usuario.id)
+                );
+                
+                if (termoBusca) {
+                    const termo = termoBusca.toLowerCase();
+                    usuariosFiltrados = usuariosFiltrados.filter(usuario =>
+                        (usuario.nome && usuario.nome.toLowerCase().includes(termo)) ||
+                        (usuario.email && usuario.email.toLowerCase().includes(termo)) ||
+                        usuario.id.toLowerCase().includes(termo)
+                    );
+                }
+                
+                if (usuariosFiltrados.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-membros">
+                            <i class="fas fa-search"></i>
+                            <span>Nenhum usuário disponível para convite</span>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = usuariosFiltrados.map(usuario => `
+                    <div class="usuario-item" onclick="workManager.selecionarUsuarioParaConvite('${usuario.id}')">
+                        <i class="fas fa-user-plus"></i>
+                        <div class="usuario-info">
+                            <strong>${usuario.nome || usuario.id}</strong>
+                            <small>${usuario.email || usuario.id}</small>
+                        </div>
                     </div>
                 `).join('');
+            }
+            
+            toggleSelecaoUsuario(usuarioId) {
+                if (this.membrosSelecionados.has(usuarioId)) {
+                    this.membrosSelecionados.delete(usuarioId);
+                } else {
+                    this.membrosSelecionados.add(usuarioId);
+                }
+                
+                this.exibirUsuarios(document.getElementById('buscarUsuario')?.value || '');
+                this.atualizarListaMembrosSelecionados();
+            }
+            
+            atualizarListaMembrosSelecionados() {
+                const container = document.getElementById('listaMembrosSelecionados');
+                if (!container) return;
+                
+                if (this.membrosSelecionados.size === 0) {
+                    container.innerHTML = `
+                        <div class="empty-membros">
+                            <i class="fas fa-users"></i>
+                            <span>Nenhum membro selecionado</span>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = Array.from(this.membrosSelecionados).map(usuarioId => {
+                    const usuario = this.usuarios.find(u => u.id === usuarioId);
+                    return `
+                        <div class="membro-selecionado-item">
+                            <i class="fas fa-user"></i>
+                            <span>${usuario ? (usuario.nome || usuario.email || usuario.id) : usuarioId}</span>
+                            <button type="button" class="btn-remover" onclick="workManager.removerMembroSelecionado('${usuarioId}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            removerMembroSelecionado(usuarioId) {
+                this.membrosSelecionados.delete(usuarioId);
+                this.exibirUsuarios(document.getElementById('buscarUsuario')?.value || '');
+                this.atualizarListaMembrosSelecionados();
+            }
+            
+            filtrarUsuarios(termo) {
+                this.exibirUsuarios(termo);
+            }
+            
+            filtrarUsuariosParaConvite(termo) {
+                this.exibirUsuariosParaConvite(termo);
+            }
+            
+            selecionarUsuarioParaConvite(usuarioId) {
+                this.usuarioParaConvitar = usuarioId;
+                const input = document.getElementById('buscarUsuarioParaConvite');
+                if (input) {
+                    const usuario = this.usuarios.find(u => u.id === usuarioId);
+                    input.value = usuario ? (usuario.nome || usuario.email || usuarioId) : usuarioId;
+                }
             }
             
             // ========== GERENCIAR MEMBROS ==========
@@ -828,10 +993,13 @@
                     return;
                 }
                 
+                // Carregar usuários novamente para garantir dados atualizados
+                await this.carregarUsuarios();
+                
                 const modal = document.getElementById('modalMembros');
                 const lista = document.getElementById('membrosAtuaisLista');
                 
-                // Carregar membros do grupo
+                // Carregar membros do grupo com informações completas
                 let html = '<h3 style="margin-bottom: 15px;">Membros do Grupo</h3>';
                 
                 if (!grupo.membros || grupo.membros.length === 0) {
@@ -840,78 +1008,80 @@
                     html += '<div class="lista-membros">';
                     
                     for (const membro of grupo.membros) {
+                        let usuarioId, permissao, nome, email;
+                        
                         if (typeof membro === 'string') {
                             // Formato antigo - apenas usuário ID
-                            html += `
-                                <div class="membro-item">
-                                    <i class="fas fa-user"></i>
-                                    <span>${membro}</span>
-                                    <span class="permissao-badge membro">Membro</span>
-                                </div>
-                            `;
+                            usuarioId = membro;
+                            permissao = 'membro';
+                            const usuarioInfo = this.usuarios.find(u => u.id === usuarioId);
+                            nome = usuarioInfo?.nome || usuarioId;
+                            email = usuarioInfo?.email || usuarioId;
                         } else {
-                            // Formato novo - objeto completo
-                            const isAdmin = membro.permissao === 'admin';
-                            const isPending = membro.permissao === 'pendente';
-                            const isCurrentUser = membro.usuarioId === this.usuarioAtual.usuario;
-                            
-                            html += `
-                                <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
-                                    <i class="fas fa-user${isAdmin ? '-shield' : isPending ? '-clock' : ''}"></i>
-                                    <div class="membro-info">
-                                        <strong>${membro.nome || membro.email || membro.usuarioId}</strong>
-                                        <small>${membro.email || membro.usuarioId}</small>
-                                    </div>
-                                    <span class="permissao-badge ${membro.permissao}">
-                                        ${membro.permissao === 'admin' ? 'Administrador' : 
-                                          membro.permissao === 'pendente' ? 'Pendente' : 'Membro'}
-                                    </span>
-                                    ${!isCurrentUser && grupo.minhaPermissao === 'admin' ? `
-                                        <div class="membro-acoes">
-                                            ${!isPending ? `
-                                                <button class="btn-icon" onclick="workManager.alterarPermissao('${grupoId}', '${membro.usuarioId}', '${membro.permissao === 'admin' ? 'membro' : 'admin'}')">
-                                                    <i class="fas fa-${membro.permissao === 'admin' ? 'user' : 'user-shield'}"></i>
-                                                </button>
-                                                <button class="btn-icon btn-danger" onclick="workManager.removerMembroGrupo('${grupoId}', '${membro.usuarioId}')">
-                                                    <i class="fas fa-user-times"></i>
-                                                </button>
-                                            ` : `
-                                                <button class="btn-icon btn-danger" onclick="workManager.cancelarConvite('${grupoId}', '${membro.usuarioId}')">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            `}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `;
+                            // Formato novo - objeto
+                            usuarioId = membro.usuarioId;
+                            permissao = membro.permissao || 'membro';
+                            nome = membro.nome || this.obterNomeUsuario(usuarioId) || usuarioId;
+                            email = membro.email || usuarioId;
                         }
+                        
+                        const isAdmin = permissao === 'admin';
+                        const isPending = permissao === 'pendente';
+                        const isCurrentUser = usuarioId === this.usuarioAtual.usuario;
+                        
+                        html += `
+                            <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
+                                <i class="fas fa-user${isAdmin ? '-shield' : isPending ? '-clock' : ''}"></i>
+                                <div class="membro-info">
+                                    <strong>${nome}</strong>
+                                    <small>${email}</small>
+                                </div>
+                                <span class="permissao-badge ${permissao}">
+                                    ${permissao === 'admin' ? 'Administrador' : 
+                                      permissao === 'pendente' ? 'Pendente' : 'Membro'}
+                                </span>
+                                ${!isCurrentUser && grupo.minhaPermissao === 'admin' ? `
+                                    <div class="membro-acoes">
+                                        ${!isPending ? `
+                                            <button class="btn-icon" onclick="workManager.alterarPermissao('${grupoId}', '${usuarioId}', '${permissao === 'admin' ? 'membro' : 'admin'}')">
+                                                <i class="fas fa-${permissao === 'admin' ? 'user' : 'user-shield'}"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn-icon btn-danger" onclick="workManager.removerMembroGrupo('${grupoId}', '${usuarioId}')">
+                                            <i class="fas fa-user-times"></i>
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
                     }
                     
                     html += '</div>';
                 }
                 
                 lista.innerHTML = html;
+                
+                // Atualizar lista de usuários para convite
+                this.exibirUsuariosParaConvite('');
+                
                 modal.style.display = 'block';
+            }
+            
+            obterNomeUsuario(usuarioId) {
+                const usuario = this.usuarios.find(u => u.id === usuarioId);
+                return usuario ? (usuario.nome || usuario.email) : null;
             }
             
             fecharModalMembros() {
                 const modal = document.getElementById('modalMembros');
                 modal.style.display = 'none';
                 this.grupoSelecionado = null;
+                this.usuarioParaConvitar = null;
             }
             
-            async convidarMembro() {
-                const input = document.getElementById('novoMembroConvite');
-                const email = input.value.trim().toLowerCase();
-                
-                if (!email) {
-                    this.mostrarAlerta('⚠️ Por favor, informe um email', 'warning');
-                    return;
-                }
-                
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    this.mostrarAlerta('⚠️ Por favor, informe um email válido', 'warning');
+            async convidarUsuarioSelecionado() {
+                if (!this.usuarioParaConvitar) {
+                    this.mostrarAlerta('⚠️ Por favor, selecione um usuário primeiro', 'warning');
                     return;
                 }
                 
@@ -923,39 +1093,46 @@
                 try {
                     const modules = window.firebaseModules;
                     const grupoRef = modules.doc(modules.db, 'grupos', this.grupoSelecionado);
-                    
-                    // Verificar se o membro já está no grupo
                     const grupoDoc = await modules.getDoc(grupoRef);
                     const grupoData = grupoDoc.data();
                     
+                    // Verificar se o usuário já está no grupo
+                    let jaEstaNoGrupo = false;
                     if (grupoData.membros) {
                         for (const membro of grupoData.membros) {
-                            if (typeof membro === 'string' && membro === email) {
-                                this.mostrarAlerta('⚠️ Este usuário já é membro do grupo', 'warning');
-                                return;
-                            } else if (membro && membro.usuarioId === email) {
-                                this.mostrarAlerta('⚠️ Este usuário já está no grupo', 'warning');
-                                return;
+                            if (typeof membro === 'string' && membro === this.usuarioParaConvitar) {
+                                jaEstaNoGrupo = true;
+                                break;
+                            } else if (membro && membro.usuarioId === this.usuarioParaConvitar) {
+                                jaEstaNoGrupo = true;
+                                break;
                             }
                         }
                     }
                     
-                    // Adicionar membro como pendente
+                    if (jaEstaNoGrupo) {
+                        this.mostrarAlerta('⚠️ Este usuário já está no grupo', 'warning');
+                        return;
+                    }
+                    
+                    // Adicionar usuário como membro pendente
                     await modules.updateDoc(grupoRef, {
-                        membros: modules.arrayUnion({
-                            usuarioId: email,
-                            email: email,
-                            permissao: 'pendente',
-                            dataConvite: modules.serverTimestamp()
-                        }),
+                        membros: modules.arrayUnion(this.usuarioParaConvitar), // String simples
                         dataAtualizacao: modules.serverTimestamp()
                     });
                     
                     this.mostrarAlerta('✅ Convite enviado com sucesso!', 'success');
-                    input.value = '';
+                    
+                    // Limpar seleção
+                    this.usuarioParaConvitar = null;
+                    const input = document.getElementById('buscarUsuarioParaConvite');
+                    if (input) input.value = '';
+                    
+                    // Atualizar lista
+                    this.exibirUsuariosParaConvite('');
                     
                 } catch (error) {
-                    console.error('❌ Erro ao convidar membro:', error);
+                    console.error('❌ Erro ao convidar usuário:', error);
                     this.mostrarAlerta(`❌ Erro: ${error.message}`, 'error');
                 }
             }
@@ -967,13 +1144,38 @@
                     const grupoDoc = await modules.getDoc(grupoRef);
                     const grupoData = grupoDoc.data();
                     
-                    // Encontrar e atualizar o membro
-                    const membrosAtualizados = grupoData.membros.map(membro => {
-                        if (typeof membro === 'object' && membro.usuarioId === usuarioId) {
-                            return { ...membro, permissao: novaPermissao };
+                    // Para permissões, precisamos converter para objetos
+                    let membrosAtualizados = [];
+                    let encontrou = false;
+                    
+                    if (grupoData.membros) {
+                        membrosAtualizados = grupoData.membros.map(membro => {
+                            if (typeof membro === 'string' && membro === usuarioId) {
+                                encontrou = true;
+                                return { 
+                                    usuarioId: usuarioId, 
+                                    permissao: novaPermissao 
+                                };
+                            } else if (membro && typeof membro === 'object' && membro.usuarioId === usuarioId) {
+                                encontrou = true;
+                                return { ...membro, permissao: novaPermissao };
+                            }
+                            return membro;
+                        });
+                        
+                        // Se não encontrou como objeto, mas estava como string
+                        if (!encontrou && grupoData.membros.includes(usuarioId)) {
+                            membrosAtualizados = grupoData.membros.map(membro => {
+                                if (membro === usuarioId) {
+                                    return { 
+                                        usuarioId: usuarioId, 
+                                        permissao: novaPermissao 
+                                    };
+                                }
+                                return membro;
+                            });
                         }
-                        return membro;
-                    });
+                    }
                     
                     await modules.updateDoc(grupoRef, {
                         membros: membrosAtualizados,
@@ -1000,14 +1202,18 @@
                             const grupoData = grupoDoc.data();
                             
                             // Remover o membro da lista
-                            const membrosAtualizados = grupoData.membros.filter(membro => {
-                                if (typeof membro === 'string') {
-                                    return membro !== usuarioId;
-                                } else if (membro && typeof membro === 'object') {
-                                    return membro.usuarioId !== usuarioId;
-                                }
-                                return true;
-                            });
+                            let membrosAtualizados = [];
+                            
+                            if (grupoData.membros) {
+                                membrosAtualizados = grupoData.membros.filter(membro => {
+                                    if (typeof membro === 'string') {
+                                        return membro !== usuarioId;
+                                    } else if (membro && typeof membro === 'object') {
+                                        return membro.usuarioId !== usuarioId;
+                                    }
+                                    return true;
+                                });
+                            }
                             
                             await modules.updateDoc(grupoRef, {
                                 membros: membrosAtualizados,
@@ -1016,16 +1222,15 @@
                             
                             this.mostrarAlerta('✅ Membro removido com sucesso', 'success');
                             
+                            // Recarregar a lista de membros
+                            this.gerenciarMembros(grupoId);
+                            
                         } catch (error) {
                             console.error('❌ Erro ao remover membro:', error);
                             this.mostrarAlerta(`❌ Erro: ${error.message}`, 'error');
                         }
                     }
                 );
-            }
-            
-            async cancelarConvite(grupoId, usuarioId) {
-                await this.removerMembroGrupo(grupoId, usuarioId);
             }
             
             // ========== RESPONDER CONVITE ==========
@@ -1046,17 +1251,41 @@
                             const grupoData = grupoDoc.data();
                             
                             if (resposta === 'aceitar') {
-                                // Atualizar permissão de pendente para membro
-                                const membrosAtualizados = grupoData.membros.map(membro => {
-                                    if (typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario) {
-                                        return { 
-                                            ...membro, 
-                                            permissao: 'membro',
-                                            dataIngresso: modules.serverTimestamp()
-                                        };
+                                // Converter de pendente para membro
+                                let membrosAtualizados = [];
+                                
+                                if (grupoData.membros) {
+                                    membrosAtualizados = grupoData.membros.map(membro => {
+                                        if (typeof membro === 'string' && membro === this.usuarioAtual.usuario) {
+                                            return { 
+                                                usuarioId: this.usuarioAtual.usuario, 
+                                                permissao: 'membro'
+                                            };
+                                        } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario) {
+                                            return { 
+                                                ...membro, 
+                                                permissao: 'membro'
+                                            };
+                                        }
+                                        return membro;
+                                    });
+                                    
+                                    // Se não encontrou, adicionar como novo membro
+                                    if (!membrosAtualizados.some(m => 
+                                        (typeof m === 'string' && m === this.usuarioAtual.usuario) ||
+                                        (m && typeof m === 'object' && m.usuarioId === this.usuarioAtual.usuario)
+                                    )) {
+                                        membrosAtualizados.push({ 
+                                            usuarioId: this.usuarioAtual.usuario, 
+                                            permissao: 'membro'
+                                        });
                                     }
-                                    return membro;
-                                });
+                                } else {
+                                    membrosAtualizados = [{ 
+                                        usuarioId: this.usuarioAtual.usuario, 
+                                        permissao: 'membro'
+                                    }];
+                                }
                                 
                                 await modules.updateDoc(grupoRef, {
                                     membros: membrosAtualizados,
@@ -1066,12 +1295,18 @@
                                 this.mostrarAlerta('✅ Convite aceito! Bem-vindo ao grupo!', 'success');
                             } else {
                                 // Remover o usuário da lista de membros
-                                const membrosAtualizados = grupoData.membros.filter(membro => {
-                                    if (typeof membro === 'object') {
-                                        return membro.usuarioId !== this.usuarioAtual.usuario;
-                                    }
-                                    return true;
-                                });
+                                let membrosAtualizados = [];
+                                
+                                if (grupoData.membros) {
+                                    membrosAtualizados = grupoData.membros.filter(membro => {
+                                        if (typeof membro === 'string') {
+                                            return membro !== this.usuarioAtual.usuario;
+                                        } else if (membro && typeof membro === 'object') {
+                                            return membro.usuarioId !== this.usuarioAtual.usuario;
+                                        }
+                                        return true;
+                                    });
+                                }
                                 
                                 await modules.updateDoc(grupoRef, {
                                     membros: membrosAtualizados,
@@ -1103,14 +1338,18 @@
                             const grupoData = grupoDoc.data();
                             
                             // Remover o usuário da lista de membros
-                            const membrosAtualizados = grupoData.membros.filter(membro => {
-                                if (typeof membro === 'string') {
-                                    return membro !== this.usuarioAtual.usuario;
-                                } else if (membro && typeof membro === 'object') {
-                                    return membro.usuarioId !== this.usuarioAtual.usuario;
-                                }
-                                return true;
-                            });
+                            let membrosAtualizados = [];
+                            
+                            if (grupoData.membros) {
+                                membrosAtualizados = grupoData.membros.filter(membro => {
+                                    if (typeof membro === 'string') {
+                                        return membro !== this.usuarioAtual.usuario;
+                                    } else if (membro && typeof membro === 'object') {
+                                        return membro.usuarioId !== this.usuarioAtual.usuario;
+                                    }
+                                    return true;
+                                });
+                            }
                             
                             // Se não houver mais membros, excluir o grupo
                             if (membrosAtualizados.length === 0) {
@@ -1185,25 +1424,29 @@
                 const grupo = this.grupos.find(g => g.id === grupoId);
                 if (!grupo) return;
                 
+                // Obter informações dos membros
                 let membrosInfo = '';
                 if (grupo.membros && Array.isArray(grupo.membros)) {
-                    membrosInfo = '<h4>Membros:</h4><ul>';
-                    grupo.membros.forEach(membro => {
+                    membrosInfo = '<h4>Membros:</h4><ul style="list-style: none; padding-left: 0;">';
+                    grupo.membros.forEach((membro, index) => {
                         if (typeof membro === 'string') {
-                            membrosInfo += `<li>${membro}</li>`;
-                        } else {
-                            membrosInfo += `<li>${membro.nome || membro.email || membro.usuarioId} (${membro.permissao})</li>`;
+                            const usuario = this.usuarios.find(u => u.id === membro);
+                            membrosInfo += `<li>${index + 1}. ${usuario ? (usuario.nome || usuario.email || membro) : membro}</li>`;
+                        } else if (membro && typeof membro === 'object') {
+                            const usuario = this.usuarios.find(u => u.id === membro.usuarioId);
+                            const nome = membro.nome || (usuario ? (usuario.nome || usuario.email) : membro.usuarioId);
+                            membrosInfo += `<li>${index + 1}. ${nome} (${membro.permissao})</li>`;
                         }
                     });
                     membrosInfo += '</ul>';
                 }
                 
                 const detalhes = `
-                    <div style="padding: 20px; background: white; border-radius: 10px; max-width: 500px; margin: 20px auto;">
-                        <h2 style="color: ${grupo.cor || '#4a6fa5'};">${grupo.nome}</h2>
-                        <p><strong>Descrição:</strong> ${grupo.descricao || 'Não informada'}</p>
+                    <div style="padding: 20px;">
+                        <h2 style="color: ${grupo.cor || '#4a6fa5'}; margin-top: 0;">${grupo.nome}</h2>
+                        <p><strong>Descrição:</strong><br>${grupo.descricao || 'Não informada'}</p>
                         <p><strong>Criado em:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
-                        <p><strong>Criador:</strong> ${grupo.criador || 'Não informado'}</p>
+                        <p><strong>Criador:</strong> ${grupo.criadorNome || grupo.criador || 'Não informado'}</p>
                         ${membrosInfo}
                         <div style="margin-top: 20px; text-align: center;">
                             <button onclick="workManager.fecharDetalhes()" class="btn btn-outline">
@@ -1218,7 +1461,11 @@
                 modalDetalhes.className = 'modal';
                 modalDetalhes.id = 'modalDetalhes';
                 modalDetalhes.innerHTML = `
-                    <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h2>Detalhes do Grupo</h2>
+                            <button class="close" onclick="workManager.fecharDetalhes()">&times;</button>
+                        </div>
                         ${detalhes}
                     </div>
                 `;
@@ -1238,7 +1485,11 @@
                 const modal = document.getElementById('modalDetalhes');
                 if (modal) {
                     modal.style.display = 'none';
-                    modal.remove();
+                    setTimeout(() => {
+                        if (modal.parentNode) {
+                            document.body.removeChild(modal);
+                        }
+                    }, 300);
                 }
             }
             
@@ -1288,6 +1539,12 @@
                     }, 300);
                 }, 5000);
             }
+            
+            // ========== FUNÇÕES PARA EDIÇÃO ==========
+            
+            async editarGrupo(grupoId) {
+                this.abrirModalGrupo(grupoId);
+            }
         }
         
         // Criar instância global
@@ -1310,8 +1567,11 @@
         window.fecharModalConfirmacao = () => workManager.fecharModalConfirmacao();
         window.salvarGrupo = () => workManager.salvarGrupo();
         window.adicionarMembro = () => workManager.adicionarMembro();
-        window.convidarMembro = () => workManager.convidarMembro();
+        window.convidarMembro = () => workManager.convidarUsuarioSelecionado();
         window.confirmarAcao = () => workManager.confirmarAcao();
+        window.carregarUsuarios = () => workManager.carregarUsuarios().then(() => workManager.exibirUsuarios());
+        window.filtrarUsuarios = (termo) => workManager.filtrarUsuarios(termo);
+        window.filtrarUsuariosParaConvite = (termo) => workManager.filtrarUsuariosParaConvite(termo);
         
         window.filtrarGrupos = (filtro) => {
             workManager.filtroAtual = filtro;
@@ -1351,6 +1611,10 @@
                 from { transform: translateX(0); opacity: 1; }
                 to { transform: translateX(100%); opacity: 0; }
             }
+            @keyframes modalSlideIn {
+                from { transform: translateY(-50px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
             
             .modal {
                 display: none;
@@ -1372,11 +1636,6 @@
                 max-width: 600px;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.2);
                 animation: modalSlideIn 0.3s ease;
-            }
-            
-            @keyframes modalSlideIn {
-                from { transform: translateY(-50px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
             }
             
             .modal-header {
@@ -1456,13 +1715,63 @@
                 margin-bottom: 15px;
             }
             
-            .membros-lista {
+            .usuarios-lista {
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 10px;
+            }
+            
+            .usuario-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px;
+                background-color: white;
+                border-radius: 6px;
+                margin-bottom: 8px;
+                border: 1px solid #e9ecef;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            
+            .usuario-item:hover {
+                background-color: #f0f2ff;
+                border-color: #667eea;
+            }
+            
+            .usuario-item.selecionado {
+                background-color: #e8f4fd;
+                border-color: #b3d7ff;
+            }
+            
+            .usuario-info {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .usuario-info small {
+                color: #666;
+                font-size: 12px;
+            }
+            
+            .membros-selecionados {
                 background-color: #f8f9fa;
                 border-radius: 8px;
                 padding: 15px;
                 margin-top: 15px;
-                max-height: 200px;
-                overflow-y: auto;
+            }
+            
+            .membro-selecionado-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 8px;
+                background-color: white;
+                border-radius: 6px;
+                margin-bottom: 6px;
+                border: 1px solid #e9ecef;
             }
             
             .lista-membros {
@@ -1485,22 +1794,12 @@
                 border-color: #b3d7ff;
             }
             
-            .membro-info {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-            }
-            
-            .membro-info small {
-                color: #666;
-                font-size: 12px;
-            }
-            
             .permissao-badge {
                 padding: 4px 8px;
                 border-radius: 4px;
                 font-size: 12px;
                 font-weight: 600;
+                white-space: nowrap;
             }
             
             .permissao-badge.admin {
@@ -1530,6 +1829,7 @@
                 padding: 5px;
                 border-radius: 4px;
                 color: #667eea;
+                font-size: 14px;
             }
             
             .btn-icon:hover {
@@ -1552,6 +1852,7 @@
                 padding: 5px;
                 border-radius: 4px;
                 transition: background-color 0.3s;
+                font-size: 12px;
             }
             
             .btn-remover:hover {
@@ -1626,12 +1927,46 @@
                 justify-content: center;
                 padding: 20px;
                 color: #6c757d;
+                text-align: center;
             }
             
             .empty-membros i {
                 font-size: 2rem;
                 margin-bottom: 10px;
                 opacity: 0.5;
+            }
+            
+            @media (max-width: 768px) {
+                .modal-content {
+                    margin: 10% auto;
+                    width: 95%;
+                }
+                
+                .modal-header {
+                    padding: 15px 20px;
+                }
+                
+                .modal-body {
+                    padding: 20px;
+                }
+                
+                .modal-footer {
+                    padding: 15px 20px;
+                    flex-direction: column;
+                }
+                
+                .modal-footer .btn {
+                    width: 100%;
+                    margin-bottom: 10px;
+                }
+                
+                .modal-footer .btn:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .input-group {
+                    flex-direction: column;
+                }
             }
         `;
         document.head.appendChild(style);
