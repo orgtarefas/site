@@ -17,9 +17,16 @@
     </div>
 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho -->
+        <!-- Cabeçalho ATUALIZADO -->
         <header class="header">
-            <h1><i class="fas fa-tasks"></i> Sistema de Planejamento</h1>
+            <div class="header-title">
+                <h1><i class="fas fa-tasks"></i> Sistema de Planejamento</h1>
+                <div class="header-buttons">
+                    <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </button>
+                </div>
+            </div>
             <div class="header-info">
                 <span id="data-atual"></span>
                 <span id="status-sincronizacao"><i class="fas fa-sync-alt"></i> Conectando...</span>
@@ -52,7 +59,7 @@
             </div>
         </div>
 
-        <!-- Filtros -->
+        <!-- Filtros ATUALIZADO com campo Sistema -->
         <div class="filters">
             <div class="filter-group">
                 <label for="searchInput"><i class="fas fa-search"></i> Buscar</label>
@@ -83,6 +90,12 @@
                 </select>
             </div>
             <div class="filter-group">
+                <label for="filterSistema">Sistema</label>
+                <select id="filterSistema">
+                    <option value="">Todos os sistemas</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <button class="btn btn-primary" onclick="abrirModalTarefa()">
                     <i class="fas fa-plus"></i> Nova Tarefa
                 </button>
@@ -99,7 +112,7 @@
         </div>
     </div>
 
-    <!-- Modal Tarefa -->
+    <!-- Modal Tarefa ATUALIZADO com campo Sistema -->
     <div id="modalTarefa" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -118,15 +131,21 @@
                             <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaPrioridade">Prioridade *</label>
+                            <label for="tarefaSistema"><i class="fas fa-project-diagram"></i> Vincular ao Sistema</label>
+                            <select id="tarefaSistema">
+                                <option value="">Nenhum sistema</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tarefaPrioridade"><i class="fas fa-flag"></i> Prioridade *</label>
                             <select id="tarefaPrioridade" required>
                                 <option value="baixa">Baixa</option>
-                                <option value="media">Média</option>
+                                <option value="media" selected>Média</option>
                                 <option value="alta">Alta</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaStatus">Status *</label>
+                            <label for="tarefaStatus"><i class="fas fa-tasks"></i> Status *</label>
                             <select id="tarefaStatus" required>
                                 <option value="pendente">Pendente</option>
                                 <option value="andamento">Em Andamento</option>
@@ -134,15 +153,15 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaDataInicio">Data Início</label>
+                            <label for="tarefaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início</label>
                             <input type="date" id="tarefaDataInicio">
                         </div>
                         <div class="form-group">
-                            <label for="tarefaDataFim">Data Final *</label>
+                            <label for="tarefaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
                             <input type="date" id="tarefaDataFim" required>
                         </div>
                         <div class="form-group">
-                            <label for="tarefaResponsavel">Responsável</label>
+                            <label for="tarefaResponsavel"><i class="fas fa-user"></i> Responsável</label>
                             <select id="tarefaResponsavel">
                                 <option value="">Selecionar...</option>
                             </select>
@@ -157,7 +176,7 @@
         </div>
     </div>
 
-    <!-- Firebase CDN direto (mais confiável) -->
+    <!-- Firebase v8 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
