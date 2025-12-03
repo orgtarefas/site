@@ -421,42 +421,74 @@ class SistemaMonitoramento {
     }
 
     renderizarChecklist(sistema, tipo) {
+    renderizarChecklist(sistema, tipo) {
         const atividades = (sistema.atividades || []).filter(a => a.tipo === tipo);
+        const tarefasVinculadas = (sistema.tarefas || []).filter(t => t.tipo === 'tarefa' && t.status !== 'concluido');
         
-        if (atividades.length === 0) {
-            return `
+        let html = '';
+        
+        // Primeiro, mostrar atividades
+        if (atividades.length > 0) {
+            html += atividades.map(atividade => `
+                <div class="checklist-item ${this.estaAtrasada(atividade) ? 'atrasado' : ''}">
+                    <div class="item-info">
+                        <div class="item-title"><i class="fas fa-list-check"></i> ${atividade.titulo}</div>
+                        ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
+                        <div class="item-meta">
+                            <span><i class="fas fa-user"></i> ${atividade.responsavel}</span>
+                            <span><i class="fas fa-calendar"></i> ${atividade.dataCriacao || ''}</span>
+                            ${atividade.dataPrevista ? `<span><i class="fas fa-flag"></i> ${new Date(atividade.dataPrevista).toLocaleDateString('pt-BR')}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-icon btn-toggle" onclick="toggleStatusAtividade('${atividade.id}')">
+                            <i class="fas fa-${this.getIconStatus(atividade.status)}"></i>
+                        </button>
+                        <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Depois, mostrar tarefas vinculadas (se houver)
+        if (tarefasVinculadas.length > 0) {
+            html += `<div class="tarefas-vinculadas-header">
+                        <h4><i class="fas fa-tasks"></i> Tarefas Vinculadas da Home</h4>
+                     </div>`;
+            
+            html += tarefasVinculadas.map(tarefa => `
+                <div class="checklist-item tarefa-vinculada">
+                    <div class="item-info">
+                        <div class="item-title"><i class="fas fa-external-link-alt"></i> ${tarefa.titulo}</div>
+                        ${tarefa.descricao ? `<div class="item-desc">${tarefa.descricao}</div>` : ''}
+                        <div class="item-meta">
+                            <span><i class="fas fa-user"></i> ${tarefa.responsavel || 'Não definido'}</span>
+                            <span><i class="fas fa-flag"></i> ${tarefa.prioridade}</span>
+                            <span class="badge status-${tarefa.status}">${tarefa.status}</span>
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-icon btn-external" onclick="window.open('index.html', '_blank')">
+                            <i class="fas fa-external-link-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        if (!html) {
+            html = `
                 <div class="checklist-item">
                     <div class="item-info">
-                        <div class="item-desc">Nenhuma atividade cadastrada</div>
+                        <div class="item-desc">Nenhuma atividade ou tarefa vinculada</div>
                     </div>
                 </div>
             `;
         }
-
-        return atividades.map(atividade => `
-            <div class="checklist-item ${this.estaAtrasada(atividade) ? 'atrasado' : ''}">
-                <div class="item-info">
-                    <div class="item-title">${atividade.titulo}</div>
-                    ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                    <div class="item-meta">
-                        <span><i class="fas fa-user"></i> ${atividade.responsavel}</span>
-                        <span><i class="fas fa-calendar"></i> ${atividade.dataCriacao || ''}</span>
-                        ${atividade.dataPrevista ? `<span><i class="fas fa-flag"></i> ${atividade.dataPrevista}</span>` : ''}
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="btn-icon btn-toggle" onclick="toggleStatusAtividade('${atividade.id}')">
-                        <i class="fas fa-${this.getIconStatus(atividade.status)}"></i>
-                    </button>
-                    <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+        
+        return html;
     }
 
     getStatusSistema(sistema) {
@@ -836,6 +868,31 @@ function salvarAtividade() {
 
     monitoramento.adicionarAtividade(atividade);
     fecharModal();
+}
+
+async function carregarTarefasVinculadas() {
+    console.log('📋 Carregando tarefas vinculadas aos sistemas...');
+    
+    try {
+        const snapshot = await db.collection('tarefas').where('sistemaId', '!=', null).get();
+        
+        if (!snapshot.empty) {
+            const tarefasVinculadas = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            console.log('✅ Tarefas vinculadas carregadas:', tarefasVinculadas.length);
+            return tarefasVinculadas;
+        } else {
+            console.log('📂 Nenhuma tarefa vinculada encontrada');
+            return [];
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar tarefas vinculadas:', error);
+        return [];
+    }
 }
 
 async function atualizarAtividade() {
