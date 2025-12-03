@@ -21,9 +21,24 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('userName').textContent = usuarioLogado.nome;
     document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
     
+    // Criar botão Dashboard
+    criarBotaoDashboard();
+    
     // Inicializar sistema
     inicializarSistema();
 });
+
+
+function criarBotaoDashboard() {
+    const headerButtons = document.querySelector('.header-buttons');
+    if (headerButtons) {
+        headerButtons.innerHTML = `
+            <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </button>
+        `;
+    }
+}
 
 function inicializarSistema() {
     console.log('🔥 Inicializando Firebase...');
