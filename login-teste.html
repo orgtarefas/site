@@ -1,58 +1,33 @@
-<!-- login-teste.html -->
+<!-- teste.html -->
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Login Direto</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        button { padding: 10px; margin: 5px; }
-    </style>
-</head>
 <body>
-    <h2>Login Direto - Teste</h2>
-    
-    <button onclick="loginSimples()">Login Simples (Bypass)</button>
-    <button onclick="verificarFirebase()">Verificar Firebase</button>
-    <button onclick="limparLocalStorage()">Limpar LocalStorage</button>
-    
-    <div id="status" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+    <h1>Teste Direto</h1>
+    <button onclick="irParaHome()">Ir para Home</button>
+    <button onclick="irParaDashboard()">Ir para Dashboard</button>
     
     <script>
-        function loginSimples() {
-            // Login direto sem verificação
+        function irParaHome() {
+            // Criar usuário fake
             localStorage.setItem('usuarioLogado', JSON.stringify({
-                id: 'teste-id',
-                usuario: 'thiago.barbosa',
-                nome: 'Thiago Barbosa',
-                nivel: 'devs'
+                id: 'teste',
+                usuario: 'teste',
+                nome: 'Usuário Teste',
+                nivel: 'admin'
             }));
-            
-            document.getElementById('status').innerHTML = 
-                '<p style="color: green;">✅ Login realizado! Redirecionando...</p>';
-            
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1000);
+            window.location.href = 'index.html';
         }
         
-        function verificarFirebase() {
-            if (window.firebaseApp && window.firebaseApp.db) {
-                document.getElementById('status').innerHTML = 
-                    '<p style="color: green;">✅ Firebase carregado!</p>';
-            } else {
-                document.getElementById('status').innerHTML = 
-                    '<p style="color: red;">❌ Firebase NÃO carregado</p>';
-            }
+        function irParaDashboard() {
+            // Criar usuário fake
+            localStorage.setItem('usuarioLogado', JSON.stringify({
+                id: 'teste',
+                usuario: 'teste',
+                nome: 'Usuário Teste',
+                nivel: 'admin'
+            }));
+            window.location.href = 'dashboard.html';
         }
-        
-        function limparLocalStorage() {
-            localStorage.clear();
-            document.getElementById('status').innerHTML = 
-                '<p style="color: orange;">🗑️ LocalStorage limpo!</p>';
-        }
-        
-        // Verificar Firebase automaticamente
-        setTimeout(verificarFirebase, 1000);
     </script>
 </body>
 </html>
