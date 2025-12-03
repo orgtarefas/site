@@ -1,67 +1,36 @@
-// Sistema de Monitoramento Dinâmico
+// Sistema de Monitoramento Dinâmico com Firebase
 class SistemaMonitoramento {
     constructor() {
         this.sistemas = [];
+        this.usuarios = [];
         this.usuario = null;
         this.charts = {};
-        this.sistemasOriginais = [
+        
+        // Sistemas padrão
+        this.sistemasPadrao = [
             {
                 id: 'siscriacao',
                 nome: 'SISCRIAÇÃO',
                 descricao: 'Sistema de criação e gerenciamento',
                 cor: '#3498db',
-                atividades: [
-                    {
-                        id: 'analise-estrutura',
-                        titulo: 'Análise da estrutura atual X Macro existente',
-                        descricao: 'Comparar estrutura atual com macro existente',
-                        status: 'pendente',
-                        responsavel: 'thiago.barbosa',
-                        dataCriacao: '03/12/2025',
-                        dataPrevista: '10/12/2025'
-                    },
-                    {
-                        id: 'definir-linguagem',
-                        titulo: 'Definir linguagem e criar esboço',
-                        descricao: 'Definir linguagem de programação e criar protótipo',
-                        status: 'pendente',
-                        responsavel: 'thiago.barbosa',
-                        dataCriacao: '03/12/2025',
-                        dataPrevista: '15/12/2025'
-                    },
-                    {
-                        id: 'testar-homolog',
-                        titulo: 'Testar em ambiente de Homolog e ajustar',
-                        descricao: 'Testes no ambiente de homologação',
-                        status: 'pendente',
-                        responsavel: 'thiago.barbosa',
-                        dataCriacao: '03/12/2025',
-                        dataPrevista: '20/12/2025'
-                    },
-                    {
-                        id: 'testar-producao',
-                        titulo: 'Testar em ambiente de Produção controlada',
-                        descricao: 'Testes em produção controlada',
-                        status: 'pendente',
-                        responsavel: 'thiago.barbosa',
-                        dataCriacao: '03/12/2025',
-                        dataPrevista: '28/12/2025'
-                    }
-                ]
+                tipo: 'sistema',
+                dataCriacao: new Date().toISOString()
             },
             {
                 id: 'sisreset',
                 nome: 'SISRESET',
                 descricao: 'Sistema de reset e recuperação',
                 cor: '#9b59b6',
-                atividades: []
+                tipo: 'sistema',
+                dataCriacao: new Date().toISOString()
             },
             {
                 id: 'macro-convenios',
                 nome: 'Macro convênios PKL',
                 descricao: 'Macro para gestão de convênios PKL',
                 cor: '#2ecc71',
-                atividades: []
+                tipo: 'sistema',
+                dataCriacao: new Date().toISOString()
             }
         ];
     }
@@ -72,8 +41,12 @@ class SistemaMonitoramento {
         // Verificar autenticação
         await this.verificarAutenticacao();
         
+        // Carregar usuários
+        await this.carregarUsuarios();
+        
         // Carregar dados do Firebase
-        await this.carregarDados();
+        await this.carregarSistemas();
+        await this.carregarAtividades();
         
         // Inicializar gráficos
         this.inicializarGraficos();
@@ -109,9 +82,29 @@ class SistemaMonitoramento {
         document.getElementById('mainContent').style.display = 'block';
     }
 
-    async carregarDados() {
+    async carregarUsuarios() {
+        console.log('👥 Carregando usuários...');
+        
         try {
-            // Tentar carregar do Firebase
+            const snapshot = await db.collection("usuarios").get();
+            
+            this.usuarios = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            console.log('✅ Usuários carregados:', this.usuarios.length);
+
+        } catch (error) {
+            console.error('❌ Erro ao carregar usuários:', error);
+            this.usuarios = [];
+        }
+    }
+
+    async carregarSistemas() {
+        console.log('📊 Carregando sistemas...');
+        
+        try {
             const snapshot = await db.collection('sistemas').get();
             
             if (!snapshot.empty) {
@@ -119,36 +112,49 @@ class SistemaMonitoramento {
                     id: doc.id,
                     ...doc.data()
                 }));
-                console.log('📊 Dados carregados do Firebase:', this.sistemas.length, 'sistemas');
+                console.log('✅ Sistemas carregados do Firebase:', this.sistemas.length);
             } else {
-                // Usar dados originais se Firebase estiver vazio
-                console.log('📂 Firebase vazio, usando dados originais');
-                this.sistemas = this.sistemasOriginais;
-                await this.salvarSistemasNoFirebase();
+                console.log('📂 Firebase vazio, criando sistemas padrão...');
+                
+                // Criar sistemas padrão no Firebase
+                for (const sistema of this.sistemasPadrao) {
+                    await db.collection('sistemas').doc(sistema.id).set(sistema);
+                }
+                
+                this.sistemas = this.sistemasPadrao;
+                console.log('✅ Sistemas padrão criados');
             }
             
-            // Atualizar status de sincronização
-            document.getElementById('status-sincronizacao').innerHTML = 
-                '<i class="fas fa-bolt"></i> Sincronizado';
-            
         } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            document.getElementById('status-sincronizacao').innerHTML = 
-                '<i class="fas fa-exclamation-triangle"></i> Offline';
-            
-            // Usar dados locais em caso de erro
-            this.sistemas = this.sistemasOriginais;
+            console.error('❌ Erro ao carregar sistemas:', error);
+            this.sistemas = this.sistemasPadrao;
         }
     }
 
-    async salvarSistemasNoFirebase() {
+    async carregarAtividades() {
+        console.log('📋 Carregando atividades...');
+        
         try {
-            for (const sistema of this.sistemasOriginais) {
-                await db.collection('sistemas').doc(sistema.id).set(sistema);
+            const snapshot = await db.collection('atividades').get();
+            
+            if (!snapshot.empty) {
+                const atividades = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Agrupar atividades por sistema
+                this.sistemas.forEach(sistema => {
+                    sistema.atividades = atividades.filter(a => a.sistemaId === sistema.id);
+                });
+                
+                console.log('✅ Atividades carregadas:', atividades.length);
+            } else {
+                console.log('📂 Nenhuma atividade encontrada');
             }
-            console.log('💾 Dados salvos no Firebase');
+            
         } catch (error) {
-            console.error('❌ Erro ao salvar no Firebase:', error);
+            console.error('❌ Erro ao carregar atividades:', error);
         }
     }
 
@@ -324,10 +330,14 @@ class SistemaMonitoramento {
     estaAtrasada(atividade) {
         if (!atividade.dataPrevista) return false;
         
-        const hoje = new Date();
-        const dataPrevista = new Date(atividade.dataPrevista.split('/').reverse().join('-'));
-        
-        return atividade.status !== 'concluido' && dataPrevista < hoje;
+        try {
+            const hoje = new Date();
+            const dataPrevista = new Date(atividade.dataPrevista.split('/').reverse().join('-'));
+            
+            return atividade.status !== 'concluido' && dataPrevista < hoje;
+        } catch (error) {
+            return false;
+        }
     }
 
     renderizarSistemas() {
@@ -420,18 +430,18 @@ class SistemaMonitoramento {
                     ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                     <div class="item-meta">
                         <span><i class="fas fa-user"></i> ${atividade.responsavel}</span>
-                        <span><i class="fas fa-calendar"></i> ${atividade.dataCriacao}</span>
+                        <span><i class="fas fa-calendar"></i> ${atividade.dataCriacao || ''}</span>
                         ${atividade.dataPrevista ? `<span><i class="fas fa-flag"></i> ${atividade.dataPrevista}</span>` : ''}
                     </div>
                 </div>
                 <div class="item-actions">
-                    <button class="btn-icon btn-toggle" onclick="toggleStatusAtividade('${sistema.id}', '${atividade.id}')">
+                    <button class="btn-icon btn-toggle" onclick="toggleStatusAtividade('${atividade.id}')">
                         <i class="fas fa-${this.getIconStatus(atividade.status)}"></i>
                     </button>
-                    <button class="btn-icon btn-edit" onclick="editarAtividade('${sistema.id}', '${atividade.id}')">
+                    <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-icon btn-delete" onclick="excluirAtividade('${sistema.id}', '${atividade.id}')">
+                    <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -475,11 +485,18 @@ class SistemaMonitoramento {
     }
 
     configurarListeners() {
-        // Atualizar estatísticas quando dados mudarem
-        window.addEventListener('sistemaAtualizado', () => {
-            this.atualizarEstatisticas();
-            this.atualizarGraficos();
-        });
+        // Configurar listener em tempo real para atividades
+        db.collection('atividades')
+            .onSnapshot((snapshot) => {
+                console.log('📡 Atualização em tempo real das atividades');
+                this.carregarAtividades().then(() => {
+                    this.renderizarSistemas();
+                    this.atualizarEstatisticas();
+                    this.atualizarGraficos();
+                });
+            }, (error) => {
+                console.error('❌ Erro no listener:', error);
+            });
     }
 
     atualizarEstatisticas() {
@@ -518,98 +535,105 @@ class SistemaMonitoramento {
         }
     }
 
-    async salvarSistema(sistemaId) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        if (!sistema) return;
-
+    async adicionarAtividade(dados) {
         try {
-            await db.collection('sistemas').doc(sistemaId).set(sistema);
-            console.log('💾 Sistema salvo:', sistemaId);
+            const atividadeCompleta = {
+                ...dados,
+                dataCriacao: new Date().toLocaleDateString('pt-BR'),
+                criadoPor: this.usuario.usuario,
+                dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'pendente'
+            };
+
+            const docRef = await db.collection('atividades').add(atividadeCompleta);
+            console.log('✅ Atividade criada com ID:', docRef.id);
+            
+            mostrarNotificacao('Atividade criada com sucesso!', 'success');
+            
         } catch (error) {
-            console.error('❌ Erro ao salvar sistema:', error);
+            console.error('❌ Erro ao criar atividade:', error);
+            mostrarNotificacao('Erro ao criar atividade: ' + error.message, 'error');
         }
     }
 
-    async adicionarAtividade(sistemaId, tipo, atividade) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        if (!sistema) return;
-
-        if (!sistema.atividades) sistema.atividades = [];
-        
-        const novaAtividade = {
-            id: Date.now().toString(),
-            tipo: tipo,
-            ...atividade,
-            dataCriacao: new Date().toLocaleDateString('pt-BR'),
-            status: 'pendente'
-        };
-
-        sistema.atividades.push(novaAtividade);
-        await this.salvarSistema(sistemaId);
-        
-        this.renderizarSistemas();
-        this.atualizarGraficos();
-        
-        window.dispatchEvent(new Event('sistemaAtualizado'));
-    }
-
-    async atualizarAtividade(sistemaId, atividadeId, dados) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        if (!sistema || !sistema.atividades) return;
-
-        const index = sistema.atividades.findIndex(a => a.id === atividadeId);
-        if (index === -1) return;
-
-        sistema.atividades[index] = { ...sistema.atividades[index], ...dados };
-        await this.salvarSistema(sistemaId);
-        
-        this.renderizarSistemas();
-        this.atualizarGraficos();
-        
-        window.dispatchEvent(new Event('sistemaAtualizado'));
-    }
-
-    async excluirAtividade(sistemaId, atividadeId) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        if (!sistema || !sistema.atividades) return;
-
-        sistema.atividades = sistema.atividades.filter(a => a.id !== atividadeId);
-        await this.salvarSistema(sistemaId);
-        
-        this.renderizarSistemas();
-        this.atualizarGraficos();
-        
-        window.dispatchEvent(new Event('sistemaAtualizado'));
-    }
-
-    async toggleStatusAtividade(sistemaId, atividadeId) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        if (!sistema || !sistema.atividades) return;
-
-        const atividade = sistema.atividades.find(a => a.id === atividadeId);
-        if (!atividade) return;
-
-        let novoStatus;
-        switch(atividade.status) {
-            case 'pendente':
-                novoStatus = 'andamento';
-                break;
-            case 'andamento':
-                novoStatus = 'concluido';
-                break;
-            case 'concluido':
-                novoStatus = 'pendente';
-                break;
-            default:
-                novoStatus = 'pendente';
+    async atualizarAtividade(atividadeId, dados) {
+        try {
+            await db.collection('atividades').doc(atividadeId).update({
+                ...dados,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('✅ Atividade atualizada:', atividadeId);
+            mostrarNotificacao('Atividade atualizada com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao atualizar atividade:', error);
+            mostrarNotificacao('Erro ao atualizar atividade: ' + error.message, 'error');
         }
+    }
 
-        await this.atualizarAtividade(sistemaId, atividadeId, { status: novoStatus });
+    async excluirAtividade(atividadeId) {
+        try {
+            await db.collection('atividades').doc(atividadeId).delete();
+            console.log('🗑️ Atividade excluída:', atividadeId);
+            mostrarNotificacao('Atividade excluída com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao excluir atividade:', error);
+            mostrarNotificacao('Erro ao excluir atividade: ' + error.message, 'error');
+        }
+    }
+
+    async toggleStatusAtividade(atividadeId) {
+        try {
+            const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+            if (!atividadeDoc.exists) return;
+            
+            const atividade = atividadeDoc.data();
+            let novoStatus;
+            
+            switch(atividade.status) {
+                case 'pendente':
+                    novoStatus = 'andamento';
+                    break;
+                case 'andamento':
+                    novoStatus = 'concluido';
+                    break;
+                case 'concluido':
+                    novoStatus = 'pendente';
+                    break;
+                default:
+                    novoStatus = 'pendente';
+            }
+            
+            await this.atualizarAtividade(atividadeId, { status: novoStatus });
+            
+        } catch (error) {
+            console.error('❌ Erro ao alterar status:', error);
+        }
+    }
+
+    async buscarAtividade(atividadeId) {
+        try {
+            const doc = await db.collection('atividades').doc(atividadeId).get();
+            if (doc.exists) {
+                return { id: doc.id, ...doc.data() };
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Erro ao buscar atividade:', error);
+            return null;
+        }
     }
 }
 
 // Instanciar e inicializar o sistema
 const monitoramento = new SistemaMonitoramento();
+
+// Variáveis globais para o modal
+let modalTipo = null;
+let modalSistemaId = null;
+let modalAtividadeId = null;
 
 // Funções globais
 function logout() {
@@ -619,7 +643,11 @@ function logout() {
 
 function toggleSistema(sistemaId) {
     const elemento = document.getElementById(`sistema-${sistemaId}`);
-    elemento.style.display = elemento.style.display === 'none' ? 'block' : 'none';
+    if (elemento.style.display === 'none') {
+        elemento.style.display = 'block';
+    } else {
+        elemento.style.display = 'none';
+    }
 }
 
 function abrirModalAtividade(sistemaId, tipo) {
@@ -632,6 +660,11 @@ function abrirModalAtividade(sistemaId, tipo) {
 
     document.getElementById('modalTitulo').textContent = `Nova Atividade - ${tituloMap[tipo]}`;
     
+    // Gerar opções de usuários
+    const usuariosOptions = monitoramento.usuarios.map(user => 
+        `<option value="${user.usuario}">${user.nome || user.usuario}</option>`
+    ).join('');
+    
     document.getElementById('modalDetalhesBody').innerHTML = `
         <form id="formAtividade">
             <div class="form-group">
@@ -640,12 +673,15 @@ function abrirModalAtividade(sistemaId, tipo) {
             </div>
             <div class="form-group">
                 <label for="descricaoAtividade">Descrição</label>
-                <textarea id="descricaoAtividade" class="form-control"></textarea>
+                <textarea id="descricaoAtividade" class="form-control" rows="3"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label for="responsavelAtividade">Responsável *</label>
-                    <input type="text" id="responsavelAtividade" class="form-control" required>
+                    <select id="responsavelAtividade" class="form-control" required>
+                        <option value="">Selecione um responsável</option>
+                        ${usuariosOptions}
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="dataPrevista">Data Prevista</label>
@@ -661,20 +697,98 @@ function abrirModalAtividade(sistemaId, tipo) {
                 </select>
             </div>
         </form>
+        <div class="modal-footer" id="modalFooter">
+            <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarAtividade()">
+                <i class="fas fa-save"></i> Salvar Atividade
+            </button>
+        </div>
     `;
 
     modal.style.display = 'flex';
     
     // Salvar referências para uso posterior
-    window.modalSistemaId = sistemaId;
-    window.modalTipo = tipo;
+    modalSistemaId = sistemaId;
+    modalTipo = tipo;
+    modalAtividadeId = null;
+}
+
+async function editarAtividade(atividadeId) {
+    const atividade = await monitoramento.buscarAtividade(atividadeId);
+    if (!atividade) return;
+
+    const modal = document.getElementById('modalDetalhes');
+    document.getElementById('modalTitulo').textContent = 'Editar Atividade';
+
+    // Gerar opções de usuários
+    const usuariosOptions = monitoramento.usuarios.map(user => 
+        `<option value="${user.usuario}" ${user.usuario === atividade.responsavel ? 'selected' : ''}>${user.nome || user.usuario}</option>`
+    ).join('');
+
+    document.getElementById('modalDetalhesBody').innerHTML = `
+        <form id="formAtividade">
+            <div class="form-group">
+                <label for="tituloAtividade">Título *</label>
+                <input type="text" id="tituloAtividade" class="form-control" value="${atividade.titulo || ''}" required>
+            </div>
+            <div class="form-group">
+                <label for="descricaoAtividade">Descrição</label>
+                <textarea id="descricaoAtividade" class="form-control" rows="3">${atividade.descricao || ''}</textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="responsavelAtividade">Responsável *</label>
+                    <select id="responsavelAtividade" class="form-control" required>
+                        <option value="">Selecione um responsável</option>
+                        ${usuariosOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dataPrevista">Data Prevista</label>
+                    <input type="date" id="dataPrevista" class="form-control" value="${atividade.dataPrevista || ''}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="statusAtividade">Status</label>
+                    <select id="statusAtividade" class="form-control">
+                        <option value="pendente" ${atividade.status === 'pendente' ? 'selected' : ''}>Pendente</option>
+                        <option value="andamento" ${atividade.status === 'andamento' ? 'selected' : ''}>Em Andamento</option>
+                        <option value="concluido" ${atividade.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="prioridadeAtividade">Prioridade</label>
+                    <select id="prioridadeAtividade" class="form-control">
+                        <option value="baixa" ${atividade.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
+                        <option value="media" ${atividade.prioridade === 'media' ? 'selected' : ''}>Média</option>
+                        <option value="alta" ${atividade.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+        <div class="modal-footer" id="modalFooter">
+            <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="atualizarAtividade()">
+                <i class="fas fa-save"></i> Atualizar Atividade
+            </button>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    
+    // Salvar referências para uso posterior
+    modalSistemaId = atividade.sistemaId;
+    modalTipo = atividade.tipo;
+    modalAtividadeId = atividadeId;
 }
 
 function salvarAtividade() {
-    const sistemaId = window.modalSistemaId;
-    const tipo = window.modalTipo;
+    if (!modalSistemaId || !modalTipo) return;
     
     const atividade = {
+        sistemaId: modalSistemaId,
+        tipo: modalTipo,
         titulo: document.getElementById('tituloAtividade').value,
         descricao: document.getElementById('descricaoAtividade').value,
         responsavel: document.getElementById('responsavelAtividade').value,
@@ -682,90 +796,99 @@ function salvarAtividade() {
         prioridade: document.getElementById('prioridadeAtividade').value
     };
 
-    monitoramento.adicionarAtividade(sistemaId, tipo, atividade);
+    monitoramento.adicionarAtividade(atividade);
     fecharModal();
 }
 
-function editarAtividade(sistemaId, atividadeId) {
-    const sistema = monitoramento.sistemas.find(s => s.id === sistemaId);
-    if (!sistema || !sistema.atividades) return;
-
-    const atividade = sistema.atividades.find(a => a.id === atividadeId);
-    if (!atividade) return;
-
-    const modal = document.getElementById('modalDetalhes');
-    document.getElementById('modalTitulo').textContent = 'Editar Atividade';
-
-    document.getElementById('modalDetalhesBody').innerHTML = `
-        <form id="formAtividade">
-            <div class="form-group">
-                <label for="tituloAtividade">Título *</label>
-                <input type="text" id="tituloAtividade" class="form-control" value="${atividade.titulo}" required>
-            </div>
-            <div class="form-group">
-                <label for="descricaoAtividade">Descrição</label>
-                <textarea id="descricaoAtividade" class="form-control">${atividade.descricao || ''}</textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="responsavelAtividade">Responsável *</label>
-                    <input type="text" id="responsavelAtividade" class="form-control" value="${atividade.responsavel}" required>
-                </div>
-                <div class="form-group">
-                    <label for="dataPrevista">Data Prevista</label>
-                    <input type="date" id="dataPrevista" class="form-control" value="${atividade.dataPrevista || ''}">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="statusAtividade">Status</label>
-                <select id="statusAtividade" class="form-control">
-                    <option value="pendente" ${atividade.status === 'pendente' ? 'selected' : ''}>Pendente</option>
-                    <option value="andamento" ${atividade.status === 'andamento' ? 'selected' : ''}>Em Andamento</option>
-                    <option value="concluido" ${atividade.status === 'concluido' ? 'selected' : ''}>Concluído</option>
-                </select>
-            </div>
-        </form>
-    `;
-
-    modal.style.display = 'flex';
-    
-    // Salvar referências para uso posterior
-    window.modalSistemaId = sistemaId;
-    window.modalAtividadeId = atividadeId;
-}
-
-function atualizarAtividade() {
-    const sistemaId = window.modalSistemaId;
-    const atividadeId = window.modalAtividadeId;
+async function atualizarAtividade() {
+    if (!modalAtividadeId) return;
     
     const dados = {
         titulo: document.getElementById('tituloAtividade').value,
         descricao: document.getElementById('descricaoAtividade').value,
         responsavel: document.getElementById('responsavelAtividade').value,
         dataPrevista: document.getElementById('dataPrevista').value,
-        status: document.getElementById('statusAtividade').value
+        status: document.getElementById('statusAtividade').value,
+        prioridade: document.getElementById('prioridadeAtividade').value
     };
 
-    monitoramento.atualizarAtividade(sistemaId, atividadeId, dados);
+    await monitoramento.atualizarAtividade(modalAtividadeId, dados);
     fecharModal();
 }
 
-function excluirAtividade(sistemaId, atividadeId) {
+async function excluirAtividade(atividadeId) {
     if (confirm('Tem certeza que deseja excluir esta atividade?')) {
-        monitoramento.excluirAtividade(sistemaId, atividadeId);
+        await monitoramento.excluirAtividade(atividadeId);
     }
 }
 
-function toggleStatusAtividade(sistemaId, atividadeId) {
-    monitoramento.toggleStatusAtividade(sistemaId, atividadeId);
+async function toggleStatusAtividade(atividadeId) {
+    await monitoramento.toggleStatusAtividade(atividadeId);
 }
 
 function fecharModal() {
     document.getElementById('modalDetalhes').style.display = 'none';
-    delete window.modalSistemaId;
-    delete window.modalAtividadeId;
-    delete window.modalTipo;
+    modalSistemaId = null;
+    modalTipo = null;
+    modalAtividadeId = null;
 }
+
+function mostrarNotificacao(mensagem, tipo) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        background: ${tipo === 'success' ? '#27ae60' : '#e74c3c'};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+    `;
+    notification.innerHTML = `
+        <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        ${mensagem}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// Adicionar estilos de animação
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
 
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
