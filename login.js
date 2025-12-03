@@ -1,7 +1,7 @@
-// login.js - VERSÃO 100% FUNCIONAL COM FIREBASE MODULAR
-console.log('=== LOGIN INICIADO ===');
+// login.js - VERSÃO FIREBASE v8 (COMPATÍVEL)
+console.log('=== LOGIN v8 INICIADO ===');
 
-// Sistema de login com Firebase Modular v12
+// Sistema de login SIMPLES com Firebase v8
 async function fazerLogin(usuarioInput, senhaInput) {
     console.log('🚀 Tentando login:', usuarioInput);
     
@@ -10,7 +10,6 @@ async function fazerLogin(usuarioInput, senhaInput) {
     const spinner = document.getElementById('spinner');
     
     try {
-        // Validação
         if (!usuarioInput || !senhaInput) {
             alert('⚠️ Preencha usuário e senha');
             return;
@@ -21,17 +20,14 @@ async function fazerLogin(usuarioInput, senhaInput) {
         btnText.textContent = 'Autenticando...';
         spinner.classList.remove('hidden');
         
-        // Acessar Firebase CORRETAMENTE
-        const { db, firebaseModules } = window.firebaseApp;
-        const { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, increment } = firebaseModules;
+        console.log('✅ Firebase v8 disponível');
         
-        console.log('✅ Firebase acessado corretamente');
+        // Buscar usuário - FORMA SIMPLES v8
+        const querySnapshot = await db.collection('usuarios')
+            .where('usuario', '==', usuarioInput.trim())
+            .get();
         
-        // Buscar usuário
-        const usuariosRef = collection(db, 'usuarios');
-        const q = query(usuariosRef, where('usuario', '==', usuarioInput.trim()));
-        
-        const querySnapshot = await getDocs(q);
+        console.log('Resultados:', querySnapshot.size);
         
         if (querySnapshot.empty) {
             throw new Error('Usuário não encontrado');
@@ -40,7 +36,7 @@ async function fazerLogin(usuarioInput, senhaInput) {
         const usuarioDoc = querySnapshot.docs[0];
         const userData = usuarioDoc.data();
         
-        console.log('📋 Usuário encontrado:', userData.usuario);
+        console.log('Usuário encontrado:', userData.usuario);
         
         // Verificar senha
         if (userData.senha !== senhaInput) {
@@ -65,11 +61,11 @@ async function fazerLogin(usuarioInput, senhaInput) {
             localStorage.setItem('savedUser', usuarioInput);
         }
         
-        // Atualizar último login (opcional)
+        // Atualizar último login
         try {
-            await updateDoc(doc(db, 'usuarios', usuarioDoc.id), {
-                ultimoLogin: serverTimestamp(),
-                sessoesAtivas: increment(1)
+            await db.collection('usuarios').doc(usuarioDoc.id).update({
+                ultimoLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                sessoesAtivas: firebase.firestore.FieldValue.increment(1)
             });
             console.log('🔄 Último login atualizado');
         } catch (updateError) {
@@ -80,14 +76,13 @@ async function fazerLogin(usuarioInput, senhaInput) {
         btnText.textContent = '✅ Sucesso! Redirecionando...';
         
         setTimeout(() => {
-            console.log('🔗 Redirecionando para index.html');
+            console.log('🔗 Indo para index.html');
             window.location.href = 'index.html';
         }, 800);
         
     } catch (error) {
         console.error('❌ ERRO NO LOGIN:', error);
         
-        // Mensagens amigáveis
         let mensagem = 'Erro ao fazer login';
         if (error.message.includes('Usuário não encontrado')) mensagem = 'Usuário não encontrado';
         if (error.message.includes('Senha incorreta')) mensagem = 'Senha incorreta';
@@ -99,7 +94,7 @@ async function fazerLogin(usuarioInput, senhaInput) {
         btnText.textContent = 'Entrar no Sistema';
         spinner.classList.add('hidden');
         
-        // Focar na senha para corrigir
+        // Focar na senha
         document.getElementById('loginPassword').focus();
     }
 }
@@ -132,33 +127,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (input && !input.value) input.focus();
     }, 300);
     
-    // Adicionar botão de teste (remove depois)
-    setTimeout(() => {
-        if (window.location.href.includes('login.html')) {
-            const testBtn = document.createElement('button');
-            testBtn.innerHTML = '🔧 TESTE RÁPIDO';
-            testBtn.style.cssText = `
-                position: fixed;
-                bottom: 70px;
-                right: 20px;
-                background: #ff9800;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-                border-radius: 20px;
-                cursor: pointer;
-                font-size: 12px;
-                z-index: 9999;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            `;
-            testBtn.onclick = () => {
-                document.getElementById('loginUsuario').value = 'thiago.barbosa';
-                document.getElementById('loginPassword').value = '123456';
-                alert('✅ Dados preenchidos! Clique em "Entrar no Sistema"');
-            };
-            document.body.appendChild(testBtn);
-        }
-    }, 1000);
+    console.log('✅ Sistema de login v8 pronto');
     
-    console.log('✅ Sistema de login pronto');
+    // Verificar Firebase
+    setTimeout(() => {
+        console.log('Firebase v8 carregado?', window.db ? '✅ SIM' : '❌ NÃO');
+        console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
+    }, 1000);
 });
