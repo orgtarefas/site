@@ -3,44 +3,77 @@ let tarefas = [];
 let usuarios = [];
 let editandoTarefaId = null;
 
+// script.js - VERSÃO DEBUG
+console.log('=== DEBUG: script.js INICIADO ===');
+
 // Inicialização
 // script.js - Início do arquivo
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando sistema...');
-    document.getElementById('loadingText').textContent = 'Verificando autenticação...';
+    console.log('1. DOM carregado');
     
-    // Verificar se usuário está logado - FORMA MAIS SIMPLES
+    // Mostrar loading
+    document.getElementById('loadingText').textContent = 'Iniciando sistema...';
+    
+    // Verificar de forma MUITO SIMPLES
     const usuarioLogado = localStorage.getItem('usuarioLogado');
     
     if (!usuarioLogado) {
-        console.log('❌ Usuário não logado, redirecionando...');
-        window.location.href = 'login.html';
+        console.log('❌ Nenhum usuário no localStorage');
+        document.getElementById('loadingText').textContent = 'Redirecionando para login...';
+        
+        // Aguardar 2 segundos e redirecionar
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2000);
         return;
     }
-
+    
     try {
+        console.log('2. Usuário encontrado no localStorage');
         const usuario = JSON.parse(usuarioLogado);
-        console.log('👤 Usuário logado:', usuario.nome || usuario.usuario);
+        console.log('3. Usuário:', usuario);
         
-        // Atualizar interface
-        document.getElementById('userName').textContent = usuario.nome || usuario.usuario;
-        document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+        // Mostrar na tela imediatamente
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
         
-        // Criar botão Dashboard
-        criarBotaoDashboard();
+        // Configurar dados do usuário
+        if (document.getElementById('userName')) {
+            document.getElementById('userName').textContent = usuario.nome || usuario.usuario || 'Usuário';
+        }
         
-        // Inicializar sistema
-        inicializarSistema();
+        if (document.getElementById('data-atual')) {
+            document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+        }
+        
+        console.log('4. Interface configurada');
+        
+        // Tentar inicializar Firebase
+        setTimeout(() => {
+            if (window.db) {
+                console.log('✅ Firebase já carregado, inicializando sistema...');
+                inicializarSistema();
+            } else {
+                console.log('⚠️ Firebase não carregado ainda, tentando novamente...');
+                // Tentar novamente após 1 segundo
+                setTimeout(inicializarSistema, 1000);
+            }
+        }, 500);
         
     } catch (error) {
         console.error('❌ Erro ao processar usuário:', error);
+        document.getElementById('loadingText').textContent = 'Erro, redirecionando...';
+        
         localStorage.removeItem('usuarioLogado');
-        window.location.href = 'login.html';
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2000);
     }
 });
 
-
+// Função criarBotaoDashboard
 function criarBotaoDashboard() {
+    console.log('🔄 Criando botão Dashboard...');
     const headerButtons = document.querySelector('.header-buttons');
     if (headerButtons) {
         headerButtons.innerHTML = `
@@ -48,33 +81,57 @@ function criarBotaoDashboard() {
                 <i class="fas fa-chart-line"></i> Dashboard
             </button>
         `;
+        console.log('✅ Botão Dashboard criado');
     }
 }
 
+// Função inicializarSistema SIMPLIFICADA
 function inicializarSistema() {
-    console.log('🔥 Inicializando Firebase...');
-    document.getElementById('loadingText').textContent = 'Conectando ao banco de dados...';
+    console.log('🔥 Inicializando sistema Firebase...');
     
-    // Aguardar Firebase carregar
+    // Mostrar status
+    if (document.getElementById('status-sincronizacao')) {
+        document.getElementById('status-sincronizacao').innerHTML = 
+            '<i class="fas fa-sync-alt"></i> Iniciando...';
+    }
+    
+    // Verificar se Firebase está carregado
     if (!window.db) {
-        console.log('⏳ Aguardando Firebase...');
-        setTimeout(inicializarSistema, 500);
-        return;
-    }
-
-    console.log('✅ Firebase carregado!');
-    
-    try {
-        configurarDataMinima();
-        carregarUsuarios();
-        carregarSistemasParaVinculo(); // Carregar sistemas para filtros
-        configurarFirebase();
+        console.log('⏳ Firebase não carregado, tentando configurar...');
         
-    } catch (error) {
-        console.error('❌ Erro na inicialização:', error);
-        document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline';
-        mostrarErro('Erro ao conectar com o banco de dados');
+        // Tentar configurar manualmente
+        try {
+            // Configuração direta
+            const firebaseConfig = {
+                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+                authDomain: "orgtarefas-85358.firebaseapp.com",
+                projectId: "orgtarefas-85358",
+                storageBucket: "orgtarefas-85358.firebasestorage.app",
+                messagingSenderId: "1023569488575",
+                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+            };
+
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                window.db = firebase.firestore();
+                console.log('✅ Firebase configurado manualmente!');
+            } else {
+                console.error('❌ Firebase não disponível');
+                return;
+            }
+        } catch (error) {
+            console.error('❌ Erro ao configurar Firebase:', error);
+            return;
+        }
     }
+    
+    console.log('✅ Firebase carregado, configurando sistema...');
+    
+    // Configurar data mínima
+    configurarDataMinima();
+    
+    // Configurar Firebase listeners
+    configurarFirebase();
 }
 
 function configurarDataMinima() {
@@ -83,38 +140,47 @@ function configurarDataMinima() {
     document.getElementById('tarefaDataFim').min = hoje;
 }
 
+// Função configurarFirebase SIMPLIFICADA
 function configurarFirebase() {
-    console.log('📡 Configurando listener do Firestore...');
-    document.getElementById('loadingText').textContent = 'Carregando tarefas...';
+    console.log('📡 Configurando Firebase...');
     
-    // Listener em tempo real para tarefas
-    db.collection("tarefas")
-        .orderBy("dataCriacao", "desc")
-        .onSnapshot(
-            async (snapshot) => {
-                console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
-                tarefas = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Finalizar carregamento
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Tempo Real';
-                
-                // Usar a nova função que busca atividades
-                await atualizarListaTarefas();
-                console.log('🎉 Sistema carregado com sucesso!');
-            },
-            (error) => {
-                console.error('❌ Erro no Firestore:', error);
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro Conexão';
-                mostrarErro('Erro ao carregar tarefas: ' + error.message);
-            }
-        );
+    try {
+        // Listener básico para tarefas
+        db.collection("tarefas")
+            .orderBy("dataCriacao", "desc")
+            .limit(20) // Limitar para teste
+            .onSnapshot(
+                (snapshot) => {
+                    console.log('📊 Tarefas recebidas:', snapshot.size);
+                    tarefas = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    // Atualizar status
+                    if (document.getElementById('status-sincronizacao')) {
+                        document.getElementById('status-sincronizacao').innerHTML = 
+                            '<i class="fas fa-bolt"></i> Conectado';
+                    }
+                    
+                    atualizarInterface();
+                    console.log('🎉 Sistema funcionando!');
+                },
+                (error) => {
+                    console.error('❌ Erro Firestore:', error);
+                    if (document.getElementById('status-sincronizacao')) {
+                        document.getElementById('status-sincronizacao').innerHTML = 
+                            '<i class="fas fa-exclamation-triangle"></i> Offline';
+                    }
+                }
+            );
+        
+        // Carregar usuários
+        carregarUsuarios();
+        
+    } catch (error) {
+        console.error('❌ Erro na configuração:', error);
+    }
 }
 
 async function carregarUsuarios() {
