@@ -95,6 +95,21 @@
                             <label for="grupoCor"><i class="fas fa-palette"></i> Cor de Identificação</label>
                             <input type="color" id="grupoCor" class="form-control" value="#4a6fa5">
                         </div>
+                        <!-- Adicionar membros inicial -->
+                        <div class="form-group" id="membrosContainer">
+                            <label><i class="fas fa-user-plus"></i> Adicionar Membros (opcional)</label>
+                            <div class="input-group">
+                                <input type="text" id="novoMembro" class="form-control" 
+                                       placeholder="Digite o email do membro...">
+                                <button type="button" class="btn btn-outline" onclick="adicionarMembro()">
+                                    <i class="fas fa-plus"></i> Adicionar
+                                </button>
+                            </div>
+                            <div class="membros-lista" id="membrosLista">
+                                <!-- Membros serão adicionados aqui -->
+                            </div>
+                            <small class="text-muted">Os membros adicionados receberão um convite para o grupo.</small>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -138,10 +153,12 @@
             arrayUnion,
             arrayRemove
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
         try {
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
+            const auth = getAuth(app);
             
             // Exportar globalmente
             window.firebaseModules = {
@@ -151,6 +168,9 @@
                 query, where, onSnapshot,
                 addDoc, updateDoc, deleteDoc, doc,
                 arrayUnion, arrayRemove,
+                
+                // Auth
+                auth,
                 
                 // App
                 app
@@ -184,23 +204,19 @@
         }
     </script>
 
-    <!-- Sistema Work Manager SIMPLIFICADO -->
+    <!-- Sistema Work Manager COMPLETO -->
     <script>
-        console.log('=== WORK MANAGER SIMPLIFICADO ===');
+        console.log('=== WORK MANAGER COMPLETO ===');
         
-        // Sistema básico do Work Manager
-        class WorkManagerSimple {
+        class WorkManager {
             constructor() {
                 console.log('🚀 Work Manager inicializando...');
                 this.usuarioAtual = null;
                 this.grupos = [];
                 this.filtroAtual = 'meus';
                 this.grupoEditando = null;
-                
-                // Configurar timeout de segurança
-                this.timeoutId = setTimeout(() => {
-                    this.mostrarErroConexao();
-                }, 10000); // 10 segundos timeout
+                this.membrosParaAdicionar = [];
+                this.timeoutId = null;
             }
             
             async init() {
@@ -247,7 +263,7 @@
                     const checkFirebase = () => {
                         if (window.firebaseModules && window.firebaseModules.db) {
                             console.log('✅ Firebase disponível!');
-                            clearTimeout(this.timeoutId);
+                            if (this.timeoutId) clearTimeout(this.timeoutId);
                             resolve();
                         } else {
                             setTimeout(checkFirebase, 500);
@@ -306,15 +322,11 @@
                     
                     this.grupos = snapshot.docs.map(doc => {
                         const data = doc.data();
-                        const membro = Array.isArray(data.membros) 
-                            ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
-                            : null;
-                        
                         return {
                             id: doc.id,
                             ...data,
-                            minhaPermissao: membro?.permissao || 'pendente',
-                            membroAtual: membro
+                            minhaPermissao: this.obterMinhaPermissao(data),
+                            membroAtual: this.obterMembroAtual(data)
                         };
                     });
                     
@@ -330,6 +342,36 @@
                 }
             }
             
+            obterMinhaPermissao(grupo) {
+                if (!grupo.membros || !Array.isArray(grupo.membros)) return 'pendente';
+                
+                const meuMembro = grupo.membros.find(m => {
+                    if (typeof m === 'string') {
+                        return m === this.usuarioAtual.usuario;
+                    } else if (m && typeof m === 'object') {
+                        return m.usuarioId === this.usuarioAtual.usuario;
+                    }
+                    return false;
+                });
+                
+                if (!meuMembro) return 'pendente';
+                
+                return typeof meuMembro === 'object' ? (meuMembro.permissao || 'membro') : 'membro';
+            }
+            
+            obterMembroAtual(grupo) {
+                if (!grupo.membros || !Array.isArray(grupo.membros)) return null;
+                
+                return grupo.membros.find(m => {
+                    if (typeof m === 'string') {
+                        return m === this.usuarioAtual.usuario;
+                    } else if (m && typeof m === 'object') {
+                        return m.usuarioId === this.usuarioAtual.usuario;
+                    }
+                    return false;
+                });
+            }
+            
             configurarListenerTempoReal(q) {
                 try {
                     const modules = window.firebaseModules;
@@ -340,15 +382,11 @@
                             
                             this.grupos = snapshot.docs.map(doc => {
                                 const data = doc.data();
-                                const membro = Array.isArray(data.membros) 
-                                    ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
-                                    : null;
-                                
                                 return {
                                     id: doc.id,
                                     ...data,
-                                    minhaPermissao: membro?.permissao || 'pendente',
-                                    membroAtual: membro
+                                    minhaPermissao: this.obterMinhaPermissao(data),
+                                    membroAtual: this.obterMembroAtual(data)
                                 };
                             });
                             
@@ -389,14 +427,12 @@
             mostrarErroConexao() {
                 console.log('❌ Não foi possível conectar ao banco de dados');
                 
-                // Esconder loading
                 const loadingScreen = document.getElementById('loadingScreen');
                 const mainContent = document.getElementById('mainContent');
                 
                 if (loadingScreen) loadingScreen.style.display = 'none';
                 if (mainContent) mainContent.style.display = 'block';
                 
-                // Mostrar mensagem de erro
                 const container = document.getElementById('groupsContainer');
                 if (container) {
                     container.innerHTML = `
@@ -404,14 +440,6 @@
                             <i class="fas fa-exclamation-triangle" style="color: #e74c3c; font-size: 3rem;"></i>
                             <h3 style="color: #e74c3c;">Erro de Conexão</h3>
                             <p>Não foi possível conectar ao banco de dados Firebase.</p>
-                            <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left;">
-                                <p><strong>Possíveis causas:</strong></p>
-                                <ol style="margin-left: 20px;">
-                                    <li>Problema na conexão com a internet</li>
-                                    <li>Configuração do Firebase incorreta</li>
-                                    <li>Permissões do Firestore não configuradas</li>
-                                </ol>
-                            </div>
                             <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">
                                 <i class="fas fa-redo"></i> Tentar Novamente
                             </button>
@@ -448,10 +476,14 @@
                         <div class="empty-state">
                             <i class="fas fa-users-slash"></i>
                             <h3>Nenhum grupo encontrado</h3>
-                            <p>Você ainda não faz parte de nenhum grupo de trabalho.</p>
-                            <button class="btn btn-primary" onclick="abrirModalGrupo()" style="margin-top: 15px;">
-                                <i class="fas fa-plus-circle"></i> Criar Primeiro Grupo
-                            </button>
+                            <p>${this.filtroAtual === 'meus' ? 'Você ainda não faz parte de nenhum grupo de trabalho.' :
+                              this.filtroAtual === 'convidados' ? 'Você não tem convites pendentes.' :
+                              'Não há grupos disponíveis.'}</p>
+                            ${this.filtroAtual === 'meus' ? `
+                                <button class="btn btn-primary" onclick="abrirModalGrupo()" style="margin-top: 15px;">
+                                    <i class="fas fa-plus-circle"></i> Criar Primeiro Grupo
+                                </button>
+                            ` : ''}
                         </div>
                     `;
                     return;
@@ -464,7 +496,7 @@
                     
                     return `
                         <div class="group-card permissao-${permissaoClass}">
-                            <div class="group-header">
+                            <div class="group-header" style="border-left-color: ${grupo.cor || '#4a6fa5'}">
                                 <div class="group-title">
                                     <h3>${grupo.nome}</h3>
                                     <span class="permissao-badge ${grupo.minhaPermissao}">
@@ -505,10 +537,10 @@
                                         <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
                                             <i class="fas fa-edit"></i> Editar
                                         </button>
-                                        <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
-                                            <i class="fas fa-trash"></i> Excluir
-                                        </button>
                                     ` : ''}
+                                    <button class="btn btn-danger btn-sm" onclick="workManager.sairGrupo('${grupo.id}')">
+                                        <i class="fas fa-sign-out-alt"></i> Sair
+                                    </button>
                                 `}
                             </div>
                         </div>
@@ -519,12 +551,10 @@
             filtrarGrupos(filtro, termoBusca = '') {
                 let gruposFiltrados = this.grupos;
                 
-                // Aplicar filtro principal
                 switch(filtro) {
                     case 'meus':
                         gruposFiltrados = gruposFiltrados.filter(g => 
-                            g.minhaPermissao !== 'pendente' && 
-                            g.minhaPermissao !== undefined
+                            g.minhaPermissao !== 'pendente'
                         );
                         break;
                     case 'convidados':
@@ -537,7 +567,6 @@
                         break;
                 }
                 
-                // Aplicar busca
                 if (termoBusca) {
                     const termo = termoBusca.toLowerCase();
                     gruposFiltrados = gruposFiltrados.filter(g => 
@@ -550,7 +579,6 @@
             }
             
             configurarEventos() {
-                // Busca em tempo real
                 const searchInput = document.getElementById('searchGroups');
                 if (searchInput) {
                     searchInput.addEventListener('input', (e) => {
@@ -561,8 +589,22 @@
             }
             
             atualizarInterfaceComGrupos(gruposFiltrados) {
-                // Implementação de busca
-                this.atualizarInterfaceGrupos(); // Por enquanto usa o mesmo
+                const container = document.getElementById('groupsContainer');
+                if (!container) return;
+                
+                if (gruposFiltrados.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <h3>Nenhum grupo encontrado</h3>
+                            <p>Tente usar outros termos de busca.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Reutiliza a mesma lógica de renderização
+                this.atualizarInterfaceGrupos();
             }
             
             atualizarBadgeConvites() {
@@ -580,22 +622,281 @@
                 return date.toLocaleDateString('pt-BR');
             }
             
-            // Métodos públicos (stubs)
+            // ========== CRIAÇÃO DE GRUPOS ==========
+            
             abrirModalGrupo(grupoId = null) {
-                alert('Funcionalidade em desenvolvimento - Conectado ao Firebase!');
+                console.log('📝 Abrindo modal de grupo:', grupoId);
+                
+                this.grupoEditando = grupoId;
+                this.membrosParaAdicionar = [];
+                
+                const modal = document.getElementById('modalGrupo');
+                const titulo = document.getElementById('modalGrupoTitulo');
+                const btnSalvar = document.querySelector('#modalGrupo .btn-primary');
+                
+                if (grupoId) {
+                    // Modo edição
+                    const grupo = this.grupos.find(g => g.id === grupoId);
+                    if (!grupo) return;
+                    
+                    titulo.textContent = 'Editar Grupo';
+                    btnSalvar.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                    
+                    document.getElementById('grupoNome').value = grupo.nome || '';
+                    document.getElementById('grupoDescricao').value = grupo.descricao || '';
+                    document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
+                    
+                    // Limpar membros anteriores
+                    this.membrosParaAdicionar = [];
+                } else {
+                    // Modo criação
+                    titulo.textContent = 'Novo Grupo de Trabalho';
+                    btnSalvar.innerHTML = '<i class="fas fa-save"></i> Criar Grupo';
+                    
+                    // Limpar formulário
+                    document.getElementById('grupoNome').value = '';
+                    document.getElementById('grupoDescricao').value = '';
+                    document.getElementById('grupoCor').value = '#4a6fa5';
+                    
+                    // Limpar membros
+                    this.membrosParaAdicionar = [];
+                }
+                
+                // Atualizar lista de membros
+                this.atualizarListaMembros();
+                
+                // Mostrar modal
+                modal.style.display = 'block';
             }
             
             fecharModalGrupo() {
-                // Implementação futura
+                const modal = document.getElementById('modalGrupo');
+                modal.style.display = 'none';
+                
+                // Resetar formulário
+                this.grupoEditando = null;
+                this.membrosParaAdicionar = [];
             }
             
-            salvarGrupo() {
-                alert('Funcionalidade em desenvolvimento - Conectado ao Firebase!');
+            async salvarGrupo() {
+                console.log('💾 Salvando grupo...');
+                
+                try {
+                    const modules = window.firebaseModules;
+                    if (!modules || !modules.db) {
+                        throw new Error('Firebase não disponível');
+                    }
+                    
+                    // Validar formulário
+                    const nome = document.getElementById('grupoNome').value.trim();
+                    if (!nome) {
+                        this.mostrarAlerta('⚠️ Por favor, informe um nome para o grupo', 'warning');
+                        return;
+                    }
+                    
+                    // Coletar dados
+                    const descricao = document.getElementById('grupoDescricao').value.trim();
+                    const cor = document.getElementById('grupoCor').value;
+                    
+                    // Preparar dados do grupo
+                    const grupoData = {
+                        nome: nome,
+                        descricao: descricao || '',
+                        cor: cor,
+                        criador: this.usuarioAtual.usuario,
+                        dataCriacao: modules.serverTimestamp(),
+                        dataAtualizacao: modules.serverTimestamp(),
+                        membros: [
+                            {
+                                usuarioId: this.usuarioAtual.usuario,
+                                nome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
+                                email: this.usuarioAtual.email || '',
+                                permissao: 'admin',
+                                dataIngresso: modules.serverTimestamp()
+                            }
+                        ],
+                        tarefas: []
+                    };
+                    
+                    // Adicionar outros membros se houver
+                    if (this.membrosParaAdicionar.length > 0) {
+                        this.membrosParaAdicionar.forEach(email => {
+                            grupoData.membros.push({
+                                usuarioId: email,
+                                email: email,
+                                permissao: 'pendente',
+                                dataConvite: modules.serverTimestamp()
+                            });
+                        });
+                    }
+                    
+                    // Salvar no Firebase
+                    this.atualizarStatus('💾 Salvando grupo...');
+                    
+                    const gruposRef = modules.collection(modules.db, 'grupos');
+                    const docRef = await modules.addDoc(gruposRef, grupoData);
+                    
+                    console.log('✅ Grupo criado com sucesso! ID:', docRef.id);
+                    
+                    // Atualizar interface
+                    this.mostrarAlerta('✅ Grupo criado com sucesso!', 'success');
+                    
+                    // Fechar modal
+                    this.fecharModalGrupo();
+                    
+                    // Recarregar grupos
+                    await this.carregarGrupos();
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao criar grupo:', error);
+                    this.mostrarAlerta(`❌ Erro ao criar grupo: ${error.message}`, 'error');
+                    this.atualizarStatus('❌ Erro ao criar grupo');
+                }
+            }
+            
+            adicionarMembro() {
+                const input = document.getElementById('novoMembro');
+                const email = input.value.trim().toLowerCase();
+                
+                if (!email) {
+                    this.mostrarAlerta('⚠️ Por favor, informe um email', 'warning');
+                    return;
+                }
+                
+                // Validar email básico
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    this.mostrarAlerta('⚠️ Por favor, informe um email válido', 'warning');
+                    return;
+                }
+                
+                // Não permitir adicionar a si mesmo
+                if (email === this.usuarioAtual.email?.toLowerCase() || 
+                    email === this.usuarioAtual.usuario?.toLowerCase()) {
+                    this.mostrarAlerta('⚠️ Você já é o administrador deste grupo', 'info');
+                    return;
+                }
+                
+                // Verificar se já foi adicionado
+                if (this.membrosParaAdicionar.includes(email)) {
+                    this.mostrarAlerta('⚠️ Este membro já foi adicionado', 'info');
+                    return;
+                }
+                
+                // Adicionar à lista
+                this.membrosParaAdicionar.push(email);
+                this.atualizarListaMembros();
+                
+                // Limpar input
+                input.value = '';
+                input.focus();
+            }
+            
+            removerMembro(index) {
+                this.membrosParaAdicionar.splice(index, 1);
+                this.atualizarListaMembros();
+            }
+            
+            atualizarListaMembros() {
+                const container = document.getElementById('membrosLista');
+                if (!container) return;
+                
+                if (this.membrosParaAdicionar.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-membros">
+                            <i class="fas fa-user-plus"></i>
+                            <span>Nenhum membro adicionado ainda</span>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = this.membrosParaAdicionar.map((email, index) => `
+                    <div class="membro-item">
+                        <i class="fas fa-user"></i>
+                        <span>${email}</span>
+                        <button type="button" class="btn-remover" onclick="workManager.removerMembro(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            mostrarAlerta(mensagem, tipo = 'info') {
+                // Criar elemento de alerta
+                const alerta = document.createElement('div');
+                alerta.className = `alerta alerta-${tipo}`;
+                alerta.innerHTML = `
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 
+                                       tipo === 'warning' ? 'exclamation-triangle' : 
+                                       tipo === 'error' ? 'times-circle' : 'info-circle'}"></i>
+                    <span>${mensagem}</span>
+                `;
+                
+                // Estilizar
+                alerta.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${tipo === 'success' ? '#d4edda' : 
+                                 tipo === 'warning' ? '#fff3cd' : 
+                                 tipo === 'error' ? '#f8d7da' : '#d1ecf1'};
+                    color: ${tipo === 'success' ? '#155724' : 
+                             tipo === 'warning' ? '#856404' : 
+                             tipo === 'error' ? '#721c24' : '#0c5460'};
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    border: 1px solid ${tipo === 'success' ? '#c3e6cb' : 
+                                       tipo === 'warning' ? '#ffeaa7' : 
+                                       tipo === 'error' ? '#f5c6cb' : '#bee5eb'};
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    animation: slideIn 0.3s ease;
+                `;
+                
+                // Adicionar ao body
+                document.body.appendChild(alerta);
+                
+                // Remover após 5 segundos
+                setTimeout(() => {
+                    alerta.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (alerta.parentNode) {
+                            document.body.removeChild(alerta);
+                        }
+                    }, 300);
+                }, 5000);
+            }
+            
+            // Métodos para futuras implementações (stubs)
+            responderConvite(grupoId, acao) {
+                alert(`Funcionalidade em desenvolvimento: ${acao} convite do grupo ${grupoId}`);
+            }
+            
+            verDetalhesGrupo(grupoId) {
+                alert(`Funcionalidade em desenvolvimento: Ver detalhes do grupo ${grupoId}`);
+            }
+            
+            gerenciarMembros(grupoId) {
+                alert(`Funcionalidade em desenvolvimento: Gerenciar membros do grupo ${grupoId}`);
+            }
+            
+            editarGrupo(grupoId) {
+                this.abrirModalGrupo(grupoId);
+            }
+            
+            sairGrupo(grupoId) {
+                if (confirm('Tem certeza que deseja sair deste grupo?')) {
+                    alert(`Funcionalidade em desenvolvimento: Sair do grupo ${grupoId}`);
+                }
             }
         }
         
         // Criar instância global
-        const workManager = new WorkManagerSimple();
+        const workManager = new WorkManager();
         
         // Inicializar quando o DOM estiver pronto
         if (document.readyState === 'loading') {
@@ -608,9 +909,10 @@
         
         // Expor funções globais
         window.workManager = workManager;
-        window.abrirModalGrupo = () => workManager.abrirModalGrupo();
+        window.abrirModalGrupo = (grupoId) => workManager.abrirModalGrupo(grupoId);
         window.fecharModalGrupo = () => workManager.fecharModalGrupo();
         window.salvarGrupo = () => workManager.salvarGrupo();
+        window.adicionarMembro = () => workManager.adicionarMembro();
         window.filtrarGrupos = (filtro) => {
             workManager.filtroAtual = filtro;
             workManager.atualizarInterfaceGrupos();
@@ -619,6 +921,317 @@
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
         };
+        
+        // Fechar modal ao clicar fora
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalGrupo');
+            if (event.target == modal) {
+                workManager.fecharModalGrupo();
+            }
+        };
+        
+        // Permitir submit do formulário com Enter
+        document.getElementById('formGrupo')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            workManager.salvarGrupo();
+        });
     </script>
+    
+    <style>
+        /* Estilos para o modal de grupos */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: #fff;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-header {
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+        
+        .close:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .modal-footer {
+            padding: 20px 30px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            border-radius: 0 0 12px 12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        .form-control:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        input[type="color"].form-control {
+            height: 50px;
+            padding: 5px;
+            cursor: pointer;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .input-group .form-control {
+            flex: 1;
+        }
+        
+        .membros-lista {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .membro-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .membro-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .membro-item i.fa-user {
+            color: #667eea;
+        }
+        
+        .membro-item span {
+            flex: 1;
+            font-size: 14px;
+        }
+        
+        .btn-remover {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-remover:hover {
+            background-color: #f8d7da;
+        }
+        
+        .empty-membros {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .empty-membros i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        .text-muted {
+            color: #6c757d !important;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        /* Botões */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* Animações para alertas */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .modal-content {
+                margin: 10% auto;
+                width: 95%;
+            }
+            
+            .modal-header {
+                padding: 15px 20px;
+            }
+            
+            .modal-body {
+                padding: 20px;
+            }
+            
+            .modal-footer {
+                padding: 15px 20px;
+                flex-direction: column;
+            }
+            
+            .modal-footer .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .modal-footer .btn:last-child {
+                margin-bottom: 0;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+        }
+    </style>
 </body>
 </html>
