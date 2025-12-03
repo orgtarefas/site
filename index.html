@@ -1,167 +1,166 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Planejamento</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Planejamento</title>
+<link rel="stylesheet" href="style.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Tela de Carregamento -->
-    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
-        <div style="text-align: center;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
-            <p id="loadingText">Verificando autenticação...</p>
-        </div>
-    </div>
-
+<!-- Tela de Carregamento -->
+<div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
+<div style="text-align: center;">
+<i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
+<p id="loadingText">Verificando autenticação...</p>
+</div>
+</div>
+ 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho -->
-        <header class="header">
-            <h1><i class="fas fa-tasks"></i> Sistema de Planejamento</h1>
-            <div class="header-info">
-                <span id="data-atual"></span>
-                <span id="status-sincronizacao"><i class="fas fa-sync-alt"></i> Conectando...</span>
-                <div class="user-menu">
-                    <span id="userName">Usuário</span>
-                    <button class="btn btn-outline btn-sm" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i> Sair
-                    </button>
-                </div>
-            </div>
-        </header>
-
+<!-- Cabeçalho -->
+<header class="header">
+<h1><i class="fas fa-tasks"></i> Sistema de Planejamento</h1>
+<div class="header-info">
+<span id="data-atual"></span>
+<span id="status-sincronizacao"><i class="fas fa-sync-alt"></i> Conectando...</span>
+<div class="user-menu">
+<span id="userName">Usuário</span>
+<button class="btn btn-outline btn-sm" onclick="logout()">
+<i class="fas fa-sign-out-alt"></i> Sair
+</button>
+</div>
+</div>
+</header>
+ 
         <!-- Estatísticas -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Total de Tarefas</h3>
-                <div class="number" id="total-tarefas">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Pendentes</h3>
-                <div class="number" id="tarefas-pendentes">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Em Andamento</h3>
-                <div class="number" id="tarefas-andamento">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Concluídas</h3>
-                <div class="number" id="tarefas-concluidas">0</div>
-            </div>
-        </div>
-
+<div class="stats-grid">
+<div class="stat-card">
+<h3>Total de Tarefas</h3>
+<div class="number" id="total-tarefas">0</div>
+</div>
+<div class="stat-card">
+<h3>Pendentes</h3>
+<div class="number" id="tarefas-pendentes">0</div>
+</div>
+<div class="stat-card">
+<h3>Em Andamento</h3>
+<div class="number" id="tarefas-andamento">0</div>
+</div>
+<div class="stat-card">
+<h3>Concluídas</h3>
+<div class="number" id="tarefas-concluidas">0</div>
+</div>
+</div>
+ 
         <!-- Filtros -->
-        <div class="filters">
-            <div class="filter-group">
-                <label for="searchInput"><i class="fas fa-search"></i> Buscar</label>
-                <input type="text" id="searchInput" placeholder="Buscar por título ou descrição...">
-            </div>
-            <div class="filter-group">
-                <label for="filterStatus">Status</label>
-                <select id="filterStatus">
-                    <option value="">Todos</option>
-                    <option value="pendente">Pendente</option>
-                    <option value="andamento">Em Andamento</option>
-                    <option value="concluido">Concluído</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filterPrioridade">Prioridade</label>
-                <select id="filterPrioridade">
-                    <option value="">Todas</option>
-                    <option value="alta">Alta</option>
-                    <option value="media">Média</option>
-                    <option value="baixa">Baixa</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filterResponsavel">Responsável</label>
-                <select id="filterResponsavel">
-                    <option value="">Todos</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <button class="btn btn-primary" onclick="abrirModalTarefa()">
-                    <i class="fas fa-plus"></i> Nova Tarefa
-                </button>
-            </div>
-        </div>
-
+<div class="filters">
+<div class="filter-group">
+<label for="searchInput"><i class="fas fa-search"></i> Buscar</label>
+<input type="text" id="searchInput" placeholder="Buscar por título ou descrição...">
+</div>
+<div class="filter-group">
+<label for="filterStatus">Status</label>
+<select id="filterStatus">
+<option value="">Todos</option>
+<option value="pendente">Pendente</option>
+<option value="andamento">Em Andamento</option>
+<option value="concluido">Concluído</option>
+</select>
+</div>
+<div class="filter-group">
+<label for="filterPrioridade">Prioridade</label>
+<select id="filterPrioridade">
+<option value="">Todas</option>
+<option value="alta">Alta</option>
+<option value="media">Média</option>
+<option value="baixa">Baixa</option>
+</select>
+</div>
+<div class="filter-group">
+<label for="filterResponsavel">Responsável</label>
+<select id="filterResponsavel">
+<option value="">Todos</option>
+</select>
+</div>
+<div class="filter-group">
+<button class="btn btn-primary" onclick="abrirModalTarefa()">
+<i class="fas fa-plus"></i> Nova Tarefa
+</button>
+</div>
+</div>
+ 
         <!-- Tasks Grid -->
-        <div class="tasks-grid" id="lista-tarefas">
-            <div class="empty-state">
-                <i class="fas fa-tasks"></i>
-                <h3>Nenhuma tarefa encontrada</h3>
-                <p>Clique em "Nova Tarefa" para começar</p>
-            </div>
-        </div>
-    </div>
-
+<div class="tasks-grid" id="lista-tarefas">
+<div class="empty-state">
+<i class="fas fa-tasks"></i>
+<h3>Nenhuma tarefa encontrada</h3>
+<p>Clique em "Nova Tarefa" para começar</p>
+</div>
+</div>
+</div>
+ 
     <!-- Modal Tarefa -->
-    <div id="modalTarefa" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitulo">Nova Tarefa</h2>
-                <button class="close" onclick="fecharModalTarefa()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="formTarefa">
-                    <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label for="tarefaTitulo">Título *</label>
-                            <input type="text" id="tarefaTitulo" required placeholder="Título da tarefa">
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="tarefaDescricao">Descrição</label>
-                            <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="tarefaPrioridade">Prioridade *</label>
-                            <select id="tarefaPrioridade" required>
-                                <option value="baixa">Baixa</option>
-                                <option value="media">Média</option>
-                                <option value="alta">Alta</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="tarefaStatus">Status *</label>
-                            <select id="tarefaStatus" required>
-                                <option value="pendente">Pendente</option>
-                                <option value="andamento">Em Andamento</option>
-                                <option value="concluido">Concluído</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="tarefaDataInicio">Data Início</label>
-                            <input type="date" id="tarefaDataInicio">
-                        </div>
-                        <div class="form-group">
-                            <label for="tarefaDataFim">Data Final *</label>
-                            <input type="date" id="tarefaDataFim" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="tarefaResponsavel">Responsável</label>
-                            <select id="tarefaResponsavel">
-                                <option value="">Selecionar...</option>
-                            </select>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="fecharModalTarefa()">Cancelar</button>
-                <button class="btn btn-primary" onclick="salvarTarefa()">Salvar Tarefa</button>
-            </div>
-        </div>
-    </div>
-
+<div id="modalTarefa" class="modal">
+<div class="modal-content">
+<div class="modal-header">
+<h2 id="modalTitulo">Nova Tarefa</h2>
+<button class="close" onclick="fecharModalTarefa()">&times;</button>
+</div>
+<div class="modal-body">
+<form id="formTarefa">
+<div class="form-grid">
+<div class="form-group full-width">
+<label for="tarefaTitulo">Título *</label>
+<input type="text" id="tarefaTitulo" required placeholder="Título da tarefa">
+</div>
+<div class="form-group full-width">
+<label for="tarefaDescricao">Descrição</label>
+<textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
+</div>
+<div class="form-group">
+<label for="tarefaPrioridade">Prioridade *</label>
+<select id="tarefaPrioridade" required>
+<option value="baixa">Baixa</option>
+<option value="media">Média</option>
+<option value="alta">Alta</option>
+</select>
+</div>
+<div class="form-group">
+<label for="tarefaStatus">Status *</label>
+<select id="tarefaStatus" required>
+<option value="pendente">Pendente</option>
+<option value="andamento">Em Andamento</option>
+<option value="concluido">Concluído</option>
+</select>
+</div>
+<div class="form-group">
+<label for="tarefaDataInicio">Data Início</label>
+<input type="date" id="tarefaDataInicio">
+</div>
+<div class="form-group">
+<label for="tarefaDataFim">Data Final *</label>
+<input type="date" id="tarefaDataFim" required>
+</div>
+<div class="form-group">
+<label for="tarefaResponsavel">Responsável</label>
+<select id="tarefaResponsavel">
+<option value="">Selecionar...</option>
+</select>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-outline" onclick="fecharModalTarefa()">Cancelar</button>
+<button class="btn btn-primary" onclick="salvarTarefa()">Salvar Tarefa</button>
+</div>
+</div>
+</div>
+ 
     <!-- Firebase CDN direto (mais confiável) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    <script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script>
         // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
@@ -171,18 +170,16 @@
             messagingSenderId: "1023569488575",
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
-
+ 
         // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        
         console.log('✅ Firebase inicializado!');
-        
         // Torna global
         window.db = db;
         window.firebase = firebase;
-    </script>
-
+</script>
+ 
     <script src="script.js"></script>
 </body>
 </html>
