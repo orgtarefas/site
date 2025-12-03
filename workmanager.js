@@ -1,11 +1,11 @@
-// workmanager.js - Sistema de Grupos de Trabalho com Firebase
+// workmanager-v12.js - Sistema com Firebase v12
+console.log('=== WORK MANAGER v12 INICIANDO ===');
 
-console.log('=== WORK MANAGER INICIANDO ===');
-
-
-// Sistema de Gerenciamento de Grupos
-class WorkManager {
+// Sistema de Gerenciamento de Grupos com Firebase v12
+class WorkManagerV12 {
     constructor() {
+        this.modules = null;
+        this.db = null;
         this.grupos = [];
         this.usuarios = [];
         this.tarefasGrupo = [];
@@ -13,75 +13,54 @@ class WorkManager {
         this.grupoEditando = null;
         this.filtroAtual = 'meus';
         this.unsubscribeListeners = [];
-    }
-
-    async init() {
-        console.log('🚀 Inicializando Work Manager...');
         
-        try {
-            // DEBUG: Verificar se Firebase está carregado
-            console.log('Firebase está disponível?', window.db ? '✅ SIM' : '❌ NÃO');
-            console.log('Firebase.apps:', firebase.apps);
-            console.log('Firebase.db:', window.db);
-            
-            // 1. Verificar autenticação (SEM REDIRECIONAMENTO AUTOMÁTICO)
-            await this.verificarAutenticacao();
-            
-            if (!this.usuarioAtual) {
-                console.log('⚠️ Usuário não autenticado, mas continuando para debug');
-                // Mesmo sem usuário, vamos mostrar a interface
-                this.forcarMostrarInterface();
-                return;
-            }
-            
-            // 2. Tentar carregar dados (mesmo que falhe)
-            await this.tentarCarregarDados();
-            
-            // 3. Configurar eventos
-            this.configurarEventos();
-            
-            // 4. Forçar mostrar interface após timeout
-            setTimeout(() => {
-                this.forcarMostrarInterface();
-                console.log('✅ Interface forçada a aparecer');
-            }, 2000);
-            
-        } catch (error) {
-            console.error('❌ Erro crítico na inicialização:', error);
-            this.forcarMostrarInterface();
-            this.mostrarNotificacao('Erro ao conectar com o banco de dados', 'error');
+        // Inicializar quando o Firebase estiver pronto
+        if (window.firebaseModules) {
+            this.initModules();
+        } else {
+            window.onFirebaseReady = () => this.initModules();
         }
     }
 
-    forcarMostrarInterface() {
-        document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        this.atualizarStatusSincronizacao('⚠️ Modo offline');
+    initModules() {
+        console.log('🔥 Inicializando módulos Firebase v12...');
+        this.modules = window.firebaseModules;
+        this.db = this.modules.db;
         
-        // Mostrar dados de exemplo para debug
-        this.mostrarDadosExemplo();
+        // Iniciar o sistema
+        this.init();
     }
 
-    mostrarDadosExemplo() {
-        const container = document.getElementById('groupsContainer');
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-tools"></i>
-                <h3>Modo de Demonstração</h3>
-                <p>O sistema está funcionando, mas o Firebase pode não estar conectado.</p>
-                <div style="margin-top: 20px; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                    <p><strong>Para resolver:</strong></p>
-                    <ol style="text-align: left; margin-left: 20px;">
-                        <li>Verifique se está logado</li>
-                        <li>Recarregue a página (F5)</li>
-                        <li>Verifique o console do navegador (F12)</li>
-                    </ol>
-                </div>
-                <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.reload()">
-                    <i class="fas fa-redo"></i> Recarregar Página
-                </button>
-            </div>
-        `;
+    async init() {
+        console.log('🚀 Inicializando Work Manager v12...');
+        
+        try {
+            // 1. Verificar autenticação
+            await this.verificarAutenticacao();
+            
+            // 2. Se não estiver autenticado, mostrar modo demo
+            if (!this.usuarioAtual) {
+                console.log('⚠️ Usuário não autenticado - Modo demonstração');
+                this.mostrarModoDemonstracao();
+                return;
+            }
+            
+            // 3. Carregar dados iniciais
+            await this.carregarDadosIniciais();
+            
+            // 4. Configurar listeners
+            this.configurarListeners();
+            
+            // 5. Configurar eventos da interface
+            this.configurarEventos();
+            
+            console.log('✅ Work Manager v12 inicializado com sucesso!');
+            
+        } catch (error) {
+            console.error('❌ Erro na inicialização:', error);
+            this.mostrarModoDemonstracao();
+            this.mostrarNotificacao('Erro ao conectar com o banco de dados', 'error');
+        }
     }
 
     async verificarAutenticacao() {
@@ -89,14 +68,12 @@ class WorkManager {
             const usuarioLogado = localStorage.getItem('usuarioLogado');
             
             if (!usuarioLogado) {
-                console.log('⚠️ Nenhum usuário logado encontrado no localStorage');
-                // Não redirecionar imediatamente, apenas marcar como não autenticado
-                this.usuarioAtual = null;
+                console.log('⚠️ Nenhum usuário logado encontrado');
                 return;
             }
             
             this.usuarioAtual = JSON.parse(usuarioLogado);
-            console.log('👤 Usuário encontrado:', this.usuarioAtual.usuario);
+            console.log('👤 Usuário autenticado:', this.usuarioAtual.usuario);
             
             // Atualizar interface
             if (document.getElementById('userName')) {
@@ -110,56 +87,114 @@ class WorkManager {
         }
     }
 
-    async tentarCarregarDados() {
-        try {
-            console.log('📊 Tentando carregar dados do Firebase...');
+    mostrarModoDemonstracao() {
+        // Esconder loading
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        this.atualizarStatusSincronizacao('🔶 Modo Demonstração');
+        
+        // Mostrar dados de exemplo
+        const container = document.getElementById('groupsContainer');
+        container.innerHTML = `
+            <div class="group-card permissao-admin">
+                <div class="group-header">
+                    <div class="group-title">
+                        <h3>Projeto Alpha - Demo</h3>
+                        <span class="permissao-badge admin">Admin</span>
+                    </div>
+                    <div class="group-desc">Exemplo de grupo no Work Manager</div>
+                    <div class="group-meta">
+                        <div class="group-stats">
+                            <div class="group-stat">
+                                <i class="fas fa-users"></i>
+                                <span>3 membros</span>
+                            </div>
+                            <div class="group-stat">
+                                <i class="fas fa-tasks"></i>
+                                <span>5 tarefas</span>
+                            </div>
+                        </div>
+                        <small><i class="fas fa-calendar"></i> Hoje</small>
+                    </div>
+                </div>
+                <div class="group-actions">
+                    <button class="btn btn-outline btn-sm" onclick="alert('Faça login para usar esta funcionalidade')">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="alert('Faça login para gerenciar membros')">
+                        <i class="fas fa-users-cog"></i> Membros
+                    </button>
+                </div>
+            </div>
             
-            // Verificar se o Firebase está realmente funcionando
-            if (!window.db || typeof window.db.collection !== 'function') {
-                throw new Error('Firebase não está disponível');
-            }
+            <div class="group-card permissao-atuador">
+                <div class="group-header">
+                    <div class="group-title">
+                        <h3>Time de Desenvolvimento</h3>
+                        <span class="permissao-badge atuador">Atuador</span>
+                    </div>
+                    <div class="group-desc">Equipe de desenvolvimento web</div>
+                    <div class="group-meta">
+                        <div class="group-stats">
+                            <div class="group-stat">
+                                <i class="fas fa-users"></i>
+                                <span>6 membros</span>
+                            </div>
+                            <div class="group-stat">
+                                <i class="fas fa-tasks"></i>
+                                <span>15 tarefas</span>
+                            </div>
+                        </div>
+                        <small><i class="fas fa-calendar"></i> 2 dias</small>
+                    </div>
+                </div>
+                <div class="group-actions">
+                    <button class="btn btn-outline btn-sm" onclick="alert('Faça login para usar esta funcionalidade')">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="alert('Faça login para gerenciar membros')">
+                        <i class="fas fa-users-cog"></i> Membros
+                    </button>
+                </div>
+            </div>
             
-            // Testar uma consulta simples
-            const testSnapshot = await db.collection('usuarios').limit(1).get();
-            console.log('✅ Teste do Firebase bem-sucedido:', testSnapshot.size, 'documentos');
-            
-            // Carregar usuários
-            const usuariosSnapshot = await db.collection('usuarios').get();
-            this.usuarios = usuariosSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`✅ ${this.usuarios.length} usuários carregados`);
-            
-            // Configurar listeners apenas se o usuário estiver autenticado
-            if (this.usuarioAtual) {
-                this.configurarListeners();
-                this.atualizarStatusSincronizacao('✅ Conectado');
-            } else {
-                this.atualizarStatusSincronizacao('⚠️ Modo visualização');
-            }
-            
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            this.atualizarStatusSincronizacao('❌ Erro de conexão');
-            throw error;
-        }
+            <div class="empty-state" style="grid-column: 1 / -1; margin-top: 30px;">
+                <i class="fas fa-info-circle"></i>
+                <h3>Work Manager - Modo Demonstração</h3>
+                <p>Para usar todas as funcionalidades:</p>
+                <ol style="text-align: left; display: inline-block; margin-top: 10px;">
+                    <li>Faça login no sistema</li>
+                    <li>Os grupos serão sincronizados com o Firebase</li>
+                    <li>Você poderá criar grupos e convitar membros</li>
+                </ol>
+                <button class="btn btn-primary" onclick="window.location.href='login.html'" style="margin-top: 20px;">
+                    <i class="fas fa-sign-in-alt"></i> Fazer Login
+                </button>
+            </div>
+        `;
     }
 
     async carregarDadosIniciais() {
-        console.log('📊 Carregando dados iniciais...');
+        console.log('📊 Carregando dados iniciais v12...');
         
         try {
-            // 1. Carregar todos os usuários do sistema
-            const usuariosSnapshot = await db.collection('usuarios').get();
+            // 1. Carregar todos os usuários
+            const usuariosRef = this.modules.collection(this.db, 'usuarios');
+            const usuariosSnapshot = await this.modules.getDocs(usuariosRef);
+            
             this.usuarios = usuariosSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
-
-            // 2. Atualizar status de sincronização
-            this.atualizarStatusSincronizacao('✅ Conectado');
+            
+            // 2. Esconder loading e mostrar interface
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            
+            this.atualizarStatusSincronizacao('✅ Conectado ao Firebase');
             
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
@@ -169,12 +204,17 @@ class WorkManager {
     }
 
     configurarListeners() {
-        console.log('📡 Configurando listeners do Firestore...');
+        console.log('📡 Configurando listeners v12...');
         
         // 1. Listener para grupos onde o usuário é membro
-        const gruposListener = db.collection('grupos')
-            .where('membros', 'array-contains', this.usuarioAtual.usuario)
-            .onSnapshot(
+        try {
+            const gruposRef = this.modules.collection(this.db, 'grupos');
+            const q = this.modules.query(
+                gruposRef,
+                this.modules.where('membros', 'array-contains', this.usuarioAtual.usuario)
+            );
+            
+            const unsubscribe = this.modules.onSnapshot(q, 
                 (snapshot) => {
                     console.log('🔄 Grupos atualizados:', snapshot.size);
                     this.processarGrupos(snapshot);
@@ -184,22 +224,12 @@ class WorkManager {
                     this.atualizarStatusSincronizacao('⚠️ Sincronização interrompida');
                 }
             );
-        
-        this.unsubscribeListeners.push(gruposListener);
-
-        // 2. Listener para convites pendentes
-        const convitesListener = db.collection('grupos')
-            .where('convites', 'array-contains', this.usuarioAtual.usuario)
-            .onSnapshot(
-                (snapshot) => {
-                    this.atualizarBadgeConvites(snapshot.size);
-                },
-                (error) => {
-                    console.error('❌ Erro no listener de convites:', error);
-                }
-            );
-        
-        this.unsubscribeListeners.push(convitesListener);
+            
+            this.unsubscribeListeners.push(unsubscribe);
+            
+        } catch (error) {
+            console.error('❌ Erro ao configurar listener:', error);
+        }
     }
 
     configurarEventos() {
@@ -223,7 +253,9 @@ class WorkManager {
     processarGrupos(snapshot) {
         this.grupos = snapshot.docs.map(doc => {
             const data = doc.data();
-            const membro = data.membros?.find(m => m.usuarioId === this.usuarioAtual.usuario);
+            const membro = Array.isArray(data.membros) 
+                ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
+                : null;
             
             return {
                 id: doc.id,
@@ -254,8 +286,8 @@ class WorkManager {
 
         container.innerHTML = gruposFiltrados.map(grupo => {
             const permissaoClass = grupo.minhaPermissao === 'pendente' ? 'convite-pendente' : grupo.minhaPermissao;
-            const membrosCount = grupo.membros?.length || 0;
-            const tarefasCount = grupo.tarefas?.length || 0;
+            const membrosCount = Array.isArray(grupo.membros) ? grupo.membros.length : 0;
+            const tarefasCount = Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0;
             
             return `
                 <div class="group-card permissao-${permissaoClass}">
@@ -363,7 +395,7 @@ class WorkManager {
         return gruposFiltrados;
     }
 
-    // FUNÇÕES DE GRUPOS
+    // FUNÇÕES DE GRUPOS - COM FIREBASE v12
     async salvarGrupo() {
         const nome = document.getElementById('grupoNome').value;
         const descricao = document.getElementById('grupoDescricao').value;
@@ -382,23 +414,25 @@ class WorkManager {
                 cor,
                 visibilidade,
                 criador: this.usuarioAtual.usuario,
-                dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
+                dataCriacao: this.modules.serverTimestamp(),
                 membros: [{
                     usuarioId: this.usuarioAtual.usuario,
                     permissao: 'admin',
-                    dataEntrada: firebase.firestore.FieldValue.serverTimestamp(),
+                    dataEntrada: this.modules.serverTimestamp(),
                     nome: this.usuarioAtual.nome || this.usuarioAtual.usuario
                 }],
                 tarefas: []
             };
             
             if (this.grupoEditando) {
-                // Editar grupo existente
-                await db.collection('grupos').doc(this.grupoEditando).update(grupoData);
+                // Editar grupo existente - Firebase v12
+                const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
+                await this.modules.updateDoc(grupoRef, grupoData);
                 this.mostrarNotificacao('✅ Grupo atualizado com sucesso!', 'success');
             } else {
-                // Criar novo grupo
-                await db.collection('grupos').add(grupoData);
+                // Criar novo grupo - Firebase v12
+                const gruposRef = this.modules.collection(this.db, 'grupos');
+                await this.modules.addDoc(gruposRef, grupoData);
                 this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
             }
             
@@ -416,7 +450,8 @@ class WorkManager {
         }
         
         try {
-            await db.collection('grupos').doc(grupoId).delete();
+            const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
+            await this.modules.deleteDoc(grupoRef);
             this.mostrarNotificacao('✅ Grupo excluído com sucesso!', 'success');
         } catch (error) {
             console.error('❌ Erro ao excluir grupo:', error);
@@ -424,7 +459,7 @@ class WorkManager {
         }
     }
 
-    // FUNÇÕES DE MEMBROS
+    // FUNÇÕES DE MEMBROS - COM FIREBASE v12
     async gerenciarMembros(grupoId) {
         this.grupoEditando = grupoId;
         const grupo = this.grupos.find(g => g.id === grupoId);
@@ -510,14 +545,17 @@ class WorkManager {
                 return;
             }
             
-            // Adicionar ao grupo
-            await db.collection('grupos').doc(this.grupoEditando).update({
-                membros: firebase.firestore.FieldValue.arrayUnion({
-                    usuarioId: usuario.usuario,
-                    permissao: permissao,
-                    dataEntrada: firebase.firestore.FieldValue.serverTimestamp(),
-                    nome: usuario.nome || usuario.usuario
-                })
+            // Adicionar ao grupo - Firebase v12
+            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
+            const novoMembro = {
+                usuarioId: usuario.usuario,
+                permissao: permissao,
+                dataEntrada: this.modules.serverTimestamp(),
+                nome: usuario.nome || usuario.usuario
+            };
+            
+            await this.modules.updateDoc(grupoRef, {
+                membros: this.modules.arrayUnion(novoMembro)
             });
             
             this.mostrarNotificacao(`✅ Convite enviado para ${usuario.nome || usuario.usuario}`, 'success');
@@ -531,17 +569,21 @@ class WorkManager {
 
     async responderConvite(grupoId, resposta) {
         try {
-            const grupoRef = db.collection('grupos').doc(grupoId);
+            const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
             const grupo = this.grupos.find(g => g.id === grupoId);
             
+            if (!grupo || !grupo.membros) {
+                throw new Error('Grupo não encontrado');
+            }
+            
             if (resposta === 'aceitar') {
-                // Atualizar membro de pendente para observador
-                const membro = grupo.membros.find(m => m.usuarioId === this.usuarioAtual.usuario);
-                if (membro) {
-                    membro.permissao = 'observador';
-                    membro.dataEntrada = firebase.firestore.FieldValue.serverTimestamp();
+                // Encontrar e atualizar membro
+                const membroIndex = grupo.membros.findIndex(m => m.usuarioId === this.usuarioAtual.usuario);
+                if (membroIndex !== -1) {
+                    grupo.membros[membroIndex].permissao = 'observador';
+                    grupo.membros[membroIndex].dataEntrada = this.modules.serverTimestamp();
                     
-                    await grupoRef.update({
+                    await this.modules.updateDoc(grupoRef, {
                         membros: grupo.membros
                     });
                 }
@@ -549,11 +591,12 @@ class WorkManager {
                 this.mostrarNotificacao('✅ Convite aceito com sucesso!', 'success');
             } else {
                 // Remover do array de membros
-                await grupoRef.update({
-                    membros: firebase.firestore.FieldValue.arrayRemove(
-                        grupo.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
-                    )
-                });
+                const membro = grupo.membros.find(m => m.usuarioId === this.usuarioAtual.usuario);
+                if (membro) {
+                    await this.modules.updateDoc(grupoRef, {
+                        membros: this.modules.arrayRemove(membro)
+                    });
+                }
                 
                 this.mostrarNotificacao('Convite recusado', 'info');
             }
@@ -564,346 +607,15 @@ class WorkManager {
         }
     }
 
-    // FUNÇÕES DE TAREFAS
-    async verDetalhesGrupo(grupoId) {
-        try {
-            const grupo = this.grupos.find(g => g.id === grupoId);
-            
-            // Carregar tarefas do grupo
-            const tarefasSnapshot = await db.collection('tarefas_grupo')
-                .where('grupoId', '==', grupoId)
-                .orderBy('dataCriacao', 'desc')
-                .get();
-            
-            const tarefas = tarefasSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            // Montar HTML do modal
-            let tarefasHTML = '';
-            
-            if (tarefas.length > 0) {
-                tarefasHTML = tarefas.map(tarefa => {
-                    const podeVer = this.verificarPermissaoTarefa(tarefa, grupo.minhaPermissao);
-                    
-                    if (!podeVer) return '';
-                    
-                    const podeEditar = this.verificarPermissaoEdicao(tarefa, grupo.minhaPermissao);
-                    
-                    return `
-                        <div class="tarefa-item">
-                            <div class="tarefa-header">
-                                <div class="tarefa-titulo">${tarefa.titulo}</div>
-                                <span class="tarefa-visibilidade">${tarefa.visibilidade}</span>
-                            </div>
-                            <div class="tarefa-desc">${tarefa.descricao || ''}</div>
-                            <div class="tarefa-meta">
-                                <small><i class="fas fa-user"></i> ${tarefa.criador}</small>
-                                <small><i class="fas fa-calendar"></i> ${this.formatarData(tarefa.dataCriacao)}</small>
-                                <small><i class="fas fa-tag"></i> ${tarefa.status}</small>
-                            </div>
-                            ${podeEditar ? `
-                                <div class="tarefa-acoes">
-                                    <button class="btn btn-sm btn-outline" onclick="workManager.editarTarefaGrupo('${tarefa.id}')">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                tarefasHTML = '<p class="text-center">Nenhuma tarefa no grupo</p>';
-            }
-            
-            // Montar modal completo
-            document.getElementById('modalDetalhesTitulo').textContent = grupo.nome;
-            document.getElementById('modalDetalhesBody').innerHTML = `
-                <div class="grupo-info">
-                    <h3><i class="fas fa-info-circle"></i> Informações do Grupo</h3>
-                    <p><strong>Descrição:</strong> ${grupo.descricao || 'Sem descrição'}</p>
-                    <p><strong>Sua permissão:</strong> <span class="permissao-badge ${grupo.minhaPermissao}">${grupo.minhaPermissao}</span></p>
-                    <p><strong>Criado por:</strong> ${grupo.criador}</p>
-                    <p><strong>Criado em:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
-                </div>
-                
-                <div class="tarefas-container">
-                    <div class="tarefas-header">
-                        <h3><i class="fas fa-tasks"></i> Tarefas do Grupo</h3>
-                        ${this.podeCriarTarefa(grupo.minhaPermissao) ? `
-                            <button class="btn btn-primary btn-sm" onclick="workManager.novaTarefaGrupo('${grupoId}')">
-                                <i class="fas fa-plus"></i> Nova Tarefa
-                            </button>
-                        ` : ''}
-                    </div>
-                    <div id="listaTarefasGrupo">
-                        ${tarefasHTML}
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('modalDetalhesGrupo').style.display = 'flex';
-            
-        } catch (error) {
-            console.error('❌ Erro ao carregar detalhes do grupo:', error);
-            this.mostrarNotificacao('Erro ao carregar grupo', 'error');
-        }
-    }
-
-    // SISTEMA DE PERMISSÕES
-    podeCriarTarefa(permissao) {
-        return ['atuador', 'admin'].includes(permissao);
-    }
-
-    verificarPermissaoTarefa(tarefa, permissaoUsuario) {
-        if (permissaoUsuario === 'admin') return true;
-        
-        switch(tarefa.visibilidade) {
-            case 'todos':
-                return true;
-            case 'atuadores+admin':
-                return ['atuador', 'admin'].includes(permissaoUsuario);
-            case 'apenas-admin':
-                return permissaoUsuario === 'admin';
-            default:
-                return false;
-        }
-    }
-
-    verificarPermissaoEdicao(tarefa, permissaoUsuario) {
-        if (permissaoUsuario === 'admin') return true;
-        if (permissaoUsuario === 'atuador' && tarefa.editores?.includes('atuadores+admin')) return true;
-        if (tarefa.criador === this.usuarioAtual.usuario) return true;
-        
-        return false;
-    }
-
-    // UTILITÁRIOS
-    atualizarStatusSincronizacao(status) {
-        const syncElement = document.getElementById('syncStatus');
-        if (!syncElement) return;
-        
-        syncElement.innerHTML = `
-            <i class="fas fa-${status.includes('✅') ? 'check-circle' : status.includes('❌') ? 'exclamation-triangle' : 'sync-alt'} ${!status.includes('✅') && !status.includes('❌') ? 'fa-spin' : ''}"></i>
-            <span>${status}</span>
-        `;
-        
-        syncElement.className = `sync-status ${status.includes('✅') ? 'connected' : status.includes('❌') ? 'error' : ''}`;
-    }
-
-    atualizarBadgeConvites(count) {
-        const badge = document.getElementById('badgeConvites');
-        if (!badge) return;
-        
-        const convitesPendentes = this.grupos.filter(g => g.minhaPermissao === 'pendente').length;
-        badge.textContent = convitesPendentes;
-        badge.style.display = convitesPendentes > 0 ? 'inline-block' : 'none';
-    }
-
-    formatarData(timestamp) {
-        if (!timestamp) return 'Data não disponível';
-        
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleDateString('pt-BR');
-    }
-
-    mostrarNotificacao(mensagem, tipo = 'info') {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : '#3498db'};
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            animation: slideIn 0.3s ease-out;
-        `;
-        
-        const icon = tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle';
-        notification.innerHTML = `<i class="fas fa-${icon}"></i> ${mensagem}`;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease-out';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
-    }
-
-    mostrarErro(mensagem) {
-        this.mostrarNotificacao(mensagem, 'error');
-    }
-
-    // MODAIS
-    abrirModalGrupo(grupoId = null) {
-        this.grupoEditando = grupoId;
-        const modal = document.getElementById('modalGrupo');
-        const titulo = document.getElementById('modalGrupoTitulo');
-        
-        if (grupoId) {
-            titulo.textContent = 'Editar Grupo';
-            const grupo = this.grupos.find(g => g.id === grupoId);
-            if (grupo) {
-                document.getElementById('grupoNome').value = grupo.nome;
-                document.getElementById('grupoDescricao').value = grupo.descricao || '';
-                document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
-                document.getElementById('grupoVisibilidade').value = grupo.visibilidade || 'privado';
-            }
-        } else {
-            titulo.textContent = 'Novo Grupo de Trabalho';
-            document.getElementById('formGrupo').reset();
-            document.getElementById('grupoCor').value = '#4a6fa5';
-        }
-        
-        modal.style.display = 'flex';
-    }
-
-    fecharModalGrupo() {
-        document.getElementById('modalGrupo').style.display = 'none';
-        this.grupoEditando = null;
-    }
-
-    fecharModalMembros() {
-        document.getElementById('modalMembros').style.display = 'none';
-        this.grupoEditando = null;
-    }
-
-    fecharModalDetalhes() {
-        document.getElementById('modalDetalhesGrupo').style.display = 'none';
-    }
-
-    // FUNÇÕES GLOBAIS (chamadas pelo HTML)
-    filtrarGrupos(filtro) {
-        this.filtroAtual = filtro;
-        
-        // Atualizar tabs ativas
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        event.target.classList.add('active');
-        
-        // Filtrar e atualizar interface
-        const termo = document.getElementById('searchGroups').value;
-        const gruposFiltrados = this.filtrarGrupos(filtro, termo);
-        
-        if (gruposFiltrados.length === 0) {
-            document.getElementById('groupsContainer').innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-users-slash"></i>
-                    <h3>Nenhum grupo encontrado</h3>
-                    <p>${filtro === 'convidados' ? 'Você não tem convites pendentes' : 'Nenhum grupo corresponde aos filtros'}</p>
-                </div>
-            `;
-        } else {
-            this.atualizarInterfaceGrupos();
-        }
-    }
-
-    editarGrupo(grupoId) {
-        this.abrirModalGrupo(grupoId);
-    }
-
-    novaTarefaGrupo(grupoId) {
-        this.mostrarNotificacao('Funcionalidade de nova tarefa será implementada em breve!', 'info');
-        // TODO: Implementar criação de tarefas no grupo
-    }
-
     async alterarPermissao(usuarioId, novaPermissao) {
         if (!this.grupoEditando) return;
         
         try {
-            const grupoRef = db.collection('grupos').doc(this.grupoEditando);
+            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
             const grupo = this.grupos.find(g => g.id === this.grupoEditando);
+            
+            if (!grupo || !grupo.membros) return;
             
             // Encontrar e atualizar o membro
             const membrosAtualizados = grupo.membros.map(membro => {
                 if (membro.usuarioId === usuarioId) {
-                    return { ...membro, permissao: novaPermissao };
-                }
-                return membro;
-            });
-            
-            await grupoRef.update({ membros: membrosAtualizados });
-            this.mostrarNotificacao('✅ Permissão atualizada com sucesso!', 'success');
-            
-        } catch (error) {
-            console.error('❌ Erro ao alterar permissão:', error);
-            this.mostrarNotificacao('Erro ao alterar permissão', 'error');
-        }
-    }
-
-    async removerMembro(usuarioId) {
-        if (!this.grupoEditando || !confirm('Tem certeza que deseja remover este membro?')) {
-            return;
-        }
-        
-        try {
-            const grupoRef = db.collection('grupos').doc(this.grupoEditando);
-            const grupo = this.grupos.find(g => g.id === this.grupoEditando);
-            
-            // Encontrar o membro
-            const membro = grupo.membros.find(m => m.usuarioId === usuarioId);
-            if (!membro) return;
-            
-            // Remover do array
-            await grupoRef.update({
-                membros: firebase.firestore.FieldValue.arrayRemove(membro)
-            });
-            
-            this.mostrarNotificacao('✅ Membro removido com sucesso!', 'success');
-            
-        } catch (error) {
-            console.error('❌ Erro ao remover membro:', error);
-            this.mostrarNotificacao('Erro ao remover membro', 'error');
-        }
-    }
-
-    // Limpeza ao sair
-    destruir() {
-        this.unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-        this.unsubscribeListeners = [];
-    }
-}
-
-// Instanciar o Work Manager globalmente
-const workManager = new WorkManager();
-
-// Inicializar quando o DOM estiver carregado
-document.addEventListener('DOMContentLoaded', () => {
-    workManager.init();
-});
-
-// Expor funções globais
-window.abrirModalGrupo = (grupoId) => workManager.abrirModalGrupo(grupoId);
-window.fecharModalGrupo = () => workManager.fecharModalGrupo();
-window.salvarGrupo = () => workManager.salvarGrupo();
-window.filtrarGrupos = (filtro) => workManager.filtrarGrupos(filtro);
-window.convidarMembro = () => workManager.convidarMembro();
-
-// Adicionar animações CSS
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .group-card {
-        animation: fadeIn 0.3s ease-out;
-    }
-`;
-document.head.appendChild(style);
