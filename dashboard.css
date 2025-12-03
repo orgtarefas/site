@@ -30,6 +30,130 @@ body {
     color: var(--dark);
 }
 
+/* dashboard.css - Regras adicionais */
+
+/* Loading para sistemas */
+.loading-sistemas {
+    text-align: center;
+    padding: 40px;
+    color: #7f8c8d;
+}
+
+.loading-sistemas i {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #3498db;
+}
+
+/* Botões no header */
+.header-right .btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.header-right .btn-outline {
+    background: transparent;
+    color: var(--secondary);
+    border-color: var(--secondary);
+}
+
+.header-right .btn-outline:hover {
+    background: var(--secondary);
+    color: white;
+}
+
+.header-right .btn-primary {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+}
+
+.header-right .btn-primary:hover {
+    background: #2980b9;
+    border-color: #2980b9;
+}
+
+/* Status de sincronização */
+.status-sync {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--light);
+    transition: all 0.3s;
+}
+
+.status-sync i.fa-sync-alt {
+    animation: spin 2s linear infinite;
+}
+
+.status-sync i.fa-check-circle {
+    color: var(--success);
+}
+
+.status-sync i.fa-bolt {
+    color: var(--warning);
+}
+
+.status-sync i.fa-exclamation-triangle {
+    color: var(--danger);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Modal para sistema */
+.form-control {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--secondary);
+}
+
+.form-control[type="color"] {
+    height: 45px;
+    padding: 5px;
+}
+
+/* Estilo para quando Firebase não carrega */
+.firebase-error {
+    text-align: center;
+    padding: 40px;
+    background: #ffebee;
+    border-radius: var(--radius);
+    margin: 20px 0;
+}
+
+.firebase-error i {
+    font-size: 3rem;
+    color: #f44336;
+    margin-bottom: 20px;
+}
+
+.firebase-error h3 {
+    color: #c62828;
+    margin-bottom: 10px;
+}
+
+.firebase-error button {
+    margin-top: 20px;
+}
+
 /* Loading Screen */
 .loading-screen {
     position: fixed;
