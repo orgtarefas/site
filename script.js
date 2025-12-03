@@ -56,6 +56,7 @@ function inicializarSistema() {
     try {
         configurarDataMinima();
         carregarUsuarios();
+        carregarSistemasParaVinculo(); // Carregar sistemas para filtros
         configurarFirebase();
         
     } catch (error) {
@@ -302,12 +303,36 @@ function atualizarListaTarefas() {
         return;
     }
 
-    container.innerHTML = tarefasFiltradas.map(tarefa => `
-        <div class="task-card prioridade-${tarefa.prioridade}">
+    container.innerHTML = tarefasFiltradas.map(tarefa => {
+        // Buscar informações do sistema se estiver vinculada
+        let sistemaInfo = '';
+        let atividadesSistema = '';
+        
+        if (tarefa.sistemaId) {
+            // Aqui você pode buscar informações do sistema
+            // Por enquanto, apenas mostra o ID
+            sistemaInfo = `
+                <div class="sistema-vinculado">
+                    <i class="fas fa-link"></i>
+                    <span class="sistema-nome">Vinculada ao sistema: ${tarefa.sistemaId}</span>
+                </div>
+            `;
+            
+            // Espaço reservado para futuras atividades do sistema
+            atividadesSistema = `
+                <div class="atividades-sistema">
+                    <small><i class="fas fa-list-check"></i> Atividades do sistema aparecerão aqui</small>
+                </div>
+            `;
+        }
+        
+        return `
+        <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
             <div class="task-header">
                 <div>
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
+                    ${sistemaInfo}
                 </div>
             </div>
             
@@ -326,6 +351,8 @@ function atualizarListaTarefas() {
                 ` : ''}
             </div>
 
+            ${atividadesSistema}
+
             <div class="task-meta">
                 ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
                 <small><i class="fas fa-flag-checkered"></i> ${formatarData(tarefa.dataFim)}</small>
@@ -340,7 +367,7 @@ function atualizarListaTarefas() {
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function filtrarTarefas() {
@@ -348,6 +375,7 @@ function filtrarTarefas() {
     const status = document.getElementById('filterStatus').value;
     const prioridade = document.getElementById('filterPrioridade').value;
     const responsavel = document.getElementById('filterResponsavel').value;
+    const sistema = document.getElementById('filterSistema').value;
 
     return tarefas.filter(tarefa => {
         if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
@@ -357,6 +385,10 @@ function filtrarTarefas() {
         if (status && tarefa.status !== status) return false;
         if (prioridade && tarefa.prioridade !== prioridade) return false;
         if (responsavel && tarefa.responsavel !== responsavel) return false;
+        if (sistema) {
+            if (sistema === 'sem-sistema' && tarefa.sistemaId) return false;
+            if (sistema !== 'sem-sistema' && tarefa.sistemaId !== sistema) return false;
+        }
         return true;
     });
 }
