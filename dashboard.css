@@ -131,11 +131,27 @@ body {
     align-items: center;
     gap: 8px;
     font-size: 0.9rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--light);
+    transition: all 0.3s;
+}
+
+.status-sync i.fa-sync-alt {
+    animation: spin 2s linear infinite;
+}
+
+.status-sync i.fa-check-circle {
     color: var(--success);
 }
 
-.status-sync i {
-    animation: spin 2s linear infinite;
+.status-sync i.fa-bolt {
+    color: var(--warning);
+    animation: pulse 2s infinite;
+}
+
+.status-sync i.fa-exclamation-triangle {
+    color: var(--danger);
 }
 
 .user-info {
@@ -572,6 +588,12 @@ textarea.form-control {
     .item-actions {
         align-self: flex-end;
     }
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
 @keyframes spin {
