@@ -1,4 +1,3 @@
-script.js
 // Gerenciamento de Estado
 let tarefas = [];
 let usuarios = [];
