@@ -28,6 +28,9 @@
                 <button class="btn btn-outline btn-sm" onclick="window.location.href='index.html'">
                     <i class="fas fa-home"></i> Home
                 </button>
+                <button class="btn btn-primary btn-sm" onclick="abrirModalSistema()">
+                    <i class="fas fa-plus-circle"></i> Novo Sistema
+                </button>
                 <span class="data-atual" id="data-atual"></span>
                 <span class="status-sync" id="status-sincronizacao">
                     <i class="fas fa-sync-alt"></i> Conectando...
@@ -122,49 +125,160 @@
         <!-- Sistemas/Projetos -->
         <div class="systems-container" id="sistemas-container">
             <!-- Sistemas serão carregados dinamicamente -->
+            <div class="loading-sistemas">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando sistemas...</p>
+            </div>
         </div>
 
-        <!-- Modal para Detalhes -->
-        <div id="modalDetalhes" class="modal">
-            <div class="modal-content modal-lg">
+        <!-- Modal para Sistema -->
+        <div id="modalSistema" class="modal">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h2 id="modalTitulo">Detalhes da Atividade</h2>
-                    <button class="close" onclick="fecharModal()">&times;</button>
+                    <h2 id="modalSistemaTitulo">Novo Sistema</h2>
+                    <button class="close" onclick="fecharModalSistema()">&times;</button>
                 </div>
-                <div class="modal-body" id="modalDetalhesBody">
+                <div class="modal-body">
+                    <form id="formSistema">
+                        <div class="form-group">
+                            <label for="sistemaNome">Nome do Sistema *</label>
+                            <input type="text" id="sistemaNome" class="form-control" required placeholder="Ex: SISCRIAÇÃO">
+                        </div>
+                        <div class="form-group">
+                            <label for="sistemaDescricao">Descrição</label>
+                            <textarea id="sistemaDescricao" class="form-control" placeholder="Descrição do sistema"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="sistemaCor">Cor de Identificação</label>
+                            <input type="color" id="sistemaCor" class="form-control" value="#3498db">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="fecharModalSistema()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvarSistema()">
+                        <i class="fas fa-save"></i> Salvar Sistema
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Atividade -->
+        <div id="modalAtividade" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalAtividadeTitulo">Nova Atividade</h2>
+                    <button class="close" onclick="fecharModalAtividade()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalAtividadeBody">
                     <!-- Conteúdo será carregado dinamicamente -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase -->
+    <!-- Firebase v8 (IGUAL ao index.html) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     
     <script>
-        // Configuração do Firebase
+        // Configuração do Firebase v8 (IGUAL ao index.html)
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-            authDomain: "orgtarefas-85358.firebaseapp.com",
+            authDomain: "orgtarefas-85358.firebasestorage.app",
             projectId: "orgtarefas-85358",
             storageBucket: "orgtarefas-85358.firebasestorage.app",
             messagingSenderId: "1023569488575",
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
 
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
+        // Inicializar Firebase UMA VEZ
+        let app;
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app();
+        }
+        
         const db = firebase.firestore();
         const auth = firebase.auth();
         
-        console.log('✅ Firebase inicializado!');
+        console.log('✅ Firebase v8 inicializado no dashboard!');
         
         // Torna global
         window.db = db;
         window.firebase = firebase;
         window.firebaseAuth = auth;
+        
+        // Testar conexão
+        setTimeout(() => {
+            if (window.db && window.db.collection) {
+                window.db.collection('usuarios').limit(1).get()
+                    .then(snapshot => {
+                        console.log(`✅ Conexão Firebase OK! ${snapshot.size} documento(s)`);
+                        document.getElementById('status-sincronizacao').innerHTML = 
+                            '<i class="fas fa-check-circle"></i> Conectado';
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro na conexão:', error);
+                        document.getElementById('status-sincronizacao').innerHTML = 
+                            '<i class="fas fa-exclamation-triangle"></i> Erro';
+                    });
+            }
+        }, 1000);
+    </script>
+
+    <!-- Script de inicialização rápida -->
+    <script>
+        // Inicialização RÁPIDA do dashboard
+        console.log('=== DASHBOARD INICIANDO ===');
+        
+        // Verificar autenticação
+        const usuarioLogado = localStorage.getItem('usuarioLogado');
+        
+        if (!usuarioLogado) {
+            console.log('❌ Nenhum usuário logado, redirecionando...');
+            window.location.href = 'login.html';
+        } else {
+            try {
+                const usuario = JSON.parse(usuarioLogado);
+                console.log('👤 Usuário:', usuario.nome || usuario.usuario);
+                
+                // Atualizar interface rapidamente
+                setTimeout(() => {
+                    if (document.getElementById('userName')) {
+                        document.getElementById('userName').textContent = usuario.nome || usuario.usuario;
+                    }
+                    if (document.getElementById('data-atual')) {
+                        document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+                    }
+                    
+                    // Mostrar conteúdo após 1 segundo
+                    setTimeout(() => {
+                        const loadingScreen = document.getElementById('loadingScreen');
+                        const mainContent = document.getElementById('mainContent');
+                        
+                        if (loadingScreen && mainContent) {
+                            loadingScreen.style.display = 'none';
+                            mainContent.style.display = 'block';
+                            console.log('✅ Dashboard carregado!');
+                        }
+                    }, 1000);
+                    
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Erro ao processar usuário:', error);
+                window.location.href = 'login.html';
+            }
+        }
+        
+        // Verificar Firebase
+        setTimeout(() => {
+            console.log('Firebase carregado?', window.db ? '✅ SIM' : '❌ NÃO');
+            console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
+        }, 1500);
     </script>
 
     <script src="dashboard.js"></script>
