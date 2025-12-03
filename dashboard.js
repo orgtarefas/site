@@ -58,6 +58,10 @@ class SistemaMonitoramento {
         this.configurarListeners();
         
         console.log('✅ Sistema inicializado com sucesso!');
+        
+        // Atualizar status para Pronto
+        document.getElementById('status-sincronizacao').innerHTML = 
+            '<i class="fas fa-check-circle"></i> Pronto';
     }
 
     async verificarAutenticacao() {
@@ -149,12 +153,18 @@ class SistemaMonitoramento {
                 });
                 
                 console.log('✅ Atividades carregadas:', atividades.length);
+                return true;
             } else {
                 console.log('📂 Nenhuma atividade encontrada');
+                return true;
             }
             
         } catch (error) {
             console.error('❌ Erro ao carregar atividades:', error);
+            // Atualizar status para Erro
+            document.getElementById('status-sincronizacao').innerHTML = 
+                '<i class="fas fa-exclamation-triangle"></i> Erro de conexão';
+            return false;
         }
     }
 
@@ -485,10 +495,19 @@ class SistemaMonitoramento {
     }
 
     configurarListeners() {
+        // Atualizar status para Conectado
+        document.getElementById('status-sincronizacao').innerHTML = 
+            '<i class="fas fa-check-circle"></i> Conectado';
+        
         // Configurar listener em tempo real para atividades
         db.collection('atividades')
             .onSnapshot((snapshot) => {
                 console.log('📡 Atualização em tempo real das atividades');
+                
+                // Atualizar status para Sincronizado
+                document.getElementById('status-sincronizacao').innerHTML = 
+                    '<i class="fas fa-bolt"></i> Sincronizado';
+                
                 this.carregarAtividades().then(() => {
                     this.renderizarSistemas();
                     this.atualizarEstatisticas();
@@ -496,6 +515,9 @@ class SistemaMonitoramento {
                 });
             }, (error) => {
                 console.error('❌ Erro no listener:', error);
+                // Atualizar status para Erro
+                document.getElementById('status-sincronizacao').innerHTML = 
+                    '<i class="fas fa-exclamation-triangle"></i> Offline';
             });
     }
 
