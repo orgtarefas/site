@@ -1,33 +1,37 @@
-// login.js - VERSÃO FIREBASE v8 (COMPATÍVEL)
-console.log('=== LOGIN v8 INICIADO ===');
+// login.js - VERSÃO ORIGINAL QUE FUNCIONAVA
+console.log('=== LOGIN INICIADO ===');
 
-// Sistema de login SIMPLES com Firebase v8
-async function fazerLogin(usuarioInput, senhaInput) {
-    console.log('🚀 Tentando login:', usuarioInput);
+// Sistema de login DIRETO
+async function fazerLogin(usuario, senha) {
+    console.log('Tentando login:', usuario);
     
     const btnLogin = document.getElementById('btnLogin');
     const btnText = document.getElementById('btnText');
     const spinner = document.getElementById('spinner');
     
     try {
-        if (!usuarioInput || !senhaInput) {
-            alert('⚠️ Preencha usuário e senha');
+        if (!usuario || !senha) {
+            alert('Preencha usuário e senha');
             return;
         }
 
-        // Mostrar loading
         btnLogin.disabled = true;
         btnText.textContent = 'Autenticando...';
         spinner.classList.remove('hidden');
         
-        console.log('✅ Firebase v8 disponível');
+        // Acesso CORRETO ao Firebase v12 modular
+        const { db, firebaseModules } = window.firebaseApp;
         
-        // Buscar usuário - FORMA SIMPLES v8
-        const querySnapshot = await db.collection('usuarios')
-            .where('usuario', '==', usuarioInput.trim())
-            .get();
+        // Usar as funções MODULARES v12
+        const { collection, query, where, getDocs } = firebaseModules;
         
-        console.log('Resultados:', querySnapshot.size);
+        // Buscar usuário - FORMA CORRETA v12
+        const usuariosRef = collection(db, 'usuarios');
+        const q = query(usuariosRef, where('usuario', '==', usuario));
+        
+        const querySnapshot = await getDocs(q);
+        
+        console.log('Resultados encontrados:', querySnapshot.size);
         
         if (querySnapshot.empty) {
             throw new Error('Usuário não encontrado');
@@ -36,102 +40,86 @@ async function fazerLogin(usuarioInput, senhaInput) {
         const usuarioDoc = querySnapshot.docs[0];
         const userData = usuarioDoc.data();
         
-        console.log('Usuário encontrado:', userData.usuario);
+        console.log('Dados do usuário:', userData);
         
         // Verificar senha
-        if (userData.senha !== senhaInput) {
+        if (userData.senha !== senha) {
             throw new Error('Senha incorreta');
         }
         
-        // Salvar no localStorage
-        const usuarioLogado = {
+        // Salvar informações do usuário no localStorage
+        localStorage.setItem('usuarioLogado', JSON.stringify({
             id: usuarioDoc.id,
             usuario: userData.usuario,
             nome: userData.nome || userData.usuario,
             nivel: userData.nivel || 'usuario',
             email: userData.email || '',
             dataLogin: new Date().toISOString()
-        };
+        }));
         
-        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
-        console.log('💾 Usuário salvo no localStorage');
+        console.log('✅ Login realizado com sucesso!');
         
-        // Lembrar usuário
-        if (document.getElementById('rememberMe').checked) {
-            localStorage.setItem('savedUser', usuarioInput);
-        }
-        
-        // Atualizar último login
-        try {
-            await db.collection('usuarios').doc(usuarioDoc.id).update({
-                ultimoLogin: firebase.firestore.FieldValue.serverTimestamp(),
-                sessoesAtivas: firebase.firestore.FieldValue.increment(1)
-            });
-            console.log('🔄 Último login atualizado');
-        } catch (updateError) {
-            console.log('⚠️ Não atualizou último login:', updateError);
-        }
-        
-        // Redirecionar
-        btnText.textContent = '✅ Sucesso! Redirecionando...';
+        // Redirecionar para index.html
+        btnText.textContent = 'Sucesso! Redirecionando...';
         
         setTimeout(() => {
-            console.log('🔗 Indo para index.html');
             window.location.href = 'index.html';
-        }, 800);
+        }, 1000);
         
     } catch (error) {
-        console.error('❌ ERRO NO LOGIN:', error);
+        console.error('❌ Erro no login:', error);
         
-        let mensagem = 'Erro ao fazer login';
-        if (error.message.includes('Usuário não encontrado')) mensagem = 'Usuário não encontrado';
-        if (error.message.includes('Senha incorreta')) mensagem = 'Senha incorreta';
+        let mensagemErro = 'Erro ao fazer login';
         
-        alert('❌ ' + mensagem);
+        if (error.message.includes('Usuário não encontrado')) {
+            mensagemErro = 'Usuário não encontrado';
+        } else if (error.message.includes('Senha incorreta')) {
+            mensagemErro = 'Senha incorreta';
+        }
+        
+        alert('Erro: ' + mensagemErro);
         
         // Restaurar botão
         btnLogin.disabled = false;
         btnText.textContent = 'Entrar no Sistema';
         spinner.classList.add('hidden');
-        
-        // Focar na senha
-        document.getElementById('loginPassword').focus();
     }
 }
 
 // CONFIGURAÇÃO DO FORMULÁRIO
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📋 Formulário carregado');
+    console.log('=== FORMULÁRIO PRONTO ===');
     
-    // Configurar submit
+    // Configurar formulário
     const form = document.getElementById('loginForm');
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const usuario = document.getElementById('loginUsuario').value;
             const senha = document.getElementById('loginPassword').value;
+            
+            console.log('Formulário enviado:', { usuario, senha });
             fazerLogin(usuario, senha);
         });
     }
     
-    // Preencher com dados salvos
+    // Verificar se há usuário lembrado
     const savedUser = localStorage.getItem('savedUser');
     if (savedUser) {
         document.getElementById('loginUsuario').value = savedUser;
         document.getElementById('rememberMe').checked = true;
     }
     
-    // Focar
+    // Focar no campo usuário
     setTimeout(() => {
-        const input = document.getElementById('loginUsuario');
-        if (input && !input.value) input.focus();
-    }, 300);
+        const inputUsuario = document.getElementById('loginUsuario');
+        if (inputUsuario) {
+            inputUsuario.focus();
+        }
+    }, 500);
     
-    console.log('✅ Sistema de login v8 pronto');
+    console.log('=== SISTEMA CONFIGURADO ===');
     
     // Verificar Firebase
-    setTimeout(() => {
-        console.log('Firebase v8 carregado?', window.db ? '✅ SIM' : '❌ NÃO');
-        console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
-    }, 1000);
+    console.log('FirebaseApp disponível?', window.firebaseApp ? '✅ SIM' : '❌ NÃO');
 });
