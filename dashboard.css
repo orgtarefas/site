@@ -102,6 +102,22 @@ body {
     gap: 20px;
 }
 
+.header-right .btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+}
+
+.header-right .btn-outline {
+    background: transparent;
+    color: var(--secondary);
+    border: 2px solid var(--secondary);
+}
+
+.header-right .btn-outline:hover {
+    background: var(--secondary);
+    color: white;
+}
+
 .data-atual {
     background: var(--light);
     padding: 8px 15px;
