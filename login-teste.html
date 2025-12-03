@@ -1,0 +1,58 @@
+<!-- login-teste.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Direto</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Login Direto - Teste</h2>
+    
+    <button onclick="loginSimples()">Login Simples (Bypass)</button>
+    <button onclick="verificarFirebase()">Verificar Firebase</button>
+    <button onclick="limparLocalStorage()">Limpar LocalStorage</button>
+    
+    <div id="status" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+    
+    <script>
+        function loginSimples() {
+            // Login direto sem verificação
+            localStorage.setItem('usuarioLogado', JSON.stringify({
+                id: 'teste-id',
+                usuario: 'thiago.barbosa',
+                nome: 'Thiago Barbosa',
+                nivel: 'devs'
+            }));
+            
+            document.getElementById('status').innerHTML = 
+                '<p style="color: green;">✅ Login realizado! Redirecionando...</p>';
+            
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        }
+        
+        function verificarFirebase() {
+            if (window.firebaseApp && window.firebaseApp.db) {
+                document.getElementById('status').innerHTML = 
+                    '<p style="color: green;">✅ Firebase carregado!</p>';
+            } else {
+                document.getElementById('status').innerHTML = 
+                    '<p style="color: red;">❌ Firebase NÃO carregado</p>';
+            }
+        }
+        
+        function limparLocalStorage() {
+            localStorage.clear();
+            document.getElementById('status').innerHTML = 
+                '<p style="color: orange;">🗑️ LocalStorage limpo!</p>';
+        }
+        
+        // Verificar Firebase automaticamente
+        setTimeout(verificarFirebase, 1000);
+    </script>
+</body>
+</html>
