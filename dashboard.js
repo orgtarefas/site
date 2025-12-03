@@ -593,12 +593,17 @@ class SistemaMonitoramento {
         try {
             const atividadeCompleta = {
                 ...dados,
+                sistemaId: modalSistemaId, // ← DEVE ter este campo
+                tipo: modalTipo,
                 dataCriacao: new Date().toLocaleDateString('pt-BR'),
                 criadoPor: this.usuario.usuario,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'pendente'
+                status: document.getElementById('statusAtividade') ? 
+                       document.getElementById('statusAtividade').value : 'pendente'
             };
-
+    
+            console.log('📝 Salvando atividade:', atividadeCompleta);
+            
             const docRef = await db.collection('atividades').add(atividadeCompleta);
             console.log('✅ Atividade criada com ID:', docRef.id);
             
