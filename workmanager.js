@@ -1,4 +1,4 @@
-// workmanager-v12.js - Sistema com Firebase v12
+// workmanager.js - Sistema com Firebase v12
 console.log('=== WORK MANAGER v12 INICIANDO ===');
 
 // Sistema de Gerenciamento de Grupos com Firebase v12
@@ -619,3 +619,187 @@ class WorkManagerV12 {
             // Encontrar e atualizar o membro
             const membrosAtualizados = grupo.membros.map(membro => {
                 if (membro.usuarioId === usuarioId) {
+                    return { ...membro, permissao: novaPermissao };
+                }
+                return membro;
+            });
+            
+            await this.modules.updateDoc(grupoRef, { membros: membrosAtualizados });
+            this.mostrarNotificacao('✅ Permissão atualizada com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao alterar permissão:', error);
+            this.mostrarNotificacao('Erro ao alterar permissão', 'error');
+        }
+    }
+
+    async removerMembro(usuarioId) {
+        if (!this.grupoEditando || !confirm('Tem certeza que deseja remover este membro?')) {
+            return;
+        }
+        
+        try {
+            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
+            const grupo = this.grupos.find(g => g.id === this.grupoEditando);
+            
+            // Encontrar o membro
+            const membro = grupo.membros.find(m => m.usuarioId === usuarioId);
+            if (!membro) return;
+            
+            // Remover do array
+            await this.modules.updateDoc(grupoRef, {
+                membros: this.modules.arrayRemove(membro)
+            });
+            
+            this.mostrarNotificacao('✅ Membro removido com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao remover membro:', error);
+            this.mostrarNotificacao('Erro ao remover membro', 'error');
+        }
+    }
+
+    // FUNÇÕES AUXILIARES
+    atualizarStatusSincronizacao(status) {
+        const syncElement = document.getElementById('syncStatus');
+        if (syncElement) {
+            syncElement.innerHTML = `
+                <i class="fas fa-${status.includes('✅') ? 'check-circle' : status.includes('❌') ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${status}</span>
+            `;
+        }
+    }
+
+    atualizarBadgeConvites() {
+        const badge = document.getElementById('badgeConvites');
+        if (badge) {
+            const convitesPendentes = this.grupos.filter(g => g.minhaPermissao === 'pendente').length;
+            badge.textContent = convitesPendentes;
+            badge.style.display = convitesPendentes > 0 ? 'inline-block' : 'none';
+        }
+    }
+
+    formatarData(timestamp) {
+        if (!timestamp) return 'Data não disponível';
+        
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return date.toLocaleDateString('pt-BR');
+    }
+
+    mostrarNotificacao(mensagem, tipo = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : '#3498db'};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        
+        notification.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i> ${mensagem}`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 3000);
+    }
+
+    // MODAIS
+    abrirModalGrupo(grupoId = null) {
+        this.grupoEditando = grupoId;
+        const modal = document.getElementById('modalGrupo');
+        const titulo = document.getElementById('modalGrupoTitulo');
+        
+        if (grupoId) {
+            titulo.textContent = 'Editar Grupo';
+            const grupo = this.grupos.find(g => g.id === grupoId);
+            if (grupo) {
+                document.getElementById('grupoNome').value = grupo.nome;
+                document.getElementById('grupoDescricao').value = grupo.descricao || '';
+                document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
+            }
+        } else {
+            titulo.textContent = 'Novo Grupo de Trabalho';
+            document.getElementById('formGrupo').reset();
+            document.getElementById('grupoCor').value = '#4a6fa5';
+        }
+        
+        modal.style.display = 'flex';
+    }
+
+    fecharModalGrupo() {
+        document.getElementById('modalGrupo').style.display = 'none';
+        this.grupoEditando = null;
+    }
+
+    fecharModalMembros() {
+        document.getElementById('modalMembros').style.display = 'none';
+        this.grupoEditando = null;
+    }
+
+    verDetalhesGrupo(grupoId) {
+        alert(`Detalhes do grupo ID: ${grupoId}\n\nFuncionalidade disponível na versão completa.`);
+    }
+
+    editarGrupo(grupoId) {
+        this.abrirModalGrupo(grupoId);
+    }
+
+    novaTarefaGrupo(grupoId) {
+        alert(`Nova tarefa no grupo ID: ${grupoId}\n\nFuncionalidade disponível na versão completa.`);
+    }
+
+    // FUNÇÕES GLOBAIS
+    filtrarGrupos(filtro) {
+        this.filtroAtual = filtro;
+        
+        // Atualizar tabs ativas
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Filtrar e atualizar interface
+        const termo = document.getElementById('searchGroups').value;
+        const gruposFiltrados = this.filtrarGrupos(filtro, termo);
+        
+        if (gruposFiltrados.length === 0) {
+            document.getElementById('groupsContainer').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <h3>Nenhum grupo encontrado</h3>
+                    <p>${filtro === 'convidados' ? 'Você não tem convites pendentes' : 'Nenhum grupo corresponde aos filtros'}</p>
+                </div>
+            `;
+        } else {
+            this.atualizarInterfaceGrupos();
+        }
+    }
+}
+
+// Criar instância global
+const workManager = new WorkManagerV12();
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', () => {
+    workManager.init();
+});
+
+// Expor funções globais
+window.workManager = workManager;
+window.abrirModalGrupo = (grupoId) => workManager.abrirModalGrupo(grupoId);
+window.fecharModalGrupo = () => workManager.fecharModalGrupo();
+window.salvarGrupo = () => workManager.salvarGrupo();
+window.filtrarGrupos = (filtro) => workManager.filtrarGrupos(filtro);
+window.convidarMembro = () => workManager.convidarMembro();
+window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
+window.alterarPermissao = (usuarioId, permissao) => workManager.alterarPermissao(usuarioId, permissao);
+window.removerMembro = (usuarioId) => workManager.removerMembro(usuarioId);
+window.verDetalhesGrupo = (grupoId) => workManager.verDetalhesGrupo(grupoId);
+window.editarGrupo = (grupoId) => workManager.editarGrupo(grupoId);
+window.novaTarefaGrupo = (grupoId) => workManager.novaTarefaGrupo(grupoId);
+window.excluirGrupo = (grupoId) => workManager.excluirGrupo(grupoId);
+window.gerenciarMembros = (grupoId) => workManager.gerenciarMembros(grupoId);
