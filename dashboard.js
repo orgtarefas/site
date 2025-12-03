@@ -421,4 +421,361 @@ class SistemaMonitoramento {
                     <div class="item-meta">
                         <span><i class="fas fa-user"></i> ${atividade.responsavel}</span>
                         <span><i class="fas fa-calendar"></i> ${atividade.dataCriacao}</span>
-                        ${atividade.dataPrevista ? `<span><i class="fas fa-flag"></i> ${atividade.dataPrevista}</span>` :
+                        ${atividade.dataPrevista ? `<span><i class="fas fa-flag"></i> ${atividade.dataPrevista}</span>` : ''}
+                    </div>
+                </div>
+                <div class="item-actions">
+                    <button class="btn-icon btn-toggle" onclick="toggleStatusAtividade('${sistema.id}', '${atividade.id}')">
+                        <i class="fas fa-${this.getIconStatus(atividade.status)}"></i>
+                    </button>
+                    <button class="btn-icon btn-edit" onclick="editarAtividade('${sistema.id}', '${atividade.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="excluirAtividade('${sistema.id}', '${atividade.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getStatusSistema(sistema) {
+        const atividades = sistema.atividades || [];
+        if (atividades.length === 0) return 'pendente';
+        
+        const concluidas = atividades.filter(a => a.status === 'concluido').length;
+        const emAndamento = atividades.filter(a => a.status === 'andamento').length;
+        
+        if (concluidas === atividades.length) return 'concluido';
+        if (emAndamento > 0 || concluidas > 0) return 'andamento';
+        return 'pendente';
+    }
+
+    getTextoStatusSistema(sistema) {
+        const status = this.getStatusSistema(sistema);
+        const atividades = sistema.atividades || [];
+        
+        switch(status) {
+            case 'concluido': 
+                return `Concluído (${atividades.filter(a => a.status === 'concluido').length}/${atividades.length})`;
+            case 'andamento':
+                return `Em Andamento (${atividades.filter(a => a.status === 'andamento').length}/${atividades.length})`;
+            default:
+                return `Pendente (${atividades.length})`;
+        }
+    }
+
+    getIconStatus(status) {
+        switch(status) {
+            case 'pendente': return 'clock';
+            case 'andamento': return 'spinner';
+            case 'concluido': return 'check';
+            default: return 'question';
+        }
+    }
+
+    configurarListeners() {
+        // Atualizar estatísticas quando dados mudarem
+        window.addEventListener('sistemaAtualizado', () => {
+            this.atualizarEstatisticas();
+            this.atualizarGraficos();
+        });
+    }
+
+    atualizarEstatisticas() {
+        const estatisticas = this.calcularEstatisticas();
+        
+        document.getElementById('total-atividades').textContent = estatisticas.total;
+        document.getElementById('pendentes').textContent = estatisticas.pendentes;
+        document.getElementById('andamento').textContent = estatisticas.andamento;
+        document.getElementById('concluidas').textContent = estatisticas.concluidas;
+        document.getElementById('atrasadas').textContent = estatisticas.atrasadas;
+    }
+
+    atualizarGraficos() {
+        if (this.charts.status) {
+            const dados = this.calcularEstatisticas();
+            this.charts.status.data.datasets[0].data = [
+                dados.pendentes,
+                dados.andamento,
+                dados.concluidas,
+                dados.atrasadas
+            ];
+            this.charts.status.update();
+        }
+
+        if (this.charts.progress) {
+            const sistemasProgresso = this.sistemas.map(sistema => {
+                const atividades = sistema.atividades || [];
+                if (atividades.length === 0) return 0;
+                
+                const concluidas = atividades.filter(a => a.status === 'concluido').length;
+                return (concluidas / atividades.length) * 100;
+            });
+            
+            this.charts.progress.data.datasets[0].data = sistemasProgresso;
+            this.charts.progress.update();
+        }
+    }
+
+    async salvarSistema(sistemaId) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        if (!sistema) return;
+
+        try {
+            await db.collection('sistemas').doc(sistemaId).set(sistema);
+            console.log('💾 Sistema salvo:', sistemaId);
+        } catch (error) {
+            console.error('❌ Erro ao salvar sistema:', error);
+        }
+    }
+
+    async adicionarAtividade(sistemaId, tipo, atividade) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        if (!sistema) return;
+
+        if (!sistema.atividades) sistema.atividades = [];
+        
+        const novaAtividade = {
+            id: Date.now().toString(),
+            tipo: tipo,
+            ...atividade,
+            dataCriacao: new Date().toLocaleDateString('pt-BR'),
+            status: 'pendente'
+        };
+
+        sistema.atividades.push(novaAtividade);
+        await this.salvarSistema(sistemaId);
+        
+        this.renderizarSistemas();
+        this.atualizarGraficos();
+        
+        window.dispatchEvent(new Event('sistemaAtualizado'));
+    }
+
+    async atualizarAtividade(sistemaId, atividadeId, dados) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        if (!sistema || !sistema.atividades) return;
+
+        const index = sistema.atividades.findIndex(a => a.id === atividadeId);
+        if (index === -1) return;
+
+        sistema.atividades[index] = { ...sistema.atividades[index], ...dados };
+        await this.salvarSistema(sistemaId);
+        
+        this.renderizarSistemas();
+        this.atualizarGraficos();
+        
+        window.dispatchEvent(new Event('sistemaAtualizado'));
+    }
+
+    async excluirAtividade(sistemaId, atividadeId) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        if (!sistema || !sistema.atividades) return;
+
+        sistema.atividades = sistema.atividades.filter(a => a.id !== atividadeId);
+        await this.salvarSistema(sistemaId);
+        
+        this.renderizarSistemas();
+        this.atualizarGraficos();
+        
+        window.dispatchEvent(new Event('sistemaAtualizado'));
+    }
+
+    async toggleStatusAtividade(sistemaId, atividadeId) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        if (!sistema || !sistema.atividades) return;
+
+        const atividade = sistema.atividades.find(a => a.id === atividadeId);
+        if (!atividade) return;
+
+        let novoStatus;
+        switch(atividade.status) {
+            case 'pendente':
+                novoStatus = 'andamento';
+                break;
+            case 'andamento':
+                novoStatus = 'concluido';
+                break;
+            case 'concluido':
+                novoStatus = 'pendente';
+                break;
+            default:
+                novoStatus = 'pendente';
+        }
+
+        await this.atualizarAtividade(sistemaId, atividadeId, { status: novoStatus });
+    }
+}
+
+// Instanciar e inicializar o sistema
+const monitoramento = new SistemaMonitoramento();
+
+// Funções globais
+function logout() {
+    localStorage.removeItem('usuarioLogado');
+    window.location.href = 'login.html';
+}
+
+function toggleSistema(sistemaId) {
+    const elemento = document.getElementById(`sistema-${sistemaId}`);
+    elemento.style.display = elemento.style.display === 'none' ? 'block' : 'none';
+}
+
+function abrirModalAtividade(sistemaId, tipo) {
+    const modal = document.getElementById('modalDetalhes');
+    const tituloMap = {
+        'execucao': 'Execução das Atividades',
+        'monitoramento': 'Monitoramento',
+        'conclusao': 'Conclusão e Revisão'
+    };
+
+    document.getElementById('modalTitulo').textContent = `Nova Atividade - ${tituloMap[tipo]}`;
+    
+    document.getElementById('modalDetalhesBody').innerHTML = `
+        <form id="formAtividade">
+            <div class="form-group">
+                <label for="tituloAtividade">Título *</label>
+                <input type="text" id="tituloAtividade" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="descricaoAtividade">Descrição</label>
+                <textarea id="descricaoAtividade" class="form-control"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="responsavelAtividade">Responsável *</label>
+                    <input type="text" id="responsavelAtividade" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="dataPrevista">Data Prevista</label>
+                    <input type="date" id="dataPrevista" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="prioridadeAtividade">Prioridade</label>
+                <select id="prioridadeAtividade" class="form-control">
+                    <option value="baixa">Baixa</option>
+                    <option value="media" selected>Média</option>
+                    <option value="alta">Alta</option>
+                </select>
+            </div>
+        </form>
+    `;
+
+    modal.style.display = 'flex';
+    
+    // Salvar referências para uso posterior
+    window.modalSistemaId = sistemaId;
+    window.modalTipo = tipo;
+}
+
+function salvarAtividade() {
+    const sistemaId = window.modalSistemaId;
+    const tipo = window.modalTipo;
+    
+    const atividade = {
+        titulo: document.getElementById('tituloAtividade').value,
+        descricao: document.getElementById('descricaoAtividade').value,
+        responsavel: document.getElementById('responsavelAtividade').value,
+        dataPrevista: document.getElementById('dataPrevista').value,
+        prioridade: document.getElementById('prioridadeAtividade').value
+    };
+
+    monitoramento.adicionarAtividade(sistemaId, tipo, atividade);
+    fecharModal();
+}
+
+function editarAtividade(sistemaId, atividadeId) {
+    const sistema = monitoramento.sistemas.find(s => s.id === sistemaId);
+    if (!sistema || !sistema.atividades) return;
+
+    const atividade = sistema.atividades.find(a => a.id === atividadeId);
+    if (!atividade) return;
+
+    const modal = document.getElementById('modalDetalhes');
+    document.getElementById('modalTitulo').textContent = 'Editar Atividade';
+
+    document.getElementById('modalDetalhesBody').innerHTML = `
+        <form id="formAtividade">
+            <div class="form-group">
+                <label for="tituloAtividade">Título *</label>
+                <input type="text" id="tituloAtividade" class="form-control" value="${atividade.titulo}" required>
+            </div>
+            <div class="form-group">
+                <label for="descricaoAtividade">Descrição</label>
+                <textarea id="descricaoAtividade" class="form-control">${atividade.descricao || ''}</textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="responsavelAtividade">Responsável *</label>
+                    <input type="text" id="responsavelAtividade" class="form-control" value="${atividade.responsavel}" required>
+                </div>
+                <div class="form-group">
+                    <label for="dataPrevista">Data Prevista</label>
+                    <input type="date" id="dataPrevista" class="form-control" value="${atividade.dataPrevista || ''}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="statusAtividade">Status</label>
+                <select id="statusAtividade" class="form-control">
+                    <option value="pendente" ${atividade.status === 'pendente' ? 'selected' : ''}>Pendente</option>
+                    <option value="andamento" ${atividade.status === 'andamento' ? 'selected' : ''}>Em Andamento</option>
+                    <option value="concluido" ${atividade.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                </select>
+            </div>
+        </form>
+    `;
+
+    modal.style.display = 'flex';
+    
+    // Salvar referências para uso posterior
+    window.modalSistemaId = sistemaId;
+    window.modalAtividadeId = atividadeId;
+}
+
+function atualizarAtividade() {
+    const sistemaId = window.modalSistemaId;
+    const atividadeId = window.modalAtividadeId;
+    
+    const dados = {
+        titulo: document.getElementById('tituloAtividade').value,
+        descricao: document.getElementById('descricaoAtividade').value,
+        responsavel: document.getElementById('responsavelAtividade').value,
+        dataPrevista: document.getElementById('dataPrevista').value,
+        status: document.getElementById('statusAtividade').value
+    };
+
+    monitoramento.atualizarAtividade(sistemaId, atividadeId, dados);
+    fecharModal();
+}
+
+function excluirAtividade(sistemaId, atividadeId) {
+    if (confirm('Tem certeza que deseja excluir esta atividade?')) {
+        monitoramento.excluirAtividade(sistemaId, atividadeId);
+    }
+}
+
+function toggleStatusAtividade(sistemaId, atividadeId) {
+    monitoramento.toggleStatusAtividade(sistemaId, atividadeId);
+}
+
+function fecharModal() {
+    document.getElementById('modalDetalhes').style.display = 'none';
+    delete window.modalSistemaId;
+    delete window.modalAtividadeId;
+    delete window.modalTipo;
+}
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', () => {
+    monitoramento.init();
+});
+
+// Fechar modal clicando fora
+window.onclick = function(event) {
+    const modal = document.getElementById('modalDetalhes');
+    if (event.target === modal) {
+        fecharModal();
+    }
+};
