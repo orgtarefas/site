@@ -43,8 +43,8 @@
 
         <!-- Status -->
         <div class="sync-status" id="syncStatus">
-            <i class="fas fa-check-circle"></i>
-            <span>Sistema carregado</span>
+            <i class="fas fa-sync-alt fa-spin"></i>
+            <span>Inicializando sistema...</span>
         </div>
 
         <!-- Filtros e Tabs -->
@@ -115,299 +115,746 @@
                 </div>
                 <div class="modal-body">
                     <div class="membros-container" id="membrosContainer">
-                        <p class="text-center">Funcionalidade disponível na versão completa</p>
+                        <p class="text-center">Carregando membros...</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Detalhes do Grupo -->
+        <div id="modalDetalhes" class="modal modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Detalhes do Grupo</h2>
+                    <button class="close" onclick="fecharModalDetalhes()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalDetalhesBody">
+                    <p>Carregando detalhes...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT DE INICIALIZAÇÃO SEGURA -->
-    <script>
-        // INICIALIZAÇÃO SIMPLES - SEM FIREBASE
-        console.log('=== WORK MANAGER HTML ===');
+    <!-- Firebase v12 SIMPLIFICADO -->
+    <script type="module">
+        console.log('=== INICIANDO FIREBASE v12 ===');
         
-        // Timeout de segurança: SEMPRE mostra após 2 segundos
-        setTimeout(mostrarInterface, 2000);
-        
-        // Tentar carregar rápido
         try {
-            // Verificar usuário logado
-            const usuarioLogado = localStorage.getItem('usuarioLogado');
-            if (usuarioLogado) {
-                const usuario = JSON.parse(usuarioLogado);
-                document.getElementById('userName').textContent = usuario.nome || usuario.usuario;
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+            import { 
+                getFirestore, 
+                collection, 
+                getDocs,
+                serverTimestamp,
+                query,
+                where,
+                onSnapshot,
+                addDoc,
+                updateDoc,
+                deleteDoc,
+                doc,
+                arrayUnion,
+                arrayRemove
+            } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+                authDomain: "orgtarefas-85358.firebaseapp.com",
+                projectId: "orgtarefas-85358",
+                storageBucket: "orgtarefas-85358.firebasestorage.app",
+                messagingSenderId: "1023569488575",
+                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+            };
+
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            
+            // Exportar globalmente
+            window.firebaseModules = {
+                // Firestore
+                db,
+                collection, getDocs, serverTimestamp,
+                query, where, onSnapshot,
+                addDoc, updateDoc, deleteDoc, doc,
+                arrayUnion, arrayRemove
+            };
+            
+            console.log('✅ Firebase v12 configurado com sucesso!');
+            
+            // Notificar que está pronto
+            if (window.onFirebaseReady) {
+                window.onFirebaseReady();
             }
             
-            // Tentar mostrar mais rápido
-            setTimeout(mostrarInterface, 800);
         } catch (error) {
-            console.log('Erro na inicialização rápida:', error);
-        }
-        
-        function mostrarInterface() {
-            console.log('✅ Mostrando interface...');
+            console.error('❌ Erro ao carregar Firebase:', error);
+            console.log('⚠️ Continuando sem Firebase');
             
-            // Esconder loading
-            document.getElementById('loadingScreen').style.display = 'none';
+            // Criar módulos mock para não quebrar o sistema
+            window.firebaseModules = {
+                db: 'mock-database',
+                collection: () => ({ 
+                    getDocs: async () => ({ 
+                        docs: [],
+                        forEach: () => {}
+                    }),
+                    addDoc: async (data) => {
+                        console.log('Mock addDoc:', data);
+                        return { id: 'mock-' + Date.now() };
+                    }
+                }),
+                getDocs: async () => ({ docs: [] }),
+                serverTimestamp: () => new Date(),
+                query: (ref, ...constraints) => ref,
+                where: (field, op, value) => ({ field, op, value }),
+                onSnapshot: (q, callback, errorCallback) => {
+                    console.log('Mock onSnapshot configurado');
+                    return () => console.log('Mock unsubscribe');
+                },
+                addDoc: async (ref, data) => {
+                    console.log('Mock addDoc chamado:', data);
+                    return { id: 'mock-doc-' + Date.now() };
+                },
+                updateDoc: async (ref, data) => {
+                    console.log('Mock updateDoc:', data);
+                    return Promise.resolve();
+                },
+                deleteDoc: async (ref) => {
+                    console.log('Mock deleteDoc');
+                    return Promise.resolve();
+                },
+                doc: (db, collection, id) => ({ 
+                    db, collection, id,
+                    update: async (data) => {
+                        console.log('Mock doc.update:', data);
+                        return Promise.resolve();
+                    }
+                }),
+                arrayUnion: (...elements) => elements,
+                arrayRemove: (...elements) => elements
+            };
             
-            // Mostrar conteúdo
-            document.getElementById('mainContent').style.display = 'block';
-            
-            // Carregar grupos de exemplo
-            carregarGruposExemplo();
+            console.log('✅ Módulos mock criados');
         }
         
-        function carregarGruposExemplo() {
-            const container = document.getElementById('groupsContainer');
-            
-            container.innerHTML = `
-                <div class="group-card permissao-admin">
-                    <div class="group-header">
-                        <div class="group-title">
-                            <h3>Projeto Alpha</h3>
-                            <span class="permissao-badge admin">Admin</span>
-                        </div>
-                        <div class="group-desc">Time principal de desenvolvimento do sistema</div>
-                        <div class="group-meta">
-                            <div class="group-stats">
-                                <div class="group-stat">
-                                    <i class="fas fa-users"></i>
-                                    <span>4 membros</span>
-                                </div>
-                                <div class="group-stat">
-                                    <i class="fas fa-tasks"></i>
-                                    <span>8 tarefas</span>
-                                </div>
-                            </div>
-                            <small><i class="fas fa-calendar"></i> Hoje</small>
-                        </div>
-                    </div>
-                    <div class="group-actions">
-                        <button class="btn btn-outline btn-sm" onclick="verDetalhesGrupo()">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="gerenciarMembros()">
-                            <i class="fas fa-users-cog"></i> Membros
-                        </button>
-                        <button class="btn btn-warning btn-sm" onclick="editarGrupo()">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="group-card permissao-atuador">
-                    <div class="group-header">
-                        <div class="group-title">
-                            <h3>Design Team</h3>
-                            <span class="permissao-badge atuador">Atuador</span>
-                        </div>
-                        <div class="group-desc">Equipe de design e experiência do usuário</div>
-                        <div class="group-meta">
-                            <div class="group-stats">
-                                <div class="group-stat">
-                                    <i class="fas fa-users"></i>
-                                    <span>3 membros</span>
-                                </div>
-                                <div class="group-stat">
-                                    <i class="fas fa-tasks"></i>
-                                    <span>6 tarefas</span>
-                                </div>
-                            </div>
-                            <small><i class="fas fa-calendar"></i> 2 dias</small>
-                        </div>
-                    </div>
-                    <div class="group-actions">
-                        <button class="btn btn-outline btn-sm" onclick="verDetalhesGrupo()">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="gerenciarMembros()">
-                            <i class="fas fa-users-cog"></i> Membros
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="group-card permissao-observador">
-                    <div class="group-header">
-                        <div class="group-title">
-                            <h3>Marketing Digital</h3>
-                            <span class="permissao-badge observador">Observador</span>
-                        </div>
-                        <div class="group-desc">Acompanhamento de campanhas e métricas</div>
-                        <div class="group-meta">
-                            <div class="group-stats">
-                                <div class="group-stat">
-                                    <i class="fas fa-users"></i>
-                                    <span>5 membros</span>
-                                </div>
-                                <div class="group-stat">
-                                    <i class="fas fa-tasks"></i>
-                                    <span>10 tarefas</span>
-                                </div>
-                            </div>
-                            <small><i class="fas fa-calendar"></i> 1 semana</small>
-                        </div>
-                    </div>
-                    <div class="group-actions">
-                        <button class="btn btn-outline btn-sm" onclick="verDetalhesGrupo()">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="gerenciarMembros()">
-                            <i class="fas fa-users-cog"></i> Membros
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="empty-state" style="grid-column: 1 / -1; margin-top: 20px;">
-                    <i class="fas fa-rocket"></i>
-                    <h3>Work Manager Carregado!</h3>
-                    <p>Sistema de grupos funcionando perfeitamente.</p>
-                    <div style="margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <p><strong>Status:</strong> <span style="color: #28a745;">✅ Sistema Operacional</span></p>
-                        <p><strong>Próximo passo:</strong> Clique em "Novo Grupo" para começar</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="abrirModalGrupo()" style="margin-top: 15px;">
-                        <i class="fas fa-plus-circle"></i> Criar Novo Grupo
-                    </button>
-                </div>
-            `;
-        }
-        
-        // Funções globais básicas
-        function abrirModalGrupo() {
-            document.getElementById('modalGrupo').style.display = 'flex';
-            document.getElementById('modalGrupoTitulo').textContent = 'Novo Grupo de Trabalho';
-            document.getElementById('formGrupo').reset();
-            document.getElementById('grupoCor').value = '#4a6fa5';
-        }
-        
-        function fecharModalGrupo() {
-            document.getElementById('modalGrupo').style.display = 'none';
-        }
-        
-        function fecharModalMembros() {
-            document.getElementById('modalMembros').style.display = 'none';
-        }
-        
-        function salvarGrupo() {
-            const nome = document.getElementById('grupoNome').value;
-            const descricao = document.getElementById('grupoDescricao').value;
-            const cor = document.getElementById('grupoCor').value;
-            
-            if (!nome) {
-                alert('Preencha o nome do grupo');
-                return;
+        // Timeout de segurança
+        setTimeout(() => {
+            if (!window.firebaseModules) {
+                console.log('⚠️ Firebase não carregou após 3 segundos');
+                window.firebaseModules = { db: 'timeout-mock' };
             }
             
-            // Adicionar novo grupo à lista
-            const container = document.getElementById('groupsContainer');
-            const novoGrupoHTML = `
-                <div class="group-card permissao-admin">
-                    <div class="group-header">
-                        <div class="group-title">
-                            <h3>${nome}</h3>
-                            <span class="permissao-badge admin">Admin</span>
-                        </div>
-                        <div class="group-desc">${descricao || 'Novo grupo criado'}</div>
-                        <div class="group-meta">
-                            <div class="group-stats">
-                                <div class="group-stat">
-                                    <i class="fas fa-users"></i>
-                                    <span>1 membro</span>
-                                </div>
-                                <div class="group-stat">
-                                    <i class="fas fa-tasks"></i>
-                                    <span>0 tarefas</span>
-                                </div>
-                            </div>
-                            <small><i class="fas fa-calendar"></i> Agora</small>
-                        </div>
-                    </div>
-                    <div class="group-actions">
-                        <button class="btn btn-outline btn-sm" onclick="verDetalhesGrupo()">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="gerenciarMembros()">
-                            <i class="fas fa-users-cog"></i> Membros
-                        </button>
-                        <button class="btn btn-warning btn-sm" onclick="editarGrupo()">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Adicionar no início da lista
-            container.innerHTML = novoGrupoHTML + container.innerHTML;
-            
-            alert(`✅ Grupo "${nome}" criado com sucesso!`);
-            fecharModalGrupo();
-        }
-        
-        function filtrarGrupos(tipo) {
-            console.log(`Filtrando por: ${tipo}`);
-            
-            // Atualizar tabs ativas
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Atualizar status
-            document.getElementById('syncStatus').innerHTML = `
-                <i class="fas fa-filter"></i>
-                <span>Filtrando: ${tipo === 'meus' ? 'Meus Grupos' : tipo === 'convidados' ? 'Convites' : 'Todos'}</span>
-            `;
-        }
-        
-        function verDetalhesGrupo() {
-            alert('🎯 Funcionalidade: Ver detalhes do grupo\n\nNa versão completa, você poderá:\n• Ver todas as tarefas do grupo\n• Ver membros e suas permissões\n• Acompanhar o progresso\n• Adicionar novas tarefas');
-        }
-        
-        function gerenciarMembros() {
-            document.getElementById('modalMembros').style.display = 'flex';
-        }
-        
-        function editarGrupo() {
-            alert('✏️ Funcionalidade: Editar grupo\n\nNa versão completa, você poderá:\n• Alterar nome e descrição\n• Mudar cor do grupo\n• Alterar configurações de visibilidade\n• Gerenciar permissões');
-        }
-        
-        // Configurar busca em tempo real
-        document.getElementById('searchGroups').addEventListener('input', function(e) {
-            const termo = e.target.value.toLowerCase();
-            console.log(`Buscando: "${termo}"`);
-            
-            if (termo) {
-                document.getElementById('syncStatus').innerHTML = `
-                    <i class="fas fa-search"></i>
-                    <span>Buscando: "${termo}"</span>
-                `;
-            } else {
-                document.getElementById('syncStatus').innerHTML = `
-                    <i class="fas fa-check-circle"></i>
-                    <span>Sistema carregado</span>
-                `;
+            // Forçar chamada onFirebaseReady se existir
+            if (window.onFirebaseReady) {
+                window.onFirebaseReady();
             }
-        });
-        
-        // Fechar modais clicando fora
-        window.onclick = function(event) {
-            if (event.target.id === 'modalGrupo') {
-                fecharModalGrupo();
-            }
-            if (event.target.id === 'modalMembros') {
-                fecharModalMembros();
-            }
-        };
-        
-        // Fechar modais com ESC
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                fecharModalGrupo();
-                fecharModalMembros();
-            }
-        });
+        }, 3000);
     </script>
 
-    <!-- Carregar workmanager.js (se existir) -->
-    <script src="workmanager.js"></script>
+    <!-- Sistema Work Manager -->
+    <script>
+        console.log('=== WORK MANAGER HTML INLINE ===');
+        
+        // Sistema básico do Work Manager
+        class WorkManagerSimple {
+            constructor() {
+                console.log('🚀 Work Manager Simple inicializando...');
+                this.usuarioAtual = null;
+                this.grupos = [];
+                this.filtroAtual = 'meus';
+                this.grupoEditando = null;
+                
+                // Verificar se está logado
+                this.verificarLogin();
+            }
+            
+            verificarLogin() {
+                try {
+                    const usuarioLogado = localStorage.getItem('usuarioLogado');
+                    if (!usuarioLogado) {
+                        console.log('❌ Usuário não logado');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    this.usuarioAtual = JSON.parse(usuarioLogado);
+                    console.log('👤 Usuário:', this.usuarioAtual.usuario);
+                    
+                    // Atualizar nome na interface
+                    if (document.getElementById('userName')) {
+                        document.getElementById('userName').textContent = 
+                            this.usuarioAtual.nome || this.usuarioAtual.usuario;
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao verificar login:', error);
+                    window.location.href = 'login.html';
+                }
+            }
+            
+            async init() {
+                console.log('📱 Iniciando Work Manager...');
+                
+                // Timeout de segurança
+                setTimeout(() => {
+                    this.mostrarInterface();
+                }, 2000);
+                
+                // Tentar usar Firebase se disponível
+                try {
+                    if (window.firebaseModules && window.firebaseModules.db !== 'mock-database') {
+                        await this.carregarComFirebase();
+                    } else {
+                        await this.carregarSemFirebase();
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao carregar dados:', error);
+                    await this.carregarSemFirebase();
+                }
+            }
+            
+            async carregarComFirebase() {
+                console.log('🔥 Tentando carregar com Firebase...');
+                
+                try {
+                    const modules = window.firebaseModules;
+                    
+                    // Carregar usuários
+                    const usuariosRef = modules.collection(modules.db, 'usuarios');
+                    const usuariosSnapshot = await modules.getDocs(usuariosRef);
+                    
+                    this.usuarios = usuariosSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    console.log(`✅ ${this.usuarios.length} usuários carregados do Firebase`);
+                    
+                    // Carregar grupos do usuário
+                    await this.carregarGruposFirebase();
+                    
+                    this.atualizarStatus('✅ Conectado ao Firebase');
+                    
+                } catch (error) {
+                    console.error('❌ Erro com Firebase:', error);
+                    throw error;
+                }
+            }
+            
+            async carregarGruposFirebase() {
+                try {
+                    const modules = window.firebaseModules;
+                    const gruposRef = modules.collection(modules.db, 'grupos');
+                    const q = modules.query(
+                        gruposRef,
+                        modules.where('membros', 'array-contains', this.usuarioAtual.usuario)
+                    );
+                    
+                    const unsubscribe = modules.onSnapshot(q, 
+                        (snapshot) => {
+                            console.log('🔄 Grupos atualizados:', snapshot.size);
+                            this.processarGruposFirebase(snapshot);
+                        },
+                        (error) => {
+                            console.error('❌ Erro no listener de grupos:', error);
+                            this.atualizarStatus('⚠️ Sincronização interrompida');
+                        }
+                    );
+                    
+                    // Armazenar para limpar depois
+                    this.unsubscribe = unsubscribe;
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao configurar listener:', error);
+                    await this.carregarSemFirebase();
+                }
+            }
+            
+            processarGruposFirebase(snapshot) {
+                this.grupos = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const membro = Array.isArray(data.membros) 
+                        ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
+                        : null;
+                    
+                    return {
+                        id: doc.id,
+                        ...data,
+                        minhaPermissao: membro?.permissao || 'pendente',
+                        membroAtual: membro
+                    };
+                });
+                
+                this.atualizarInterfaceGrupos();
+                this.atualizarBadgeConvites();
+            }
+            
+            async carregarSemFirebase() {
+                console.log('📁 Carregando sem Firebase...');
+                
+                // Carregar grupos do localStorage
+                const gruposSalvos = localStorage.getItem('workmanager_grupos');
+                
+                if (gruposSalvos) {
+                    this.grupos = JSON.parse(gruposSalvos);
+                    console.log(`✅ ${this.grupos.length} grupos do localStorage`);
+                } else {
+                    // Grupos de exemplo
+                    this.grupos = this.criarGruposExemplo();
+                    console.log('✅ Grupos de exemplo criados');
+                }
+                
+                this.atualizarStatus('🔶 Modo Local (sem Firebase)');
+                this.mostrarInterface();
+            }
+            
+            criarGruposExemplo() {
+                return [
+                    {
+                        id: 'grupo1',
+                        nome: 'Projeto Alpha',
+                        descricao: 'Time principal de desenvolvimento',
+                        criador: this.usuarioAtual.usuario,
+                        dataCriacao: new Date(),
+                        membros: [{
+                            usuarioId: this.usuarioAtual.usuario,
+                            permissao: 'admin',
+                            dataEntrada: new Date(),
+                            nome: this.usuarioAtual.nome
+                        }],
+                        tarefas: [],
+                        minhaPermissao: 'admin'
+                    },
+                    {
+                        id: 'grupo2',
+                        nome: 'Design Team',
+                        descricao: 'Equipe de design e UX/UI',
+                        criador: 'design.lead',
+                        dataCriacao: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+                        membros: [
+                            {
+                                usuarioId: this.usuarioAtual.usuario,
+                                permissao: 'atuador',
+                                dataEntrada: new Date(),
+                                nome: this.usuarioAtual.nome
+                            },
+                            {
+                                usuarioId: 'design.lead',
+                                permissao: 'admin',
+                                dataEntrada: new Date(),
+                                nome: 'Líder de Design'
+                            }
+                        ],
+                        tarefas: [],
+                        minhaPermissao: 'atuador'
+                    }
+                ];
+            }
+            
+            mostrarInterface() {
+                console.log('✅ Mostrando interface...');
+                
+                // Esconder loading
+                const loadingScreen = document.getElementById('loadingScreen');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                if (mainContent) mainContent.style.display = 'block';
+                
+                // Atualizar interface
+                this.atualizarInterfaceGrupos();
+                
+                // Configurar eventos
+                this.configurarEventos();
+            }
+            
+            atualizarStatus(mensagem) {
+                const syncStatus = document.getElementById('syncStatus');
+                if (syncStatus) {
+                    const icon = mensagem.includes('✅') ? 'check-circle' : 
+                                mensagem.includes('❌') ? 'exclamation-triangle' :
+                                mensagem.includes('⚠️') ? 'exclamation-triangle' :
+                                mensagem.includes('🔶') ? 'info-circle' : 'sync-alt';
+                    
+                    const spin = icon === 'sync-alt' ? 'fa-spin' : '';
+                    
+                    syncStatus.innerHTML = `
+                        <i class="fas fa-${icon} ${spin}"></i>
+                        <span>${mensagem}</span>
+                    `;
+                }
+            }
+            
+            atualizarInterfaceGrupos() {
+                const container = document.getElementById('groupsContainer');
+                if (!container) return;
+                
+                const gruposFiltrados = this.filtrarGrupos(this.filtroAtual);
+                
+                if (gruposFiltrados.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-users-slash"></i>
+                            <h3>Nenhum grupo encontrado</h3>
+                            <p>Clique em "Novo Grupo" para começar</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = gruposFiltrados.map(grupo => {
+                    const permissaoClass = grupo.minhaPermissao === 'pendente' ? 'convite-pendente' : grupo.minhaPermissao;
+                    const membrosCount = Array.isArray(grupo.membros) ? grupo.membros.length : 0;
+                    const tarefasCount = Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0;
+                    
+                    return `
+                        <div class="group-card permissao-${permissaoClass}">
+                            <div class="group-header">
+                                <div class="group-title">
+                                    <h3>${grupo.nome}</h3>
+                                    <span class="permissao-badge ${grupo.minhaPermissao}">
+                                        ${grupo.minhaPermissao === 'pendente' ? 'Convite' : grupo.minhaPermissao}
+                                    </span>
+                                </div>
+                                <div class="group-desc">${grupo.descricao || 'Sem descrição'}</div>
+                                <div class="group-meta">
+                                    <div class="group-stats">
+                                        <div class="group-stat">
+                                            <i class="fas fa-users"></i>
+                                            <span>${membrosCount} membro${membrosCount !== 1 ? 's' : ''}</span>
+                                        </div>
+                                        <div class="group-stat">
+                                            <i class="fas fa-tasks"></i>
+                                            <span>${tarefasCount} tarefa${tarefasCount !== 1 ? 's' : ''}</span>
+                                        </div>
+                                    </div>
+                                    <small><i class="fas fa-calendar"></i> ${this.formatarData(grupo.dataCriacao)}</small>
+                                </div>
+                            </div>
+                            <div class="group-actions">
+                                ${grupo.minhaPermissao === 'pendente' ? `
+                                    <button class="btn btn-success btn-sm" onclick="workManagerSimple.responderConvite('${grupo.id}', 'aceitar')">
+                                        <i class="fas fa-check"></i> Aceitar
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="workManagerSimple.responderConvite('${grupo.id}', 'recusar')">
+                                        <i class="fas fa-times"></i> Recusar
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-outline btn-sm" onclick="workManagerSimple.verDetalhesGrupo('${grupo.id}')">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="workManagerSimple.gerenciarMembros('${grupo.id}')">
+                                        <i class="fas fa-users-cog"></i> Membros
+                                    </button>
+                                    ${this.getBotoesPorPermissao(grupo)}
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            getBotoesPorPermissao(grupo) {
+                if (grupo.minhaPermissao === 'admin') {
+                    return `
+                        <button class="btn btn-warning btn-sm" onclick="workManagerSimple.editarGrupo('${grupo.id}')">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="workManagerSimple.excluirGrupo('${grupo.id}')">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    `;
+                }
+                
+                if (grupo.minhaPermissao === 'atuador') {
+                    return `
+                        <button class="btn btn-primary btn-sm" onclick="workManagerSimple.novaTarefaGrupo('${grupo.id}')">
+                            <i class="fas fa-plus"></i> Tarefa
+                        </button>
+                    `;
+                }
+                
+                return '';
+            }
+            
+            filtrarGrupos(filtro, termoBusca = '') {
+                let gruposFiltrados = this.grupos;
+                
+                // Aplicar filtro principal
+                switch(filtro) {
+                    case 'meus':
+                        gruposFiltrados = gruposFiltrados.filter(g => 
+                            g.minhaPermissao !== 'pendente' && 
+                            g.minhaPermissao !== undefined
+                        );
+                        break;
+                    case 'convidados':
+                        gruposFiltrados = gruposFiltrados.filter(g => 
+                            g.minhaPermissao === 'pendente'
+                        );
+                        break;
+                    case 'todos':
+                        // Mostra todos os grupos onde é membro
+                        break;
+                }
+                
+                // Aplicar busca
+                if (termoBusca) {
+                    const termo = termoBusca.toLowerCase();
+                    gruposFiltrados = gruposFiltrados.filter(g => 
+                        g.nome.toLowerCase().includes(termo) ||
+                        (g.descricao && g.descricao.toLowerCase().includes(termo))
+                    );
+                }
+                
+                return gruposFiltrados;
+            }
+            
+            configurarEventos() {
+                // Busca em tempo real
+                const searchInput = document.getElementById('searchGroups');
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        const gruposFiltrados = this.filtrarGrupos(this.filtroAtual, e.target.value);
+                        this.atualizarInterfaceComGrupos(gruposFiltrados);
+                    });
+                }
+                
+                // Fechar modais
+                window.onclick = (event) => {
+                    if (event.target.id === 'modalGrupo') {
+                        this.fecharModalGrupo();
+                    }
+                    if (event.target.id === 'modalMembros') {
+                        this.fecharModalMembros();
+                    }
+                    if (event.target.id === 'modalDetalhes') {
+                        this.fecharModalDetalhes();
+                    }
+                };
+            }
+            
+            atualizarInterfaceComGrupos(gruposFiltrados) {
+                // Implementação similar a atualizarInterfaceGrupos mas com filtro personalizado
+                this.atualizarInterfaceGrupos(); // Por enquanto usa o mesmo
+            }
+            
+            atualizarBadgeConvites() {
+                const badge = document.getElementById('badgeConvites');
+                if (badge) {
+                    const convitesPendentes = this.grupos.filter(g => g.minhaPermissao === 'pendente').length;
+                    badge.textContent = convitesPendentes;
+                    badge.style.display = convitesPendentes > 0 ? 'inline-block' : 'none';
+                }
+            }
+            
+            formatarData(data) {
+                if (!data) return 'Data não disponível';
+                const date = data.toDate ? data.toDate() : new Date(data);
+                return date.toLocaleDateString('pt-BR');
+            }
+            
+            // Métodos públicos (chamados pelos botões)
+            abrirModalGrupo(grupoId = null) {
+                this.grupoEditando = grupoId;
+                const modal = document.getElementById('modalGrupo');
+                const titulo = document.getElementById('modalGrupoTitulo');
+                
+                if (grupoId) {
+                    titulo.textContent = 'Editar Grupo';
+                    const grupo = this.grupos.find(g => g.id === grupoId);
+                    if (grupo) {
+                        document.getElementById('grupoNome').value = grupo.nome;
+                        document.getElementById('grupoDescricao').value = grupo.descricao || '';
+                        document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
+                    }
+                } else {
+                    titulo.textContent = 'Novo Grupo de Trabalho';
+                    document.getElementById('formGrupo').reset();
+                    document.getElementById('grupoCor').value = '#4a6fa5';
+                }
+                
+                modal.style.display = 'flex';
+            }
+            
+            fecharModalGrupo() {
+                document.getElementById('modalGrupo').style.display = 'none';
+                this.grupoEditando = null;
+            }
+            
+            fecharModalMembros() {
+                document.getElementById('modalMembros').style.display = 'none';
+            }
+            
+            fecharModalDetalhes() {
+                document.getElementById('modalDetalhes').style.display = 'none';
+            }
+            
+            async salvarGrupo() {
+                const nome = document.getElementById('grupoNome').value;
+                const descricao = document.getElementById('grupoDescricao').value;
+                const cor = document.getElementById('grupoCor').value;
+                
+                if (!nome) {
+                    this.mostrarNotificacao('Preencha o nome do grupo', 'error');
+                    return;
+                }
+                
+                try {
+                    const grupoData = {
+                        nome,
+                        descricao,
+                        cor,
+                        criador: this.usuarioAtual.usuario,
+                        dataCriacao: new Date(),
+                        membros: [{
+                            usuarioId: this.usuarioAtual.usuario,
+                            permissao: 'admin',
+                            dataEntrada: new Date(),
+                            nome: this.usuarioAtual.nome || this.usuarioAtual.usuario
+                        }],
+                        tarefas: [],
+                        minhaPermissao: 'admin'
+                    };
+                    
+                    let novoGrupo;
+                    
+                    // Se Firebase disponível
+                    if (window.firebaseModules && window.firebaseModules.db !== 'mock-database') {
+                        const modules = window.firebaseModules;
+                        const gruposRef = modules.collection(modules.db, 'grupos');
+                        novoGrupo = await modules.addDoc(gruposRef, {
+                            ...grupoData,
+                            dataCriacao: modules.serverTimestamp()
+                        });
+                        
+                        grupoData.id = novoGrupo.id;
+                    } else {
+                        // Local
+                        grupoData.id = 'local-' + Date.now();
+                        
+                        // Salvar no localStorage
+                        this.grupos.push(grupoData);
+                        localStorage.setItem('workmanager_grupos', JSON.stringify(this.grupos));
+                    }
+                    
+                    this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
+                    this.fecharModalGrupo();
+                    this.atualizarInterfaceGrupos();
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao salvar grupo:', error);
+                    this.mostrarNotificacao('Erro ao salvar grupo', 'error');
+                }
+            }
+            
+            mostrarNotificacao(mensagem, tipo = 'info') {
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 10000;
+                    background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : '#3498db'};
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                `;
+                
+                notification.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i> ${mensagem}`;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 3000);
+            }
+            
+            // Outros métodos (stubs para funcionalidades futuras)
+            responderConvite(grupoId, resposta) {
+                alert(`Convite ${resposta === 'aceitar' ? 'aceito' : 'recusado'} para o grupo ${grupoId}`);
+            }
+            
+            verDetalhesGrupo(grupoId) {
+                const grupo = this.grupos.find(g => g.id === grupoId);
+                if (grupo) {
+                    document.getElementById('modalDetalhesBody').innerHTML = `
+                        <h3>${grupo.nome}</h3>
+                        <p><strong>Descrição:</strong> ${grupo.descricao || 'Sem descrição'}</p>
+                        <p><strong>Criado por:</strong> ${grupo.criador}</p>
+                        <p><strong>Data de criação:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
+                        <p><strong>Sua permissão:</strong> ${grupo.minhaPermissao}</p>
+                        <p><strong>Membros:</strong> ${Array.isArray(grupo.membros) ? grupo.membros.length : 0}</p>
+                    `;
+                    document.getElementById('modalDetalhes').style.display = 'flex';
+                }
+            }
+            
+            gerenciarMembros(grupoId) {
+                document.getElementById('membrosContainer').innerHTML = `
+                    <p class="text-center">Funcionalidade de gerenciamento de membros</p>
+                    <p class="text-center"><small>Disponível na versão completa com Firebase</small></p>
+                `;
+                document.getElementById('modalMembros').style.display = 'flex';
+            }
+            
+            editarGrupo(grupoId) {
+                this.abrirModalGrupo(grupoId);
+            }
+            
+            excluirGrupo(grupoId) {
+                if (!confirm('Tem certeza que deseja excluir este grupo?')) return;
+                
+                // Remover do array
+                this.grupos = this.grupos.filter(g => g.id !== grupoId);
+                
+                // Atualizar localStorage se for modo local
+                if (!window.firebaseModules || window.firebaseModules.db === 'mock-database') {
+                    localStorage.setItem('workmanager_grupos', JSON.stringify(this.grupos));
+                }
+                
+                this.mostrarNotificacao('✅ Grupo excluído com sucesso!', 'success');
+                this.atualizarInterfaceGrupos();
+            }
+            
+            novaTarefaGrupo(grupoId) {
+                alert(`Nova tarefa no grupo ${grupoId} - Funcionalidade em desenvolvimento`);
+            }
+            
+            filtrarGruposPublic(filtro) {
+                this.filtroAtual = filtro;
+                
+                // Atualizar tabs ativas
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                // Atualizar interface
+                this.atualizarInterfaceGrupos();
+            }
+        }
+        
+        // Criar instância global
+        const workManagerSimple = new WorkManagerSimple();
+        
+        // Inicializar quando o DOM estiver pronto
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                workManagerSimple.init();
+            });
+        } else {
+            workManagerSimple.init();
+        }
+        
+        // Expor funções globais
+        window.workManagerSimple = workManagerSimple;
+        window.abrirModalGrupo = (grupoId) => workManagerSimple.abrirModalGrupo(grupoId);
+        window.fecharModalGrupo = () => workManagerSimple.fecharModalGrupo();
+        window.salvarGrupo = () => workManagerSimple.salvarGrupo();
+        window.filtrarGrupos = (filtro) => workManagerSimple.filtrarGruposPublic(filtro);
+        window.fecharModalMembros = () => workManagerSimple.fecharModalMembros();
+        window.fecharModalDetalhes = () => workManagerSimple.fecharModalDetalhes();
+    </script>
 </body>
 </html>
