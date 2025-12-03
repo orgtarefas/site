@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Direto - Teste</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: #0078d4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #106ebe;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .status {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .status h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Acesso Direto ao Sistema</h1>
+        
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="acessoDiretoHome()">
+                <i class="fas fa-home"></i> Acessar Home (index.html)
+            </button>
+            
+            <button class="btn btn-success" onclick="acessoDiretoDashboard()">
+                <i class="fas fa-chart-line"></i> Acessar Dashboard
+            </button>
+            
+            <button class="btn btn-danger" onclick="limparTudo()">
+                <i class="fas fa-trash"></i> Limpar LocalStorage
+            </button>
+            
+            <button class="btn" onclick="testarFirebase()" style="background: #6f42c1; color: white;">
+                <i class="fas fa-database"></i> Testar Conexão Firebase
+            </button>
+        </div>
+        
+        <div class="status" id="status">
+            <h3>Status do Sistema</h3>
+            <p id="status-text">Clique nos botões acima para testar</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #e9ecef; border-radius: 10px;">
+            <h4>📝 Instruções:</h4>
+            <ol>
+                <li>Clique em "Acessar Home" para ir direto para index.html</li>
+                <li>O sistema criará automaticamente um usuário de teste</li>
+                <li>Use o botão "Dashboard" na Home para acessar os gráficos</li>
+                <li>Se tiver problemas, use "Limpar LocalStorage"</li>
+            </ol>
+        </div>
+    </div>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script>
+        // Funções de acesso direto
+        function acessoDiretoHome() {
+            // Criar usuário de teste
+            const usuarioTeste = {
+                id: 'teste-' + Date.now(),
+                usuario: 'thiago.barbosa',
+                nome: 'Thiago Barbosa',
+                nivel: 'devs',
+                email: 'thiago.barbosa@sistema.com',
+                dataLogin: new Date().toISOString()
+            };
+            
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioTeste));
+            
+            // Mostrar status
+            document.getElementById('status-text').innerHTML = 
+                `<span style="color: green;">✅ Usuário criado!<br>
+                Nome: ${usuarioTeste.nome}<br>
+                Redirecionando para Home...</span>`;
+            
+            // Redirecionar após 1 segundo
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        }
+        
+        function acessoDiretoDashboard() {
+            // Criar usuário de teste
+            const usuarioTeste = {
+                id: 'teste-' + Date.now(),
+                usuario: 'thiago.barbosa',
+                nome: 'Thiago Barbosa',
+                nivel: 'devs',
+                email: 'thiago.barbosa@sistema.com',
+                dataLogin: new Date().toISOString()
+            };
+            
+            localStorage.setItem('usuarioLogado', JSON.stringify(usuarioTeste));
+            
+            // Mostrar status
+            document.getElementById('status-text').innerHTML = 
+                `<span style="color: green;">✅ Usuário criado!<br>
+                Redirecionando para Dashboard...</span>`;
+            
+            // Redirecionar
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 1000);
+        }
+        
+        function limparTudo() {
+            localStorage.clear();
+            document.getElementById('status-text').innerHTML = 
+                '<span style="color: orange;">🗑️ LocalStorage limpo com sucesso!</span>';
+        }
+        
+        function testarFirebase() {
+            // Verificar se Firebase está carregado
+            if (typeof firebase !== 'undefined') {
+                document.getElementById('status-text').innerHTML = 
+                    '<span style="color: green;">✅ Firebase.js está carregado!</span>';
+            } else {
+                document.getElementById('status-text').innerHTML = 
+                    '<span style="color: red;">❌ Firebase.js NÃO está carregado</span>';
+            }
+        }
+        
+        // Verificar automaticamente ao carregar
+        window.addEventListener('load', function() {
+            const usuario = localStorage.getItem('usuarioLogado');
+            if (usuario) {
+                try {
+                    const userData = JSON.parse(usuario);
+                    document.getElementById('status-text').innerHTML = 
+                        `<span style="color: green;">✅ Usuário já logado:<br>
+                        Nome: ${userData.nome || userData.usuario}</span>`;
+                } catch (e) {
+                    document.getElementById('status-text').innerHTML = 
+                        '<span style="color: orange;">⚠️ Dados de usuário corrompidos</span>';
+                }
+            }
+            
+            // Testar Firebase
+            setTimeout(testarFirebase, 500);
+        });
+    </script>
+</body>
+</html>
