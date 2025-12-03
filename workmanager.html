@@ -12,7 +12,7 @@
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <i class="fas fa-users fa-spin"></i>
-            <p>Carregando Work Manager...</p>
+            <p id="loadingText">Conectando ao banco de dados...</p>
         </div>
     </div>
 
@@ -44,7 +44,7 @@
         <!-- Status -->
         <div class="sync-status" id="syncStatus">
             <i class="fas fa-sync-alt fa-spin"></i>
-            <span>Inicializando sistema...</span>
+            <span>Estabelecendo conexão...</span>
         </div>
 
         <!-- Filtros e Tabs -->
@@ -105,68 +105,41 @@
                 </div>
             </div>
         </div>
-
-        <!-- Modal para Gerenciar Membros -->
-        <div id="modalMembros" class="modal modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Gerenciar Membros</h2>
-                    <button class="close" onclick="fecharModalMembros()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="membros-container" id="membrosContainer">
-                        <p class="text-center">Carregando membros...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal de Detalhes do Grupo -->
-        <div id="modalDetalhes" class="modal modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Detalhes do Grupo</h2>
-                    <button class="close" onclick="fecharModalDetalhes()">&times;</button>
-                </div>
-                <div class="modal-body" id="modalDetalhesBody">
-                    <p>Carregando detalhes...</p>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Firebase v12 SIMPLIFICADO -->
+    <!-- Firebase v12 COMPLETO -->
     <script type="module">
         console.log('=== INICIANDO FIREBASE v12 ===');
         
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+            authDomain: "orgtarefas-85358.firebaseapp.com",
+            projectId: "orgtarefas-85358",
+            storageBucket: "orgtarefas-85358.firebasestorage.app",
+            messagingSenderId: "1023569488575",
+            appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+        };
+
+        // Inicializar Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            getDocs,
+            serverTimestamp,
+            query,
+            where,
+            onSnapshot,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            doc,
+            arrayUnion,
+            arrayRemove
+        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
         try {
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-            import { 
-                getFirestore, 
-                collection, 
-                getDocs,
-                serverTimestamp,
-                query,
-                where,
-                onSnapshot,
-                addDoc,
-                updateDoc,
-                deleteDoc,
-                doc,
-                arrayUnion,
-                arrayRemove
-            } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-
-            const firebaseConfig = {
-                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-                authDomain: "orgtarefas-85358.firebaseapp.com",
-                projectId: "orgtarefas-85358",
-                storageBucket: "orgtarefas-85358.firebasestorage.app",
-                messagingSenderId: "1023569488575",
-                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
-            };
-
-            // Initialize Firebase
             const app = initializeApp(firebaseConfig);
             const db = getFirestore(app);
             
@@ -177,10 +150,20 @@
                 collection, getDocs, serverTimestamp,
                 query, where, onSnapshot,
                 addDoc, updateDoc, deleteDoc, doc,
-                arrayUnion, arrayRemove
+                arrayUnion, arrayRemove,
+                
+                // App
+                app
             };
             
-            console.log('✅ Firebase v12 configurado com sucesso!');
+            console.log('✅ Firebase v12 inicializado com sucesso!');
+            console.log('Firestore disponível:', db);
+            
+            // Atualizar status na interface
+            const loadingText = document.getElementById('loadingText');
+            if (loadingText) {
+                loadingText.textContent = 'Firebase conectado! Carregando dados...';
+            }
             
             // Notificar que está pronto
             if (window.onFirebaseReady) {
@@ -188,85 +171,49 @@
             }
             
         } catch (error) {
-            console.error('❌ Erro ao carregar Firebase:', error);
-            console.log('⚠️ Continuando sem Firebase');
+            console.error('❌ ERRO CRÍTICO ao inicializar Firebase:', error);
             
-            // Criar módulos mock para não quebrar o sistema
-            window.firebaseModules = {
-                db: 'mock-database',
-                collection: () => ({ 
-                    getDocs: async () => ({ 
-                        docs: [],
-                        forEach: () => {}
-                    }),
-                    addDoc: async (data) => {
-                        console.log('Mock addDoc:', data);
-                        return { id: 'mock-' + Date.now() };
-                    }
-                }),
-                getDocs: async () => ({ docs: [] }),
-                serverTimestamp: () => new Date(),
-                query: (ref, ...constraints) => ref,
-                where: (field, op, value) => ({ field, op, value }),
-                onSnapshot: (q, callback, errorCallback) => {
-                    console.log('Mock onSnapshot configurado');
-                    return () => console.log('Mock unsubscribe');
-                },
-                addDoc: async (ref, data) => {
-                    console.log('Mock addDoc chamado:', data);
-                    return { id: 'mock-doc-' + Date.now() };
-                },
-                updateDoc: async (ref, data) => {
-                    console.log('Mock updateDoc:', data);
-                    return Promise.resolve();
-                },
-                deleteDoc: async (ref) => {
-                    console.log('Mock deleteDoc');
-                    return Promise.resolve();
-                },
-                doc: (db, collection, id) => ({ 
-                    db, collection, id,
-                    update: async (data) => {
-                        console.log('Mock doc.update:', data);
-                        return Promise.resolve();
-                    }
-                }),
-                arrayUnion: (...elements) => elements,
-                arrayRemove: (...elements) => elements
-            };
+            // Mostrar erro na interface
+            const loadingText = document.getElementById('loadingText');
+            if (loadingText) {
+                loadingText.innerHTML = '<span style="color: #e74c3c;">❌ Erro ao conectar com Firebase</span>';
+            }
             
-            console.log('✅ Módulos mock criados');
+            // Criar módulos vazios para não quebrar
+            window.firebaseModules = null;
         }
-        
-        // Timeout de segurança
-        setTimeout(() => {
-            if (!window.firebaseModules) {
-                console.log('⚠️ Firebase não carregou após 3 segundos');
-                window.firebaseModules = { db: 'timeout-mock' };
-            }
-            
-            // Forçar chamada onFirebaseReady se existir
-            if (window.onFirebaseReady) {
-                window.onFirebaseReady();
-            }
-        }, 3000);
     </script>
 
-    <!-- Sistema Work Manager -->
+    <!-- Sistema Work Manager SIMPLIFICADO -->
     <script>
-        console.log('=== WORK MANAGER HTML INLINE ===');
+        console.log('=== WORK MANAGER SIMPLIFICADO ===');
         
         // Sistema básico do Work Manager
         class WorkManagerSimple {
             constructor() {
-                console.log('🚀 Work Manager Simple inicializando...');
+                console.log('🚀 Work Manager inicializando...');
                 this.usuarioAtual = null;
                 this.grupos = [];
                 this.filtroAtual = 'meus';
                 this.grupoEditando = null;
                 
-                // Verificar se está logado
+                // Configurar timeout de segurança
+                this.timeoutId = setTimeout(() => {
+                    this.mostrarErroConexao();
+                }, 10000); // 10 segundos timeout
+            }
+            
+            async init() {
+                console.log('📱 Iniciando sistema...');
+                
+                // 1. Verificar login
                 this.verificarLogin();
+                
+                // 2. Aguardar Firebase
+                await this.aguardarFirebase();
+                
+                // 3. Carregar dados
+                await this.carregarDados();
             }
             
             verificarLogin() {
@@ -293,163 +240,133 @@
                 }
             }
             
-            async init() {
-                console.log('📱 Iniciando Work Manager...');
+            async aguardarFirebase() {
+                console.log('⏳ Aguardando Firebase...');
                 
-                // Timeout de segurança
-                setTimeout(() => {
-                    this.mostrarInterface();
-                }, 2000);
-                
-                // Tentar usar Firebase se disponível
-                try {
-                    if (window.firebaseModules && window.firebaseModules.db !== 'mock-database') {
-                        await this.carregarComFirebase();
-                    } else {
-                        await this.carregarSemFirebase();
-                    }
-                } catch (error) {
-                    console.error('❌ Erro ao carregar dados:', error);
-                    await this.carregarSemFirebase();
-                }
+                return new Promise((resolve) => {
+                    const checkFirebase = () => {
+                        if (window.firebaseModules && window.firebaseModules.db) {
+                            console.log('✅ Firebase disponível!');
+                            clearTimeout(this.timeoutId);
+                            resolve();
+                        } else {
+                            setTimeout(checkFirebase, 500);
+                        }
+                    };
+                    
+                    checkFirebase();
+                });
             }
             
-            async carregarComFirebase() {
-                console.log('🔥 Tentando carregar com Firebase...');
+            async carregarDados() {
+                console.log('📊 Carregando dados do Firebase...');
                 
                 try {
+                    if (!window.firebaseModules || !window.firebaseModules.db) {
+                        throw new Error('Firebase não disponível');
+                    }
+                    
                     const modules = window.firebaseModules;
                     
-                    // Carregar usuários
-                    const usuariosRef = modules.collection(modules.db, 'usuarios');
-                    const usuariosSnapshot = await modules.getDocs(usuariosRef);
+                    // Atualizar status
+                    this.atualizarStatus('📡 Conectando ao banco de dados...');
                     
-                    this.usuarios = usuariosSnapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
+                    // Testar conexão
+                    const testRef = modules.collection(modules.db, 'usuarios');
+                    const testSnapshot = await modules.getDocs(testRef);
                     
-                    console.log(`✅ ${this.usuarios.length} usuários carregados do Firebase`);
+                    console.log(`✅ Conexão OK! ${testSnapshot.size} usuários encontrados`);
                     
                     // Carregar grupos do usuário
-                    await this.carregarGruposFirebase();
+                    await this.carregarGrupos();
                     
-                    this.atualizarStatus('✅ Conectado ao Firebase');
+                    // Mostrar interface
+                    this.mostrarInterface();
                     
                 } catch (error) {
-                    console.error('❌ Erro com Firebase:', error);
-                    throw error;
+                    console.error('❌ Erro ao carregar dados:', error);
+                    this.mostrarErroConexao();
                 }
             }
             
-            async carregarGruposFirebase() {
+            async carregarGrupos() {
+                console.log('📁 Carregando grupos...');
+                
                 try {
                     const modules = window.firebaseModules;
+                    
+                    // Buscar grupos onde o usuário é membro
                     const gruposRef = modules.collection(modules.db, 'grupos');
                     const q = modules.query(
                         gruposRef,
                         modules.where('membros', 'array-contains', this.usuarioAtual.usuario)
                     );
                     
+                    const snapshot = await modules.getDocs(q);
+                    
+                    this.grupos = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const membro = Array.isArray(data.membros) 
+                            ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
+                            : null;
+                        
+                        return {
+                            id: doc.id,
+                            ...data,
+                            minhaPermissao: membro?.permissao || 'pendente',
+                            membroAtual: membro
+                        };
+                    });
+                    
+                    console.log(`✅ ${this.grupos.length} grupos carregados`);
+                    this.atualizarStatus('✅ Conectado - ' + this.grupos.length + ' grupos');
+                    
+                    // Configurar listener em tempo real
+                    this.configurarListenerTempoReal(q);
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao carregar grupos:', error);
+                    throw error;
+                }
+            }
+            
+            configurarListenerTempoReal(q) {
+                try {
+                    const modules = window.firebaseModules;
+                    
                     const unsubscribe = modules.onSnapshot(q, 
                         (snapshot) => {
-                            console.log('🔄 Grupos atualizados:', snapshot.size);
-                            this.processarGruposFirebase(snapshot);
+                            console.log('🔄 Grupos atualizados em tempo real:', snapshot.size);
+                            
+                            this.grupos = snapshot.docs.map(doc => {
+                                const data = doc.data();
+                                const membro = Array.isArray(data.membros) 
+                                    ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
+                                    : null;
+                                
+                                return {
+                                    id: doc.id,
+                                    ...data,
+                                    minhaPermissao: membro?.permissao || 'pendente',
+                                    membroAtual: membro
+                                };
+                            });
+                            
+                            this.atualizarInterfaceGrupos();
+                            this.atualizarBadgeConvites();
                         },
                         (error) => {
-                            console.error('❌ Erro no listener de grupos:', error);
+                            console.error('❌ Erro no listener:', error);
                             this.atualizarStatus('⚠️ Sincronização interrompida');
                         }
                     );
                     
-                    // Armazenar para limpar depois
+                    // Armazenar para limpar se necessário
                     this.unsubscribe = unsubscribe;
                     
                 } catch (error) {
                     console.error('❌ Erro ao configurar listener:', error);
-                    await this.carregarSemFirebase();
                 }
-            }
-            
-            processarGruposFirebase(snapshot) {
-                this.grupos = snapshot.docs.map(doc => {
-                    const data = doc.data();
-                    const membro = Array.isArray(data.membros) 
-                        ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
-                        : null;
-                    
-                    return {
-                        id: doc.id,
-                        ...data,
-                        minhaPermissao: membro?.permissao || 'pendente',
-                        membroAtual: membro
-                    };
-                });
-                
-                this.atualizarInterfaceGrupos();
-                this.atualizarBadgeConvites();
-            }
-            
-            async carregarSemFirebase() {
-                console.log('📁 Carregando sem Firebase...');
-                
-                // Carregar grupos do localStorage
-                const gruposSalvos = localStorage.getItem('workmanager_grupos');
-                
-                if (gruposSalvos) {
-                    this.grupos = JSON.parse(gruposSalvos);
-                    console.log(`✅ ${this.grupos.length} grupos do localStorage`);
-                } else {
-                    // Grupos de exemplo
-                    this.grupos = this.criarGruposExemplo();
-                    console.log('✅ Grupos de exemplo criados');
-                }
-                
-                this.atualizarStatus('🔶 Modo Local (sem Firebase)');
-                this.mostrarInterface();
-            }
-            
-            criarGruposExemplo() {
-                return [
-                    {
-                        id: 'grupo1',
-                        nome: 'Projeto Alpha',
-                        descricao: 'Time principal de desenvolvimento',
-                        criador: this.usuarioAtual.usuario,
-                        dataCriacao: new Date(),
-                        membros: [{
-                            usuarioId: this.usuarioAtual.usuario,
-                            permissao: 'admin',
-                            dataEntrada: new Date(),
-                            nome: this.usuarioAtual.nome
-                        }],
-                        tarefas: [],
-                        minhaPermissao: 'admin'
-                    },
-                    {
-                        id: 'grupo2',
-                        nome: 'Design Team',
-                        descricao: 'Equipe de design e UX/UI',
-                        criador: 'design.lead',
-                        dataCriacao: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-                        membros: [
-                            {
-                                usuarioId: this.usuarioAtual.usuario,
-                                permissao: 'atuador',
-                                dataEntrada: new Date(),
-                                nome: this.usuarioAtual.nome
-                            },
-                            {
-                                usuarioId: 'design.lead',
-                                permissao: 'admin',
-                                dataEntrada: new Date(),
-                                nome: 'Líder de Design'
-                            }
-                        ],
-                        tarefas: [],
-                        minhaPermissao: 'atuador'
-                    }
-                ];
             }
             
             mostrarInterface() {
@@ -469,18 +386,52 @@
                 this.configurarEventos();
             }
             
+            mostrarErroConexao() {
+                console.log('❌ Não foi possível conectar ao banco de dados');
+                
+                // Esconder loading
+                const loadingScreen = document.getElementById('loadingScreen');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                if (mainContent) mainContent.style.display = 'block';
+                
+                // Mostrar mensagem de erro
+                const container = document.getElementById('groupsContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <i class="fas fa-exclamation-triangle" style="color: #e74c3c; font-size: 3rem;"></i>
+                            <h3 style="color: #e74c3c;">Erro de Conexão</h3>
+                            <p>Não foi possível conectar ao banco de dados Firebase.</p>
+                            <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left;">
+                                <p><strong>Possíveis causas:</strong></p>
+                                <ol style="margin-left: 20px;">
+                                    <li>Problema na conexão com a internet</li>
+                                    <li>Configuração do Firebase incorreta</li>
+                                    <li>Permissões do Firestore não configuradas</li>
+                                </ol>
+                            </div>
+                            <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">
+                                <i class="fas fa-redo"></i> Tentar Novamente
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                this.atualizarStatus('❌ Erro de conexão');
+            }
+            
             atualizarStatus(mensagem) {
                 const syncStatus = document.getElementById('syncStatus');
                 if (syncStatus) {
                     const icon = mensagem.includes('✅') ? 'check-circle' : 
                                 mensagem.includes('❌') ? 'exclamation-triangle' :
                                 mensagem.includes('⚠️') ? 'exclamation-triangle' :
-                                mensagem.includes('🔶') ? 'info-circle' : 'sync-alt';
-                    
-                    const spin = icon === 'sync-alt' ? 'fa-spin' : '';
+                                mensagem.includes('📡') ? 'sync-alt fa-spin' : 'info-circle';
                     
                     syncStatus.innerHTML = `
-                        <i class="fas fa-${icon} ${spin}"></i>
+                        <i class="fas fa-${icon}"></i>
                         <span>${mensagem}</span>
                     `;
                 }
@@ -497,7 +448,10 @@
                         <div class="empty-state">
                             <i class="fas fa-users-slash"></i>
                             <h3>Nenhum grupo encontrado</h3>
-                            <p>Clique em "Novo Grupo" para começar</p>
+                            <p>Você ainda não faz parte de nenhum grupo de trabalho.</p>
+                            <button class="btn btn-primary" onclick="abrirModalGrupo()" style="margin-top: 15px;">
+                                <i class="fas fa-plus-circle"></i> Criar Primeiro Grupo
+                            </button>
                         </div>
                     `;
                     return;
@@ -534,48 +488,32 @@
                             </div>
                             <div class="group-actions">
                                 ${grupo.minhaPermissao === 'pendente' ? `
-                                    <button class="btn btn-success btn-sm" onclick="workManagerSimple.responderConvite('${grupo.id}', 'aceitar')">
+                                    <button class="btn btn-success btn-sm" onclick="workManager.responderConvite('${grupo.id}', 'aceitar')">
                                         <i class="fas fa-check"></i> Aceitar
                                     </button>
-                                    <button class="btn btn-danger btn-sm" onclick="workManagerSimple.responderConvite('${grupo.id}', 'recusar')">
+                                    <button class="btn btn-danger btn-sm" onclick="workManager.responderConvite('${grupo.id}', 'recusar')">
                                         <i class="fas fa-times"></i> Recusar
                                     </button>
                                 ` : `
-                                    <button class="btn btn-outline btn-sm" onclick="workManagerSimple.verDetalhesGrupo('${grupo.id}')">
+                                    <button class="btn btn-outline btn-sm" onclick="workManager.verDetalhesGrupo('${grupo.id}')">
                                         <i class="fas fa-eye"></i> Ver
                                     </button>
-                                    <button class="btn btn-primary btn-sm" onclick="workManagerSimple.gerenciarMembros('${grupo.id}')">
+                                    <button class="btn btn-primary btn-sm" onclick="workManager.gerenciarMembros('${grupo.id}')">
                                         <i class="fas fa-users-cog"></i> Membros
                                     </button>
-                                    ${this.getBotoesPorPermissao(grupo)}
+                                    ${grupo.minhaPermissao === 'admin' ? `
+                                        <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
+                                            <i class="fas fa-trash"></i> Excluir
+                                        </button>
+                                    ` : ''}
                                 `}
                             </div>
                         </div>
                     `;
                 }).join('');
-            }
-            
-            getBotoesPorPermissao(grupo) {
-                if (grupo.minhaPermissao === 'admin') {
-                    return `
-                        <button class="btn btn-warning btn-sm" onclick="workManagerSimple.editarGrupo('${grupo.id}')">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="workManagerSimple.excluirGrupo('${grupo.id}')">
-                            <i class="fas fa-trash"></i> Excluir
-                        </button>
-                    `;
-                }
-                
-                if (grupo.minhaPermissao === 'atuador') {
-                    return `
-                        <button class="btn btn-primary btn-sm" onclick="workManagerSimple.novaTarefaGrupo('${grupo.id}')">
-                            <i class="fas fa-plus"></i> Tarefa
-                        </button>
-                    `;
-                }
-                
-                return '';
             }
             
             filtrarGrupos(filtro, termoBusca = '') {
@@ -620,23 +558,10 @@
                         this.atualizarInterfaceComGrupos(gruposFiltrados);
                     });
                 }
-                
-                // Fechar modais
-                window.onclick = (event) => {
-                    if (event.target.id === 'modalGrupo') {
-                        this.fecharModalGrupo();
-                    }
-                    if (event.target.id === 'modalMembros') {
-                        this.fecharModalMembros();
-                    }
-                    if (event.target.id === 'modalDetalhes') {
-                        this.fecharModalDetalhes();
-                    }
-                };
             }
             
             atualizarInterfaceComGrupos(gruposFiltrados) {
-                // Implementação similar a atualizarInterfaceGrupos mas com filtro personalizado
+                // Implementação de busca
                 this.atualizarInterfaceGrupos(); // Por enquanto usa o mesmo
             }
             
@@ -655,206 +580,45 @@
                 return date.toLocaleDateString('pt-BR');
             }
             
-            // Métodos públicos (chamados pelos botões)
+            // Métodos públicos (stubs)
             abrirModalGrupo(grupoId = null) {
-                this.grupoEditando = grupoId;
-                const modal = document.getElementById('modalGrupo');
-                const titulo = document.getElementById('modalGrupoTitulo');
-                
-                if (grupoId) {
-                    titulo.textContent = 'Editar Grupo';
-                    const grupo = this.grupos.find(g => g.id === grupoId);
-                    if (grupo) {
-                        document.getElementById('grupoNome').value = grupo.nome;
-                        document.getElementById('grupoDescricao').value = grupo.descricao || '';
-                        document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
-                    }
-                } else {
-                    titulo.textContent = 'Novo Grupo de Trabalho';
-                    document.getElementById('formGrupo').reset();
-                    document.getElementById('grupoCor').value = '#4a6fa5';
-                }
-                
-                modal.style.display = 'flex';
+                alert('Funcionalidade em desenvolvimento - Conectado ao Firebase!');
             }
             
             fecharModalGrupo() {
-                document.getElementById('modalGrupo').style.display = 'none';
-                this.grupoEditando = null;
+                // Implementação futura
             }
             
-            fecharModalMembros() {
-                document.getElementById('modalMembros').style.display = 'none';
-            }
-            
-            fecharModalDetalhes() {
-                document.getElementById('modalDetalhes').style.display = 'none';
-            }
-            
-            async salvarGrupo() {
-                const nome = document.getElementById('grupoNome').value;
-                const descricao = document.getElementById('grupoDescricao').value;
-                const cor = document.getElementById('grupoCor').value;
-                
-                if (!nome) {
-                    this.mostrarNotificacao('Preencha o nome do grupo', 'error');
-                    return;
-                }
-                
-                try {
-                    const grupoData = {
-                        nome,
-                        descricao,
-                        cor,
-                        criador: this.usuarioAtual.usuario,
-                        dataCriacao: new Date(),
-                        membros: [{
-                            usuarioId: this.usuarioAtual.usuario,
-                            permissao: 'admin',
-                            dataEntrada: new Date(),
-                            nome: this.usuarioAtual.nome || this.usuarioAtual.usuario
-                        }],
-                        tarefas: [],
-                        minhaPermissao: 'admin'
-                    };
-                    
-                    let novoGrupo;
-                    
-                    // Se Firebase disponível
-                    if (window.firebaseModules && window.firebaseModules.db !== 'mock-database') {
-                        const modules = window.firebaseModules;
-                        const gruposRef = modules.collection(modules.db, 'grupos');
-                        novoGrupo = await modules.addDoc(gruposRef, {
-                            ...grupoData,
-                            dataCriacao: modules.serverTimestamp()
-                        });
-                        
-                        grupoData.id = novoGrupo.id;
-                    } else {
-                        // Local
-                        grupoData.id = 'local-' + Date.now();
-                        
-                        // Salvar no localStorage
-                        this.grupos.push(grupoData);
-                        localStorage.setItem('workmanager_grupos', JSON.stringify(this.grupos));
-                    }
-                    
-                    this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
-                    this.fecharModalGrupo();
-                    this.atualizarInterfaceGrupos();
-                    
-                } catch (error) {
-                    console.error('❌ Erro ao salvar grupo:', error);
-                    this.mostrarNotificacao('Erro ao salvar grupo', 'error');
-                }
-            }
-            
-            mostrarNotificacao(mensagem, tipo = 'info') {
-                const notification = document.createElement('div');
-                notification.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    padding: 15px 20px;
-                    border-radius: 8px;
-                    color: white;
-                    font-weight: 500;
-                    z-index: 10000;
-                    background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : '#3498db'};
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                `;
-                
-                notification.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i> ${mensagem}`;
-                document.body.appendChild(notification);
-                
-                setTimeout(() => {
-                    document.body.removeChild(notification);
-                }, 3000);
-            }
-            
-            // Outros métodos (stubs para funcionalidades futuras)
-            responderConvite(grupoId, resposta) {
-                alert(`Convite ${resposta === 'aceitar' ? 'aceito' : 'recusado'} para o grupo ${grupoId}`);
-            }
-            
-            verDetalhesGrupo(grupoId) {
-                const grupo = this.grupos.find(g => g.id === grupoId);
-                if (grupo) {
-                    document.getElementById('modalDetalhesBody').innerHTML = `
-                        <h3>${grupo.nome}</h3>
-                        <p><strong>Descrição:</strong> ${grupo.descricao || 'Sem descrição'}</p>
-                        <p><strong>Criado por:</strong> ${grupo.criador}</p>
-                        <p><strong>Data de criação:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
-                        <p><strong>Sua permissão:</strong> ${grupo.minhaPermissao}</p>
-                        <p><strong>Membros:</strong> ${Array.isArray(grupo.membros) ? grupo.membros.length : 0}</p>
-                    `;
-                    document.getElementById('modalDetalhes').style.display = 'flex';
-                }
-            }
-            
-            gerenciarMembros(grupoId) {
-                document.getElementById('membrosContainer').innerHTML = `
-                    <p class="text-center">Funcionalidade de gerenciamento de membros</p>
-                    <p class="text-center"><small>Disponível na versão completa com Firebase</small></p>
-                `;
-                document.getElementById('modalMembros').style.display = 'flex';
-            }
-            
-            editarGrupo(grupoId) {
-                this.abrirModalGrupo(grupoId);
-            }
-            
-            excluirGrupo(grupoId) {
-                if (!confirm('Tem certeza que deseja excluir este grupo?')) return;
-                
-                // Remover do array
-                this.grupos = this.grupos.filter(g => g.id !== grupoId);
-                
-                // Atualizar localStorage se for modo local
-                if (!window.firebaseModules || window.firebaseModules.db === 'mock-database') {
-                    localStorage.setItem('workmanager_grupos', JSON.stringify(this.grupos));
-                }
-                
-                this.mostrarNotificacao('✅ Grupo excluído com sucesso!', 'success');
-                this.atualizarInterfaceGrupos();
-            }
-            
-            novaTarefaGrupo(grupoId) {
-                alert(`Nova tarefa no grupo ${grupoId} - Funcionalidade em desenvolvimento`);
-            }
-            
-            filtrarGruposPublic(filtro) {
-                this.filtroAtual = filtro;
-                
-                // Atualizar tabs ativas
-                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                event.target.classList.add('active');
-                
-                // Atualizar interface
-                this.atualizarInterfaceGrupos();
+            salvarGrupo() {
+                alert('Funcionalidade em desenvolvimento - Conectado ao Firebase!');
             }
         }
         
         // Criar instância global
-        const workManagerSimple = new WorkManagerSimple();
+        const workManager = new WorkManagerSimple();
         
         // Inicializar quando o DOM estiver pronto
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-                workManagerSimple.init();
+                workManager.init();
             });
         } else {
-            workManagerSimple.init();
+            workManager.init();
         }
         
         // Expor funções globais
-        window.workManagerSimple = workManagerSimple;
-        window.abrirModalGrupo = (grupoId) => workManagerSimple.abrirModalGrupo(grupoId);
-        window.fecharModalGrupo = () => workManagerSimple.fecharModalGrupo();
-        window.salvarGrupo = () => workManagerSimple.salvarGrupo();
-        window.filtrarGrupos = (filtro) => workManagerSimple.filtrarGruposPublic(filtro);
-        window.fecharModalMembros = () => workManagerSimple.fecharModalMembros();
-        window.fecharModalDetalhes = () => workManagerSimple.fecharModalDetalhes();
+        window.workManager = workManager;
+        window.abrirModalGrupo = () => workManager.abrirModalGrupo();
+        window.fecharModalGrupo = () => workManager.fecharModalGrupo();
+        window.salvarGrupo = () => workManager.salvarGrupo();
+        window.filtrarGrupos = (filtro) => {
+            workManager.filtroAtual = filtro;
+            workManager.atualizarInterfaceGrupos();
+            
+            // Atualizar tabs ativas
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+        };
     </script>
 </body>
 </html>
