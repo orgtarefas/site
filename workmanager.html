@@ -160,41 +160,70 @@
         </div>
     </div>
 
-    <!-- Firebase v8 (MESMA VERSÃO do dashboard.html) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    
-    <script>
-        // Configuração do Firebase v8 (IGUAL ao dashboard.html)
+    <!-- Firebase v12 MODULAR (igual ao login.html) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            updateDoc, 
+            deleteDoc,
+            serverTimestamp,
+            query,
+            where,
+            getDocs,
+            onSnapshot,
+            addDoc,
+            arrayUnion,
+            arrayRemove,
+            orderBy
+        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            signOut,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-            authDomain: "orgtarefas-85358.firebasestorage.app",
+            authDomain: "orgtarefas-85358.firebaseapp.com",
             projectId: "orgtarefas-85358",
             storageBucket: "orgtarefas-85358.firebasestorage.app",
             messagingSenderId: "1023569488575",
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
 
-        // Inicializar Firebase UMA VEZ
-        let app;
-        if (!firebase.apps.length) {
-            app = firebase.initializeApp(firebaseConfig);
-        } else {
-            app = firebase.app();
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Exportar globalmente para o workmanager.js acessar
+        window.firebaseModules = {
+            // Firestore
+            db,
+            collection, doc, getDoc, setDoc, updateDoc, deleteDoc,
+            serverTimestamp, query, where, getDocs, onSnapshot,
+            addDoc, arrayUnion, arrayRemove, orderBy,
+            
+            // Auth
+            auth,
+            getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+        };
+        
+        console.log('✅ Firebase v12 configurado com sucesso!');
+        console.log('Disponível em: window.firebaseModules');
+        
+        // Chamar função global para continuar inicialização
+        if (window.onFirebaseReady) {
+            window.onFirebaseReady();
         }
-        
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        
-        console.log('✅ Firebase v8 inicializado no Work Manager!');
-        
-        // Torna global
-        window.db = db;
-        window.firebase = firebase;
-        window.firebaseAuth = auth;
     </script>
 
-    <script src="workmanager.js"></script>
+    <script src="workmanager-v12.js"></script>
 </body>
 </html>
