@@ -650,6 +650,7 @@ function toggleSistema(sistemaId) {
     }
 }
 
+// dashboard.js - Apenas a função abrirModalAtividade precisa ser corrigida
 function abrirModalAtividade(sistemaId, tipo) {
     const modal = document.getElementById('modalDetalhes');
     const tituloMap = {
@@ -666,7 +667,7 @@ function abrirModalAtividade(sistemaId, tipo) {
     ).join('');
     
     document.getElementById('modalDetalhesBody').innerHTML = `
-        <form id="formAtividade">
+        <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade();">
             <div class="form-group">
                 <label for="tituloAtividade">Título *</label>
                 <input type="text" id="tituloAtividade" class="form-control" required>
@@ -688,21 +689,31 @@ function abrirModalAtividade(sistemaId, tipo) {
                     <input type="date" id="dataPrevista" class="form-control">
                 </div>
             </div>
-            <div class="form-group">
-                <label for="prioridadeAtividade">Prioridade</label>
-                <select id="prioridadeAtividade" class="form-control">
-                    <option value="baixa">Baixa</option>
-                    <option value="media" selected>Média</option>
-                    <option value="alta">Alta</option>
-                </select>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="statusAtividade">Status</label>
+                    <select id="statusAtividade" class="form-control">
+                        <option value="pendente">Pendente</option>
+                        <option value="andamento">Em Andamento</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="prioridadeAtividade">Prioridade</label>
+                    <select id="prioridadeAtividade" class="form-control">
+                        <option value="baixa">Baixa</option>
+                        <option value="media" selected>Média</option>
+                        <option value="alta">Alta</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="margin-top: 20px; padding: 20px 0 0 0; border-top: 1px solid #dee2e6;">
+                <button type="button" class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Gravar Atividade
+                </button>
             </div>
         </form>
-        <div class="modal-footer" id="modalFooter">
-            <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="salvarAtividade()">
-                <i class="fas fa-save"></i> Salvar Atividade
-            </button>
-        </div>
     `;
 
     modal.style.display = 'flex';
@@ -711,6 +722,11 @@ function abrirModalAtividade(sistemaId, tipo) {
     modalSistemaId = sistemaId;
     modalTipo = tipo;
     modalAtividadeId = null;
+    
+    // Preencher data atual como padrão
+    const hoje = new Date();
+    const dataFormatada = hoje.toISOString().split('T')[0];
+    document.getElementById('dataPrevista').value = dataFormatada;
 }
 
 async function editarAtividade(atividadeId) {
