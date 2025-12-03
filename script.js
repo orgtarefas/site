@@ -1,6 +1,10 @@
-// Gerenciamento de Estado
+// script.js - VERSÃO COMPLETA COM VÍNCULO A SISTEMAS
+console.log('=== SISTEMA INICIANDO ===');
+
+// Estado global
 let tarefas = [];
 let usuarios = [];
+let sistemas = [];
 let editandoTarefaId = null;
 
 // Inicialização
@@ -41,6 +45,7 @@ function inicializarSistema() {
     try {
         configurarDataMinima();
         carregarUsuarios();
+        carregarSistemas();
         configurarFirebase();
         
     } catch (error) {
@@ -64,7 +69,7 @@ function configurarFirebase() {
     db.collection("tarefas")
         .orderBy("dataCriacao", "desc")
         .onSnapshot(
-            (snapshot) => {
+            async (snapshot) => {
                 console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
                 tarefas = snapshot.docs.map(doc => ({
                     id: doc.id,
@@ -76,7 +81,7 @@ function configurarFirebase() {
                 document.getElementById('mainContent').style.display = 'block';
                 document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Tempo Real';
                 
-                atualizarInterface();
+                await atualizarInterfaceComAtividades();
                 console.log('🎉 Sistema carregado com sucesso!');
             },
             (error) => {
@@ -120,6 +125,37 @@ async function carregarUsuarios() {
     }
 }
 
+async function carregarSistemas() {
+    console.log('📊 Carregando sistemas...');
+    
+    try {
+        const snapshot = await db.collection("sistemas").get();
+        
+        sistemas = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Sistemas carregados:', sistemas.length);
+
+        // Preencher select de sistema no modal
+        const selectSistemaModal = document.getElementById('tarefaSistema');
+        const selectSistemaFiltro = document.getElementById('filterSistema');
+        
+        selectSistemaModal.innerHTML = '<option value="">Nenhum sistema</option>';
+        selectSistemaFiltro.innerHTML = '<option value="">Todos os sistemas</option>';
+        
+        sistemas.forEach(sistema => {
+            const option = `<option value="${sistema.id}">${sistema.nome}</option>`;
+            selectSistemaModal.innerHTML += option;
+            selectSistemaFiltro.innerHTML += option;
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar sistemas:', error);
+    }
+}
+
 // Modal Functions
 function abrirModalTarefa(tarefaId = null) {
     editandoTarefaId = tarefaId;
@@ -148,6 +184,7 @@ function preencherFormulario(tarefaId) {
     
     document.getElementById('tarefaTitulo').value = tarefa.titulo;
     document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
+    document.getElementById('tarefaSistema').value = tarefa.sistemaId || '';
     document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
     document.getElementById('tarefaStatus').value = tarefa.status;
     document.getElementById('tarefaDataInicio').value = tarefa.dataInicio || '';
@@ -167,6 +204,7 @@ async function salvarTarefa() {
     const tarefa = {
         titulo: document.getElementById('tarefaTitulo').value,
         descricao: document.getElementById('tarefaDescricao').value,
+        sistemaId: document.getElementById('tarefaSistema').value || null,
         prioridade: document.getElementById('tarefaPrioridade').value,
         status: document.getElementById('tarefaStatus').value,
         dataInicio: document.getElementById('tarefaDataInicio').value,
@@ -212,9 +250,9 @@ async function excluirTarefa(tarefaId) {
 }
 
 // Interface
-function atualizarInterface() {
+async function atualizarInterfaceComAtividades() {
     atualizarEstatisticas();
-    atualizarListaTarefas();
+    await atualizarListaTarefasComAtividades();
 }
 
 function atualizarEstatisticas() {
@@ -229,7 +267,26 @@ function atualizarEstatisticas() {
     document.getElementById('tarefas-concluidas').textContent = concluidas;
 }
 
-function atualizarListaTarefas() {
+async function buscarAtividadesDoSistema(sistemaId) {
+    try {
+        const snapshot = await db.collection('atividades')
+            .where('sistemaId', '==', sistemaId)
+            .get();
+        
+        if (!snapshot.empty) {
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        }
+        return [];
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividades:', error);
+        return [];
+    }
+}
+
+async function atualizarListaTarefasComAtividades() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
@@ -244,12 +301,62 @@ function atualizarListaTarefas() {
         return;
     }
 
-    container.innerHTML = tarefasFiltradas.map(tarefa => `
-        <div class="task-card prioridade-${tarefa.prioridade}">
+    // Processar tarefas com suas atividades
+    const tarefasProcessadas = await Promise.all(
+        tarefasFiltradas.map(async (tarefa) => {
+            let sistemaInfo = '';
+            let atividadesHTML = '';
+            
+            if (tarefa.sistemaId) {
+                const sistema = sistemas.find(s => s.id === tarefa.sistemaId);
+                if (sistema) {
+                    sistemaInfo = `
+                        <div class="sistema-vinculado">
+                            <i class="fas fa-project-diagram"></i>
+                            <span class="sistema-nome">Sistema: ${sistema.nome}</span>
+                        </div>
+                    `;
+                    
+                    // Buscar atividades do sistema
+                    const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
+                    
+                    if (atividades.length > 0) {
+                        atividadesHTML = `
+                            <div class="atividades-sistema">
+                                <div class="atividades-header">
+                                    <i class="fas fa-list-check"></i>
+                                    <strong>Atividades do Sistema:</strong>
+                                </div>
+                                <div class="atividades-lista">
+                                    ${atividades.map(atividade => `
+                                        <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''}">
+                                            <i class="fas fa-${getIconStatusAtividade(atividade.status)}"></i>
+                                            <span class="atividade-titulo">${atividade.titulo}</span>
+                                            <span class="atividade-status badge status-${atividade.status}">
+                                                ${atividade.status === 'pendente' ? 'Pendente' : 
+                                                  atividade.status === 'andamento' ? 'Em Andamento' : 'Concluída'}
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            return { ...tarefa, sistemaInfo, atividadesHTML };
+        })
+    );
+
+    // Renderizar tarefas
+    container.innerHTML = tarefasProcessadas.map(tarefa => `
+        <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
             <div class="task-header">
                 <div>
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
+                    ${tarefa.sistemaInfo || ''}
                 </div>
             </div>
             
@@ -268,6 +375,8 @@ function atualizarListaTarefas() {
                 ` : ''}
             </div>
 
+            ${tarefa.atividadesHTML || ''}
+
             <div class="task-meta">
                 ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
                 <small><i class="fas fa-flag-checkered"></i> ${formatarData(tarefa.dataFim)}</small>
@@ -285,11 +394,21 @@ function atualizarListaTarefas() {
     `).join('');
 }
 
+function getIconStatusAtividade(status) {
+    switch(status) {
+        case 'pendente': return 'clock';
+        case 'andamento': return 'spinner';
+        case 'concluido': return 'check-circle';
+        default: return 'question-circle';
+    }
+}
+
 function filtrarTarefas() {
     const termo = document.getElementById('searchInput').value.toLowerCase();
     const status = document.getElementById('filterStatus').value;
     const prioridade = document.getElementById('filterPrioridade').value;
     const responsavel = document.getElementById('filterResponsavel').value;
+    const sistema = document.getElementById('filterSistema').value;
 
     return tarefas.filter(tarefa => {
         if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
@@ -299,6 +418,10 @@ function filtrarTarefas() {
         if (status && tarefa.status !== status) return false;
         if (prioridade && tarefa.prioridade !== prioridade) return false;
         if (responsavel && tarefa.responsavel !== responsavel) return false;
+        if (sistema) {
+            if (sistema === 'sem-sistema' && tarefa.sistemaId) return false;
+            if (sistema !== 'sem-sistema' && tarefa.sistemaId !== sistema) return false;
+        }
         return true;
     });
 }
@@ -360,10 +483,11 @@ function logout() {
 }
 
 // Event Listeners para filtros
-document.getElementById('searchInput').addEventListener('input', atualizarListaTarefas);
-document.getElementById('filterStatus').addEventListener('change', atualizarListaTarefas);
-document.getElementById('filterPrioridade').addEventListener('change', atualizarListaTarefas);
-document.getElementById('filterResponsavel').addEventListener('change', atualizarListaTarefas);
+document.getElementById('searchInput').addEventListener('input', () => atualizarListaTarefasComAtividades());
+document.getElementById('filterStatus').addEventListener('change', () => atualizarListaTarefasComAtividades());
+document.getElementById('filterPrioridade').addEventListener('change', () => atualizarListaTarefasComAtividades());
+document.getElementById('filterResponsavel').addEventListener('change', () => atualizarListaTarefasComAtividades());
+document.getElementById('filterSistema').addEventListener('change', () => atualizarListaTarefasComAtividades());
 
 // Fechar modal clicando fora
 window.onclick = function(event) {
