@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema de Monitoramento</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Tela de Carregamento -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p id="loadingText">Carregando dashboard...</p>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="mainContent" style="display: none;">
+        <!-- Cabeçalho -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <i class="fas fa-chart-line"></i>
+                <h1>Sistema de Monitoramento Dinâmico</h1>
+            </div>
+            <div class="header-right">
+                <span class="data-atual" id="data-atual"></span>
+                <span class="status-sync" id="status-sincronizacao">
+                    <i class="fas fa-sync-alt"></i> Conectando...
+                </span>
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="userName">Usuário</span>
+                    <button class="btn-logout" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Painel de Estatísticas -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Atividades Totais</h3>
+                    <div class="stat-number" id="total-atividades">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Pendentes</h3>
+                    <div class="stat-number" id="pendentes">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-spinner"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Em Andamento</h3>
+                    <div class="stat-number" id="andamento">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Concluídas</h3>
+                    <div class="stat-number" id="concluidas">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Atrasadas</h3>
+                    <div class="stat-number" id="atrasadas">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-pie"></i> Distribuição por Status</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-bar"></i> Progresso por Sistema</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3><i class="fas fa-calendar-alt"></i> Evolução Temporal</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sistemas/Projetos -->
+        <div class="systems-container" id="sistemas-container">
+            <!-- Sistemas serão carregados dinamicamente -->
+        </div>
+
+        <!-- Modal para Detalhes -->
+        <div id="modalDetalhes" class="modal">
+            <div class="modal-content modal-lg">
+                <div class="modal-header">
+                    <h2 id="modalTitulo">Detalhes da Atividade</h2>
+                    <button class="close" onclick="fecharModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalDetalhesBody">
+                    <!-- Conteúdo será carregado dinamicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
+    <script>
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+            authDomain: "orgtarefas-85358.firebaseapp.com",
+            projectId: "orgtarefas-85358",
+            storageBucket: "orgtarefas-85358.firebasestorage.app",
+            messagingSenderId: "1023569488575",
+            appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        console.log('✅ Firebase inicializado!');
+        
+        // Torna global
+        window.db = db;
+        window.firebase = firebase;
+        window.firebaseAuth = auth;
+    </script>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
