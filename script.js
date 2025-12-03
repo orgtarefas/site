@@ -4,12 +4,13 @@ let usuarios = [];
 let editandoTarefaId = null;
 
 // Inicialização
+// script.js - Início do arquivo
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Verificando autenticação...';
     
-    // Verificar se usuário está logado
-    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    // Verificar se usuário está logado - FORMA MAIS SIMPLES
+    const usuarioLogado = localStorage.getItem('usuarioLogado');
     
     if (!usuarioLogado) {
         console.log('❌ Usuário não logado, redirecionando...');
@@ -17,15 +18,25 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    console.log('👤 Usuário logado:', usuarioLogado.nome);
-    document.getElementById('userName').textContent = usuarioLogado.nome;
-    document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
-    
-    // Criar botão Dashboard
-    criarBotaoDashboard();
-    
-    // Inicializar sistema
-    inicializarSistema();
+    try {
+        const usuario = JSON.parse(usuarioLogado);
+        console.log('👤 Usuário logado:', usuario.nome || usuario.usuario);
+        
+        // Atualizar interface
+        document.getElementById('userName').textContent = usuario.nome || usuario.usuario;
+        document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+        
+        // Criar botão Dashboard
+        criarBotaoDashboard();
+        
+        // Inicializar sistema
+        inicializarSistema();
+        
+    } catch (error) {
+        console.error('❌ Erro ao processar usuário:', error);
+        localStorage.removeItem('usuarioLogado');
+        window.location.href = 'login.html';
+    }
 });
 
 
