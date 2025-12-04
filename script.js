@@ -390,7 +390,7 @@ async function atualizarListaTarefasComAtividades() {
                                         const statusNormalizado = atividade.status ? atividade.status.toLowerCase() : '';
                                         const isPendente = statusNormalizado === 'pendente';
                                         const isNaoIniciado = statusNormalizado === 'nao_iniciado';
-                                        const devePiscar = isPendente || isNaoIniciado; // ou apenas isPendente se quiser só pendentes
+                                        const devePiscar = isPendente; // ou apenas isPendente se quiser só pendentes
                                         const piscandoClass = devePiscar ? 'piscante' : '';
                                         
                                         // DEBUG para esta atividade específica
