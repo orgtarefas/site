@@ -338,6 +338,8 @@ function ordenarAtividadesPorTipo(atividades) {
 }
 
 async function atualizarListaTarefasComAtividades() {
+// Na função que renderiza os cards de tarefas, adicione uma classe condicional
+async function atualizarListaTarefasComAtividades() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
@@ -379,23 +381,29 @@ async function atualizarListaTarefasComAtividades() {
                                     <strong>Atividades do Sistema (${atividades.length}):</strong>
                                 </div>
                                 <div class="atividades-lista">
-                                    ${atividades.map((atividade, index) => `
-                                        <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} tipo-${atividade.tipo || 'sem-tipo'}">
-                                            <div class="atividade-ordem">
-                                                <span class="ordem-numero">${index + 1}</span>
+                                    ${atividades.map((atividade, index) => {
+                                        // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE
+                                        const isPendente = atividade.status === 'pendente';
+                                        const piscandoClass = isPendente ? 'piscante' : '';
+                                        
+                                        return `
+                                            <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} ${piscandoClass}">
+                                                <div class="atividade-ordem">
+                                                    <span class="ordem-numero">${index + 1}</span>
+                                                </div>
+                                                <div class="atividade-tipo">
+                                                    <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
+                                                    <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
+                                                </div>
+                                                <div class="atividade-conteudo">
+                                                    <span class="atividade-titulo">${atividade.titulo}</span>
+                                                    <span class="atividade-status badge status-${atividade.status}">
+                                                        ${getLabelStatus(atividade.status)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div class="atividade-tipo">
-                                                <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
-                                                <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
-                                            </div>
-                                            <div class="atividade-conteudo">
-                                                <span class="atividade-titulo">${atividade.titulo}</span>
-                                                <span class="atividade-status badge status-${atividade.status}">
-                                                    ${getLabelStatus(atividade.status)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
                         `;
@@ -406,6 +414,7 @@ async function atualizarListaTarefasComAtividades() {
             return { ...tarefa, sistemaInfo, atividadesHTML };
         })
     );
+
 
     // Renderizar tarefas (resto do código igual)
     container.innerHTML = tarefasProcessadas.map(tarefa => `
@@ -450,6 +459,7 @@ async function atualizarListaTarefasComAtividades() {
             </div>
         </div>
     `).join('');
+}
 }
 
 // FUNÇÕES AUXILIARES PARA TIPOS
