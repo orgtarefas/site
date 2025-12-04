@@ -350,7 +350,9 @@ body {
 .bg-success { background: var(--success); }
 .bg-warning { background: var(--warning); }
 .bg-danger { background: var(--danger); }
-.bg-info { background: var(--info); }
+.bg-info {
+    background-color: #4C96DA !important;
+}
 
 .stat-info h3 {
     font-size: 0.9rem;
