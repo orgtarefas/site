@@ -116,10 +116,10 @@ class SistemaMonitoramento {
         this.charts.status = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
+                labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
                 datasets: [{
-                    data: [dados.pendentes, dados.andamento, dados.concluidas, dados.atrasadas],
-                    backgroundColor: ['#f39c12', '#3498db', '#27ae60', '#e74c3c'],
+                    data: [dados.naoIniciadas, dados.pendentes, dados.andamento, dados.concluidas, dados.atrasadas],
+                    backgroundColor: ['#95a5a6', '#f39c12', '#3498db', '#27ae60', '#e74c3c'],
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -209,27 +209,29 @@ class SistemaMonitoramento {
 
     calcularEstatisticas() {
         let total = 0;
+        let naoIniciadas = 0;
         let pendentes = 0;
         let andamento = 0;
         let concluidas = 0;
         let atrasadas = 0;
-
+    
         this.sistemas.forEach(sistema => {
             const atividades = sistema.atividades || [];
             total += atividades.length;
+            naoIniciadas += atividades.filter(a => a.status === 'nao_iniciado').length;
             pendentes += atividades.filter(a => a.status === 'pendente').length;
             andamento += atividades.filter(a => a.status === 'andamento').length;
             concluidas += atividades.filter(a => a.status === 'concluido').length;
         });
-
+    
         // Atualizar estatísticas na interface
         document.getElementById('total-atividades').textContent = total;
         document.getElementById('pendentes').textContent = pendentes;
         document.getElementById('andamento').textContent = andamento;
         document.getElementById('concluidas').textContent = concluidas;
         document.getElementById('atrasadas').textContent = atrasadas;
-
-        return { total, pendentes, andamento, concluidas, atrasadas };
+    
+        return { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas };
     }
 
     renderizarSistemas() {
@@ -291,7 +293,7 @@ class SistemaMonitoramento {
                 </div>
             `;
         }
-
+    
         // Agrupar por tipo
         const tipos = ['execucao', 'monitoramento', 'conclusao'];
         const titulos = {
@@ -299,7 +301,7 @@ class SistemaMonitoramento {
             'monitoramento': 'Monitoramento',
             'conclusao': 'Conclusão e Revisão'
         };
-
+    
         return tipos.map(tipo => {
             const atividadesTipo = atividades.filter(a => a.tipo === tipo);
             
@@ -313,29 +315,34 @@ class SistemaMonitoramento {
                     </div>
                     <div class="checklist">
                         ${atividadesTipo.length > 0 ? 
-                            atividadesTipo.map(atividade => `
-                                <div class="checklist-item">
-                                    <div class="item-info">
-                                        <div class="item-title">${atividade.titulo}</div>
-                                        ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                                        <div class="item-meta">
-                                            <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
-                                            <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                            <span class="badge status-${atividade.status}">
-                                                ${getLabelStatus(atividade.status)}
-                                            </span>
+                            atividadesTipo.map(atividade => {
+                                // Garantir que o status tenha um valor
+                                const status = atividade.status || 'nao_iniciado';
+                                
+                                return `
+                                    <div class="checklist-item">
+                                        <div class="item-info">
+                                            <div class="item-title">${atividade.titulo}</div>
+                                            ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
+                                            <div class="item-meta">
+                                                <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
+                                                <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
+                                                <span class="badge status-${status}">
+                                                    ${getLabelStatus(status)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="item-actions">
+                                            <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="item-actions">
-                                        <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            `).join('') :
+                                `;
+                            }).join('') :
                             '<div class="checklist-item"><div class="item-desc">Nenhuma atividade cadastrada</div></div>'
                         }
                     </div>
@@ -683,25 +690,12 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
 }
 
 function getLabelStatus(status) {
-    if (!status) return 'Não Iniciado'; // Valor padrão se status for undefined
-    
-    switch(status.toLowerCase()) {
-        case 'nao_iniciado':
-        case 'nao_iniciada':
-        case 'nao_iniciadas':
-            return 'Não Iniciado';
-        case 'pendente':
-            return 'Pendente';
-        case 'andamento':
-        case 'em_andamento':
-            return 'Em Andamento';
-        case 'concluido':
-        case 'concluida':
-        case 'concluidos':
-        case 'concluidas':
-            return 'Concluído';
-        default:
-            return status.charAt(0).toUpperCase() + status.slice(1);
+    switch(status) {
+        case 'nao_iniciado': return 'Não Iniciado';
+        case 'pendente': return 'Pendente';
+        case 'andamento': return 'Em Andamento';
+        case 'concluido': return 'Concluído';
+        default: return status || 'Não definido';
     }
 }
 
@@ -719,6 +713,8 @@ async function salvarAtividade(sistemaId, tipo) {
         return;
     }
     
+    const status = document.getElementById('statusAtividade').value;
+    
     const atividade = {
         sistemaId: sistemaId,
         tipo: tipo,
@@ -727,9 +723,14 @@ async function salvarAtividade(sistemaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        status: document.getElementById('statusAtividade').value,
+        status: status, // Novo status
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
+    
+    // Se for nova atividade e status não foi definido, define como "Não Iniciado"
+    if (!monitoramento.atividadeEditando && !status) {
+        atividade.status = 'nao_iniciado';
+    }
     
     try {
         if (monitoramento.atividadeEditando) {
