@@ -252,7 +252,7 @@ class SistemaMonitoramento {
             `;
             return;
         }
-
+    
         container.innerHTML = this.sistemas.map(sistema => `
             <div class="system-card">
                 <div class="system-header" onclick="toggleSistema('${sistema.id}')">
@@ -261,9 +261,9 @@ class SistemaMonitoramento {
                         ${sistema.nome}
                     </h2>
                     <div class="system-status">
-                        <div class="status-badges-container">
+                        <span class="status-badge badge-${this.getStatusSistema(sistema)}">
                             ${this.getTextoStatusSistema(sistema)}
-                        </div>
+                        </span>
                         <i class="fas fa-chevron-down"></i>
                         <div class="system-actions">
                             <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
@@ -275,7 +275,7 @@ class SistemaMonitoramento {
                         </div>
                     </div>
                 </div>
-                <div class="system-body" id="sistema-${sistema.id}">
+                <div class="system-body" id="sistema-${sistema.id}" style="display: none;">
                     <p class="system-desc">${sistema.descricao || 'Sem descrição'}</p>
                     <div class="activities-grid">
                         ${this.renderizarAtividadesSistema(sistema)}
@@ -506,10 +506,16 @@ function logout() {
 
 function toggleSistema(sistemaId) {
     const elemento = document.getElementById(`sistema-${sistemaId}`);
-    if (elemento.style.display === 'none') {
+    const chevron = document.querySelector(`#sistema-${sistemaId}`).previousElementSibling.querySelector('.fa-chevron-down');
+    
+    if (elemento.style.display === 'none' || !elemento.style.display) {
         elemento.style.display = 'block';
+        chevron.classList.remove('fa-chevron-down');
+        chevron.classList.add('fa-chevron-up');
     } else {
         elemento.style.display = 'none';
+        chevron.classList.remove('fa-chevron-up');
+        chevron.classList.add('fa-chevron-down');
     }
 }
 
