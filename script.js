@@ -338,6 +338,7 @@ function ordenarAtividadesPorTipo(atividades) {
 }
 
 async function atualizarListaTarefasComAtividades() {
+async function atualizarListaTarefasComAtividades() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
@@ -411,10 +412,9 @@ async function atualizarListaTarefasComAtividades() {
             
             return { ...tarefa, sistemaInfo, atividadesHTML };
         })
-    );
+    ); // ← FECHA O Promise.all CORRETAMENTE AQUI
 
-
-    // Renderizar tarefas (resto do código igual)
+    // Renderizar tarefas
     container.innerHTML = tarefasProcessadas.map(tarefa => `
         <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
             <div class="task-header">
@@ -457,8 +457,7 @@ async function atualizarListaTarefasComAtividades() {
             </div>
         </div>
     `).join('');
-}
-
+} 
 
 // FUNÇÕES AUXILIARES PARA TIPOS
 function getIconTipo(tipo) {
