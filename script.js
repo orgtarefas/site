@@ -262,6 +262,7 @@ function atualizarEstatisticas() {
     const concluidas = tarefas.filter(t => t.status === 'concluido').length;
 
     document.getElementById('total-tarefas').textContent = total;
+    document.getElementById('tarefas-naoiniciadas').textContent = naoiniciadas;
     document.getElementById('tarefas-pendentes').textContent = pendentes;
     document.getElementById('tarefas-andamento').textContent = andamento;
     document.getElementById('tarefas-concluidas').textContent = concluidas;
