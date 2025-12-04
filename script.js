@@ -257,6 +257,7 @@ async function atualizarInterfaceComAtividades() {
 
 function atualizarEstatisticas() {
     const total = tarefas.length;
+    const naoiniciadas = tarefas.filter(t => t.status === 'nao_iniciado').length;
     const pendentes = tarefas.filter(t => t.status === 'pendente').length;
     const andamento = tarefas.filter(t => t.status === 'andamento').length;
     const concluidas = tarefas.filter(t => t.status === 'concluido').length;
