@@ -386,29 +386,16 @@ async function atualizarListaTarefasComAtividades() {
                                 </div>
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
-                                        // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE (case insensitive)
-                                        const statusNormalizado = atividade.status ? atividade.status.toString().toLowerCase().trim() : '';
-                                        const isPendente = statusNormalizado === 'pendente';
+                                        const statusStr = String(atividade.status || '').toLowerCase().trim();
                                         
-                                        
-                                        // Verifique se é concluída (várias formas possíveis)
-                                        const isConcluida = statusNormalizado === 'concluido' || 
-                                                           statusNormalizado === 'concluído' ||
-                                                           statusNormalizado === 'concluida' ||
-                                                           statusNormalizado === 'concluída';
-                                        const concluidaClass = isConcluida ? 'concluida' : '';
-                                        
-                                        // DEBUG: Mostre no console
-                                        console.log(`"${atividade.titulo}"`, {
-                                            status: atividade.status,
-                                            normalizado: statusNormalizado,
-                                            isPendente: isPendente,
-                                            isConcluida: isConcluida,
-                                            concluidaClass: concluidaClass
-                                        });
+                                        // Verifique se é concluída
+                                        const isConcluida = statusStr === 'concluido' || 
+                                                           statusStr === 'concluído' ||
+                                                           statusStr === 'concluida' ||
+                                                           statusStr === 'concluída';
                                         
                                         return `
-                                            <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''}">
+                                            <div class="atividade-item ${isConcluida ? 'concluida' : ''}">
                                                 <div class="atividade-ordem">
                                                     <span class="ordem-numero">${index + 1}</span>
                                                 </div>
@@ -418,13 +405,15 @@ async function atualizarListaTarefasComAtividades() {
                                                 </div>
                                                 <div class="atividade-conteudo">
                                                     <span class="atividade-titulo">${atividade.titulo}</span>
-                                                    <span class="atividade-status badge status-${atividade.status}">
+                                                    <span class="atividade-status badge status-${statusStr.replace(/[^a-z0-9]/g, '_')}">
                                                         ${getLabelStatus(atividade.status)}
                                                     </span>
                                                 </div>
                                             </div>
                                         `;
                                     }).join('')}
+                                    
+                                    
                                 </div>
                             </div>
                         `;
