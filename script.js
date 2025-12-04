@@ -381,7 +381,7 @@ async function atualizarListaTarefasComAtividades() {
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
                                         // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE
-                                        const isPendente = atividade.status === 'pendente';
+                                        const isPendente = atividade.status === 'Pendente';  // 
                                         const piscandoClass = isPendente ? 'piscante' : '';
                                         
                                         return `
