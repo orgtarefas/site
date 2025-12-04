@@ -1,4 +1,4 @@
-// dashboard.js - VERSÃO CORRIGIDA
+// dashboard.js - VERSÃO COMPLETA COM EDIÇÃO
 console.log('=== DASHBOARD INICIANDO ===');
 
 // Sistema de Monitoramento Dinâmico
@@ -8,6 +8,8 @@ class SistemaMonitoramento {
         this.usuarios = [];
         this.usuario = null;
         this.charts = {};
+        this.sistemaEditando = null;
+        this.atividadeEditando = null;
     }
 
     async init() {
@@ -256,6 +258,14 @@ class SistemaMonitoramento {
                             ${this.getTextoStatusSistema(sistema)}
                         </span>
                         <i class="fas fa-chevron-down"></i>
+                        <div class="system-actions">
+                            <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirSistema('${sistema.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="system-body" id="sistema-${sistema.id}">
@@ -397,12 +407,54 @@ class SistemaMonitoramento {
             this.charts.progress.update();
         }
     }
+
+    // NOVOS MÉTODOS PARA EDIÇÃO
+    abrirModalEditarSistema(sistemaId) {
+        this.sistemaEditando = sistemaId;
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        
+        if (!sistema) {
+            alert('Sistema não encontrado');
+            return;
+        }
+        
+        document.getElementById('modalSistema').style.display = 'flex';
+        document.getElementById('modalSistemaTitulo').textContent = 'Editar Sistema';
+        
+        // Preencher formulário
+        document.getElementById('sistemaNome').value = sistema.nome;
+        document.getElementById('sistemaDescricao').value = sistema.descricao || '';
+        document.getElementById('sistemaCor').value = sistema.cor || '#3498db';
+    }
+
+    async editarAtividade(atividadeId) {
+        this.atividadeEditando = atividadeId;
+        
+        // Buscar atividade no Firebase
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = atividadeDoc.data();
+        const sistema = this.sistemas.find(s => s.id === atividade.sistemaId);
+        
+        if (!sistema) {
+            alert('Sistema não encontrado');
+            return;
+        }
+        
+        this.abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
+    }
 }
 
 // Instanciar e inicializar o sistema
 const monitoramento = new SistemaMonitoramento();
 
-// Funções globais
+// ========== FUNÇÕES GLOBAIS COMPLETAS ==========
+
 function logout() {
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
@@ -418,6 +470,7 @@ function toggleSistema(sistemaId) {
 }
 
 function abrirModalSistema() {
+    monitoramento.sistemaEditando = null;
     document.getElementById('modalSistema').style.display = 'flex';
     document.getElementById('modalSistemaTitulo').textContent = 'Novo Sistema';
     document.getElementById('formSistema').reset();
@@ -426,6 +479,24 @@ function abrirModalSistema() {
 
 function fecharModalSistema() {
     document.getElementById('modalSistema').style.display = 'none';
+}
+
+async function editarSistema(sistemaId) {
+    monitoramento.sistemaEditando = sistemaId;
+    const sistema = monitoramento.sistemas.find(s => s.id === sistemaId);
+    
+    if (!sistema) {
+        alert('Sistema não encontrado');
+        return;
+    }
+    
+    document.getElementById('modalSistema').style.display = 'flex';
+    document.getElementById('modalSistemaTitulo').textContent = 'Editar Sistema';
+    
+    // Preencher formulário
+    document.getElementById('sistemaNome').value = sistema.nome;
+    document.getElementById('sistemaDescricao').value = sistema.descricao || '';
+    document.getElementById('sistemaCor').value = sistema.cor || '#3498db';
 }
 
 async function salvarSistema() {
@@ -439,16 +510,29 @@ async function salvarSistema() {
     }
     
     try {
-        await db.collection('sistemas').add({
+        const sistemaData = {
             nome: nome,
             descricao: descricao,
             cor: cor,
-            dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
-            criadoPor: monitoramento.usuario.usuario
-        });
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (monitoramento.sistemaEditando) {
+            // EDITAR sistema existente
+            await db.collection('sistemas').doc(monitoramento.sistemaEditando).update(sistemaData);
+            alert('✅ Sistema atualizado com sucesso!');
+        } else {
+            // CRIAR novo sistema
+            await db.collection('sistemas').add({
+                ...sistemaData,
+                dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: monitoramento.usuario.usuario
+            });
+            alert('✅ Sistema criado com sucesso!');
+        }
         
         fecharModalSistema();
-        alert('✅ Sistema criado com sucesso!');
+        monitoramento.sistemaEditando = null;
         
         // Recarregar dados
         await monitoramento.carregarDados();
@@ -456,12 +540,48 @@ async function salvarSistema() {
         monitoramento.atualizarGraficos();
         
     } catch (error) {
-        console.error('❌ Erro ao criar sistema:', error);
-        alert('Erro ao criar sistema: ' + error.message);
+        console.error('❌ Erro ao salvar sistema:', error);
+        alert('Erro ao salvar sistema: ' + error.message);
     }
 }
 
-function abrirModalAtividade(sistemaId, tipo = 'execucao') {
+async function excluirSistema(sistemaId) {
+    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir este sistema? Todas as atividades vinculadas também serão excluídas!')) {
+        return;
+    }
+    
+    try {
+        // Buscar e excluir todas as atividades do sistema
+        const atividadesSnapshot = await db.collection('atividades')
+            .where('sistemaId', '==', sistemaId)
+            .get();
+        
+        // Excluir todas as atividades
+        const batch = db.batch();
+        atividadesSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        
+        // Excluir o sistema
+        await db.collection('sistemas').doc(sistemaId).delete();
+        
+        alert('✅ Sistema e atividades excluídos com sucesso!');
+        
+        // Recarregar dados
+        await monitoramento.carregarDados();
+        monitoramento.renderizarSistemas();
+        monitoramento.atualizarGraficos();
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir sistema:', error);
+        alert('Erro ao excluir sistema: ' + error.message);
+    }
+}
+
+function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = null) {
+    monitoramento.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
+    
     const modal = document.getElementById('modalAtividade');
     const titulos = {
         'execucao': 'Execução das Atividades',
@@ -469,23 +589,34 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao') {
         'conclusao': 'Conclusão e Revisão'
     };
     
-    document.getElementById('modalAtividadeTitulo').textContent = 
-        `Nova Atividade - ${titulos[tipo]}`;
+    const tituloModal = atividadeExistente 
+        ? `Editar Atividade - ${titulos[tipo]}` 
+        : `Nova Atividade - ${titulos[tipo]}`;
+    
+    document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
     
     // Gerar opções de usuários
-    const usuariosOptions = monitoramento.usuarios.map(user => 
-        `<option value="${user.usuario}">${user.nome || user.usuario}</option>`
-    ).join('');
+    const usuariosOptions = monitoramento.usuarios.map(user => {
+        const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
+        return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
+    }).join('');
+    
+    // Formatação de data para input
+    const formatarDataParaInput = (dataString) => {
+        if (!dataString) return '';
+        return dataString.split('T')[0];
+    };
     
     document.getElementById('modalAtividadeBody').innerHTML = `
         <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${sistemaId}', '${tipo}');">
             <div class="form-group">
                 <label for="tituloAtividade">Título *</label>
-                <input type="text" id="tituloAtividade" class="form-control" required>
+                <input type="text" id="tituloAtividade" class="form-control" required 
+                       value="${atividadeExistente ? atividadeExistente.titulo : ''}">
             </div>
             <div class="form-group">
                 <label for="descricaoAtividade">Descrição</label>
-                <textarea id="descricaoAtividade" class="form-control" rows="3"></textarea>
+                <textarea id="descricaoAtividade" class="form-control" rows="3">${atividadeExistente ? (atividadeExistente.descricao || '') : ''}</textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -497,45 +628,50 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao') {
                 </div>
                 <div class="form-group">
                     <label for="dataPrevista">Data Prevista</label>
-                    <input type="date" id="dataPrevista" class="form-control">
+                    <input type="date" id="dataPrevista" class="form-control" 
+                           value="${atividadeExistente ? formatarDataParaInput(atividadeExistente.dataPrevista) : new Date().toISOString().split('T')[0]}">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label for="prioridadeAtividade">Prioridade</label>
                     <select id="prioridadeAtividade" class="form-control">
-                        <option value="baixa">Baixa</option>
-                        <option value="media" selected>Média</option>
-                        <option value="alta">Alta</option>
+                        <option value="baixa" ${atividadeExistente && atividadeExistente.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
+                        <option value="media" ${(!atividadeExistente || atividadeExistente.prioridade === 'media') ? 'selected' : ''}>Média</option>
+                        <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="statusAtividade">Status</label>
                     <select id="statusAtividade" class="form-control">
-                        <option value="pendente">Pendente</option>
-                        <option value="andamento">Em Andamento</option>
-                        <option value="concluido">Concluído</option>
+                        <option value="pendente" ${(!atividadeExistente || atividadeExistente.status === 'pendente') ? 'selected' : ''}>Pendente</option>
+                        <option value="andamento" ${atividadeExistente && atividadeExistente.status === 'andamento' ? 'selected' : ''}>Em Andamento</option>
+                        <option value="concluido" ${atividadeExistente && atividadeExistente.status === 'concluido' ? 'selected' : ''}>Concluído</option>
                     </select>
                 </div>
             </div>
+            ${atividadeExistente ? `
+                <div class="form-group">
+                    <label>Data de Criação</label>
+                    <input type="text" class="form-control" readonly 
+                           value="${atividadeExistente.dataRegistro ? new Date(atividadeExistente.dataRegisto.toDate()).toLocaleString('pt-BR') : 'Não disponível'}">
+                </div>
+            ` : ''}
             <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
                 <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Salvar Atividade
+                    <i class="fas fa-save"></i> ${atividadeExistente ? 'Atualizar' : 'Salvar'} Atividade
                 </button>
             </div>
         </form>
     `;
-    
-    // Preencher data atual como padrão
-    const hoje = new Date().toISOString().split('T')[0];
-    document.getElementById('dataPrevista').value = hoje;
     
     modal.style.display = 'flex';
 }
 
 function fecharModalAtividade() {
     document.getElementById('modalAtividade').style.display = 'none';
+    monitoramento.atividadeEditando = null;
 }
 
 async function salvarAtividade(sistemaId, tipo) {
@@ -556,14 +692,26 @@ async function salvarAtividade(sistemaId, tipo) {
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: document.getElementById('statusAtividade').value,
-        dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-        criadoPor: monitoramento.usuario.usuario
+        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
     try {
-        await db.collection('atividades').add(atividade);
+        if (monitoramento.atividadeEditando) {
+            // EDITAR atividade existente
+            await db.collection('atividades').doc(monitoramento.atividadeEditando).update(atividade);
+            alert('✅ Atividade atualizada com sucesso!');
+        } else {
+            // CRIAR nova atividade
+            await db.collection('atividades').add({
+                ...atividade,
+                dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: monitoramento.usuario.usuario
+            });
+            alert('✅ Atividade criada com sucesso!');
+        }
+        
         fecharModalAtividade();
-        alert('✅ Atividade criada com sucesso!');
+        monitoramento.atividadeEditando = null;
         
         // Recarregar dados
         await monitoramento.carregarDados();
@@ -571,13 +719,32 @@ async function salvarAtividade(sistemaId, tipo) {
         monitoramento.atualizarGraficos();
         
     } catch (error) {
-        console.error('❌ Erro ao criar atividade:', error);
-        alert('Erro ao criar atividade: ' + error.message);
+        console.error('❌ Erro ao salvar atividade:', error);
+        alert('Erro ao salvar atividade: ' + error.message);
     }
 }
 
-function editarAtividade(atividadeId) {
-    alert('Funcionalidade de edição será implementada em breve!');
+async function editarAtividade(atividadeId) {
+    try {
+        // Buscar atividade no Firebase
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = {
+            id: atividadeDoc.id,
+            ...atividadeDoc.data()
+        };
+        
+        abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividade:', error);
+        alert('Erro ao carregar atividade: ' + error.message);
+    }
 }
 
 async function excluirAtividade(atividadeId) {
