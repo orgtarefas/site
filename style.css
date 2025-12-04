@@ -354,10 +354,12 @@ body {
 .atividades-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-    color: #2c3e50;
-    font-size: 0.9rem;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
 .atividades-header i {
@@ -365,6 +367,10 @@ body {
 }
 
 .atividades-lista {
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -373,17 +379,19 @@ body {
 .atividade-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    background: white;
+    gap: 10px;
+    padding: 8px;
+    margin-bottom: 5px;
+    background: #f8f9fa;
     border-radius: 6px;
-    border-left: 3px solid #dee2e6;
+    border-left: 4px solid #6c757d;
     transition: all 0.3s;
 }
 
 .atividade-item.concluida {
     opacity: 0.7;
     border-left-color: #27ae60;
+    text-decoration: line-through;
 }
 
 .atividade-item i {
@@ -398,6 +406,7 @@ body {
 
 .atividade-titulo {
     flex: 1;
+    font-weight: 500;
     font-size: 0.9rem;
     color: #2c3e50;
 }
@@ -428,9 +437,81 @@ body {
 }
 
 .atividade-item:hover {
-    transform: translateX(5px);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    background: #e9ecef;
+    transform: translateX(2px);
 }
+
+.atividade-item.tipo-execucao {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.atividade-item.tipo-monitoramento {
+    border-left-color: #17a2b8;
+    background: #d1ecf1;
+}
+
+.atividade-item.tipo-conclusao {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.atividade-item.tipo-sem-tipo {
+    border-left-color: #6c757d;
+    background: #f8f9fa;
+}
+
+.atividade-ordem {
+    min-width: 25px;
+    text-align: center;
+}
+
+.ordem-numero {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    background: #6c757d;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.atividade-item.tipo-execucao .ordem-numero {
+    background: #28a745;
+}
+
+.atividade-item.tipo-monitoramento .ordem-numero {
+    background: #17a2b8;
+}
+
+.atividade-item.tipo-conclusao .ordem-numero {
+    background: #ffc107;
+}
+
+.atividade-tipo {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #666;
+    min-width: 120px;
+}
+
+.atividade-conteudo {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.tipo-label {
+    font-weight: 600;
+    color: #495057;
+}
+
 
 .atividades-sistema small {
     color: #666;
