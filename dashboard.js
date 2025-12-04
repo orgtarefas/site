@@ -624,6 +624,9 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
         return dataString.split('T')[0];
     };
     
+    // Verificar qual status está selecionado
+    const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
+    
     document.getElementById('modalAtividadeBody').innerHTML = `
         <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${sistemaId}', '${tipo}');">
             <div class="form-group">
@@ -661,19 +664,13 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
                 <div class="form-group">
                     <label for="statusAtividade">Status</label>
                     <select id="statusAtividade" class="form-control">
-                        <option value="pendente" ${(!atividadeExistente || atividadeExistente.status === 'pendente') ? 'selected' : ''}>Pendente</option>
-                        <option value="andamento" ${atividadeExistente && atividadeExistente.status === 'andamento' ? 'selected' : ''}>Em Andamento</option>
-                        <option value="concluido" ${atividadeExistente && atividadeExistente.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                        <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>Não Iniciado</option>
+                        <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>Pendente</option>
+                        <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>Em Andamento</option>
+                        <option value="concluido" ${statusAtividade === 'concluido' ? 'selected' : ''}>Concluído</option>
                     </select>
                 </div>
             </div>
-            ${atividadeExistente ? `
-                <div class="form-group">
-                    <label>Data de Criação</label>
-                    <input type="text" class="form-control" readonly 
-                           value="${atividadeExistente.dataRegistro ? formatarDataRegistro(atividadeExistente.dataRegistro) : 'Não disponível'}">
-                </div>
-            ` : ''}
             <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
                 <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">
