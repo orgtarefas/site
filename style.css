@@ -290,9 +290,6 @@ body {
     color: #155724;
 }
 
-.atividade-item.piscante {
-    animation: piscarSuave 1.5s infinite alternate;
-}
 
 @keyframes piscarSuave {
     from {
