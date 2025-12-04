@@ -274,16 +274,57 @@ async function buscarAtividadesDoSistema(sistemaId) {
             .get();
         
         if (!snapshot.empty) {
-            return snapshot.docs.map(doc => ({
+            let atividades = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+            
+            // ORDENAR ATIVIDADES PELA ORDEM ESPECÍFICA
+            atividades = ordenarAtividadesPorCategoria(atividades);
+            
+            return atividades;
         }
         return [];
     } catch (error) {
         console.error('❌ Erro ao buscar atividades:', error);
         return [];
     }
+}
+
+function ordenarAtividadesPorCategoria(atividades) {
+    // Definir a ordem de prioridade das categorias
+    const ordemCategorias = [
+        'Execução das Atividades',
+        'Monitoramento', 
+        'Conclusão e Revisão'
+    ];
+    
+    // Primeiro, separar atividades que têm categoria definida
+    const atividadesComCategoria = atividades.filter(a => a.categoria);
+    const atividadesSemCategoria = atividades.filter(a => !a.categoria);
+    
+    // Ordenar atividades com categoria
+    atividadesComCategoria.sort((a, b) => {
+        const indiceA = ordemCategorias.indexOf(a.categoria);
+        const indiceB = ordemCategorias.indexOf(b.categoria);
+        
+        // Se ambas estão na lista de ordenação
+        if (indiceA !== -1 && indiceB !== -1) {
+            return indiceA - indiceB;
+        }
+        
+        // Se apenas A está na lista, vem primeiro
+        if (indiceA !== -1) return -1;
+        
+        // Se apenas B está na lista, vem depois
+        if (indiceB !== -1) return 1;
+        
+        // Se nenhuma está na lista, ordenar alfabeticamente
+        return (a.categoria || '').localeCompare(b.categoria || '');
+    });
+    
+    // Combinar atividades ordenadas com categoria + atividades sem categoria
+    return [...atividadesComCategoria, ...atividadesSemCategoria];
 }
 
 async function atualizarListaTarefasComAtividades() {
