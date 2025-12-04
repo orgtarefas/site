@@ -338,7 +338,6 @@ function ordenarAtividadesPorTipo(atividades) {
 }
 
 async function atualizarListaTarefasComAtividades() {
-async function atualizarListaTarefasComAtividades() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
