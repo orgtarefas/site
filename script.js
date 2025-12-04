@@ -338,8 +338,6 @@ function ordenarAtividadesPorTipo(atividades) {
 }
 
 async function atualizarListaTarefasComAtividades() {
-// Na função que renderiza os cards de tarefas, adicione uma classe condicional
-async function atualizarListaTarefasComAtividades() {
     const container = document.getElementById('lista-tarefas');
     const tarefasFiltradas = filtrarTarefas();
 
