@@ -191,6 +191,10 @@ body {
     margin: 0 auto;
 }
 
+.dashboard-container .stats-panel .stat-card:first-child .stat-icon {
+    background-color: #2F3E50 !important;
+}
+
 /* Header */
 .dashboard-header {
     background: white;
@@ -791,30 +795,4 @@ textarea.form-control {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-/* Cor para o primeiro card (Atividades Totais) */
-.stat-card:first-child .stat-icon {
-    background: #2F3E50 !important;
-}
-
-/* Se quiser, pode adicionar cores específicas para os outros também: */
-.stat-card:nth-child(2) .stat-icon {
-    background: #6c757d !important; /* Não Iniciadas */
-}
-
-.stat-card:nth-child(3) .stat-icon {
-    background: #f39c12 !important; /* Pendentes */
-}
-
-.stat-card:nth-child(4) .stat-icon {
-    background: #4C96DA !important; /* Em Andamento */
-}
-
-.stat-card:nth-child(5) .stat-icon {
-    background: #27ae60 !important; /* Concluídas */
-}
-
-.stat-card:nth-child(6) .stat-icon {
-    background: #e74c3c !important; /* Atrasadas */
 }
