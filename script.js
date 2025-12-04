@@ -372,12 +372,6 @@ async function atualizarListaTarefasComAtividades() {
                     const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
                     
                     if (atividades.length > 0) {
-                        // DEBUG: Log para verificar status
-                        console.log('📋 Atividades encontradas para sistema', sistema.nome, ':');
-                        atividades.forEach((atividade, idx) => {
-                            console.log(`  ${idx + 1}. ${atividade.titulo} - Status: "${atividade.status}"`);
-                        });
-                        
                         atividadesHTML = `
                             <div class="atividades-sistema">
                                 <div class="atividades-header">
@@ -387,8 +381,6 @@ async function atualizarListaTarefasComAtividades() {
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
                                         const statusStr = String(atividade.status || '').toLowerCase().trim();
-                                        
-                                        // Verifique se é concluída
                                         const isConcluida = statusStr === 'concluido' || 
                                                            statusStr === 'concluído' ||
                                                            statusStr === 'concluida' ||
@@ -412,8 +404,6 @@ async function atualizarListaTarefasComAtividades() {
                                             </div>
                                         `;
                                     }).join('')}
-                                    
-                                    
                                 </div>
                             </div>
                         `;
