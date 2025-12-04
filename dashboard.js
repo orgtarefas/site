@@ -413,7 +413,7 @@ class SistemaMonitoramento {
             badges.push(`<span class="status-mini-badge badge-concluido">Concluído (${stats.concluidas}/${total})</span>`);
         }
         
-        // Retornar todos os badges
+        // Retornar todos os badges sem container externo
         return badges.join(' ');
     }
 
