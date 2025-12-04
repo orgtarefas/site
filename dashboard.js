@@ -18,10 +18,10 @@ class SistemaMonitoramento {
         // Verificar autenticação
         await this.verificarAutenticacao();
         
-        // Carregar dados
+        // Carregar dados PRIMEIRO
         await this.carregarDados();
         
-        // Inicializar gráficos
+        // Inicializar gráficos DEPOIS de carregar dados
         this.inicializarGraficos();
         
         // Renderizar sistemas
