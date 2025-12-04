@@ -173,6 +173,29 @@ body {
     gap: 20px;
 }
 
+/* No seu style.css */
+.atividade-item.piscante:not(.concluida) {
+    animation: piscarSuave 1.5s infinite alternate;
+    border-left-color: #ffc107; /* Amarelo para pendente */
+}
+
+/* Se quiser cores diferentes para não iniciado vs pendente */
+.atividade-item.piscante.status-pendente:not(.concluida),
+.atividade-item.piscante.status-Pendente:not(.concluida) {
+    border-left-color: #ffc107; /* Amarelo */
+}
+
+.atividade-item.piscante.status-nao_iniciado:not(.concluida),
+.atividade-item.piscante.status-nao_iniciado:not(.concluida) {
+    border-left-color: #6c757d; /* Cinza */
+}
+
+/* Remove animação de concluídas mesmo se tiver classe piscante */
+.atividade-item.concluida {
+    animation: none !important;
+    opacity: 0.7;
+}
+
 .task-card {
     background: white;
     border-radius: 12px;
