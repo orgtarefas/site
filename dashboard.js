@@ -113,12 +113,21 @@ class SistemaMonitoramento {
         const ctx = document.getElementById('statusChart').getContext('2d');
         const dados = this.calcularEstatisticas();
         
+        // DEBUG: Verificar dados que estão sendo usados no gráfico
+        console.log('Dados para gráfico:', dados);
+        
         this.charts.status = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
                 datasets: [{
-                    data: [dados.naoIniciadas, dados.pendentes, dados.andamento, dados.concluidas, dados.atrasadas],
+                    data: [
+                        dados.naoIniciadas,  // Deve ser 3
+                        dados.pendentes,     // Deve ser 1  
+                        dados.andamento,     // Deve ser 1
+                        dados.concluidas,    // Deve ser 2
+                        dados.atrasadas      // Deve ser 0
+                    ],
                     backgroundColor: [
                         '#6c757d',   // Cinza para Não Iniciadas
                         '#f39c12',   // Laranja para Pendentes
@@ -135,23 +144,7 @@ class SistemaMonitoramento {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = Math.round((value / total) * 100);
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
+                        position: 'bottom'
                     }
                 }
             }
@@ -240,26 +233,40 @@ class SistemaMonitoramento {
         this.sistemas.forEach(sistema => {
             const atividades = sistema.atividades || [];
             total += atividades.length;
-            naoIniciadas += atividades.filter(a => a.status === 'nao_iniciado').length;
-            pendentes += atividades.filter(a => a.status === 'pendente').length;
-            andamento += atividades.filter(a => a.status === 'andamento').length;
-            concluidas += atividades.filter(a => a.status === 'concluido').length;
             
-            // Lógica para atrasadas (exemplo: se data prevista passou e não está concluída)
-            const hoje = new Date();
+            // DEBUG: Mostrar atividades de cada sistema
+            console.log(`Sistema: ${sistema.nome}`);
+            console.log(`- Total atividades: ${atividades.length}`);
+            console.log(`- Atividades:`, atividades);
+            
+            // Verificar status CORRETAMENTE
             atividades.forEach(atividade => {
-                if (atividade.dataPrevista && 
-                    atividade.status !== 'concluido' && 
-                    atividade.status !== 'concluído') {
-                    const dataPrevista = new Date(atividade.dataPrevista);
-                    if (dataPrevista < hoje) {
-                        atrasadas++;
-                    }
+                const status = atividade.status ? atividade.status.toLowerCase().trim() : '';
+                console.log(`  Atividade: ${atividade.titulo}, Status: ${status}`);
+                
+                if (status === 'nao_iniciado' || status === 'não iniciado') {
+                    naoIniciadas++;
+                } else if (status === 'pendente') {
+                    pendentes++;
+                } else if (status === 'andamento') {
+                    andamento++;
+                } else if (status === 'concluido' || status === 'concluído') {
+                    concluidas++;
                 }
             });
         });
     
-        // Atualizar estatísticas na interface
+        // DEBUG: Mostrar estatísticas calculadas
+        console.log('Estatísticas calculadas:', {
+            total,
+            naoIniciadas,
+            pendentes,
+            andamento,
+            concluidas,
+            atrasadas
+        });
+    
+        // Atualizar interface
         document.getElementById('total-atividades').textContent = total;
         document.getElementById('nao-iniciadas').textContent = naoIniciadas;
         document.getElementById('pendentes').textContent = pendentes;
