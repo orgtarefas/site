@@ -279,6 +279,18 @@ async function buscarAtividadesDoSistema(sistemaId) {
                 ...doc.data()
             }));
             
+            // GARANTIR QUE TODAS AS ATIVIDADES TENHAM STATUS
+            atividades = atividades.map(atividade => {
+                // Se a atividade não tiver status definido, define como "Não Iniciado"
+                if (!atividade.status) {
+                    return {
+                        ...atividade,
+                        status: 'nao_iniciado'
+                    };
+                }
+                return atividade;
+            });
+            
             // ORDENAR ATIVIDADES PELA ORDEM ESPECÍFICA
             atividades = ordenarAtividadesPorTipo(atividades);
             
