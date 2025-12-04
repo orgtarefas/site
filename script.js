@@ -387,14 +387,28 @@ async function atualizarListaTarefasComAtividades() {
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
                                         // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE (case insensitive)
-                                        const statusNormalizado = atividade.status ? atividade.status.toLowerCase() : '';
+                                        const statusNormalizado = atividade.status ? atividade.status.toString().toLowerCase().trim() : '';
                                         const isPendente = statusNormalizado === 'pendente';
-                                        const isNaoIniciado = statusNormalizado === 'nao_iniciado';
-                                        const devePiscar = isPendente; // ou apenas isPendente se quiser só pendentes
-                                        const piscandoClass = devePiscar ? 'piscante' : '';
                                         
-                                        // DEBUG para esta atividade específica
-                                        console.log(`Atividade "${atividade.titulo}": Status="${atividade.status}", isPendente=${isPendente}, piscandoClass="${piscandoClass}"`);
+                                        // APENAS pendentes recebem piscante
+                                        const piscandoClass = isPendente ? 'piscante' : '';
+                                        
+                                        // Verifique se é concluída (várias formas possíveis)
+                                        const isConcluida = statusNormalizado === 'concluido' || 
+                                                           statusNormalizado === 'concluído' ||
+                                                           statusNormalizado === 'concluida' ||
+                                                           statusNormalizado === 'concluída';
+                                        const concluidaClass = isConcluida ? 'concluida' : '';
+                                        
+                                        // DEBUG: Mostre no console
+                                        console.log(`"${atividade.titulo}"`, {
+                                            status: atividade.status,
+                                            normalizado: statusNormalizado,
+                                            isPendente: isPendente,
+                                            isConcluida: isConcluida,
+                                            piscandoClass: piscandoClass,
+                                            concluidaClass: concluidaClass
+                                        });
                                         
                                         return `
                                             <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} ${piscandoClass}">
