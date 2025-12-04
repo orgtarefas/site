@@ -334,16 +334,6 @@ body {
     color: #c62828;
 }
 
-/* animação de carregamento */
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-.task-card.vinculada-sistema .atividades-sistema {
-    animation: pulse 2s infinite;
-}
 
 .atividades-sistema {
     margin: 15px 0;
