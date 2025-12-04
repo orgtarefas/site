@@ -116,10 +116,10 @@ class SistemaMonitoramento {
         this.charts.status = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
+                labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas'],
                 datasets: [{
-                    data: [dados.naoIniciadas, dados.pendentes, dados.andamento, dados.concluidas, dados.atrasadas],
-                    backgroundColor: ['#95a5a6', '#f39c12', '#3498db', '#27ae60', '#e74c3c'],
+                    data: [dados.naoIniciadas, dados.pendentes, dados.andamento, dados.concluidas],
+                    backgroundColor: ['#95a5a6', '#f39c12', '#3498db', '#27ae60'],
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -231,6 +231,11 @@ class SistemaMonitoramento {
         document.getElementById('concluidas').textContent = concluidas;
         document.getElementById('atrasadas').textContent = atrasadas;
     
+        // Se você tiver um elemento para "Não Iniciadas", atualize-o também
+        if (document.getElementById('nao-iniciadas')) {
+            document.getElementById('nao-iniciadas').textContent = naoIniciadas;
+        }
+    
         return { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas };
     }
 
@@ -280,6 +285,23 @@ class SistemaMonitoramento {
         `).join('');
     }
 
+    calcularEstatisticasSistema(sistema) {
+        const atividades = sistema.atividades || [];
+        const total = atividades.length;
+        const naoIniciadas = atividades.filter(a => a.status === 'nao_iniciado').length;
+        const pendentes = atividades.filter(a => a.status === 'pendente').length;
+        const andamento = atividades.filter(a => a.status === 'andamento').length;
+        const concluidas = atividades.filter(a => a.status === 'concluido').length;
+        
+        return {
+            total,
+            naoIniciadas,
+            pendentes,
+            andamento,
+            concluidas
+        };
+    }
+        
     renderizarAtividadesSistema(sistema) {
         const atividades = sistema.atividades || [];
         
@@ -350,32 +372,48 @@ class SistemaMonitoramento {
             `;
         }).join('');
     }
-
+    
     getStatusSistema(sistema) {
-        const atividades = sistema.atividades || [];
-        if (atividades.length === 0) return 'pendente';
+        const stats = this.calcularEstatisticasSistema(sistema);
         
-        const concluidas = atividades.filter(a => a.status === 'concluido').length;
-        if (concluidas === atividades.length) return 'concluido';
+        if (stats.total === 0) return 'pendente'; // Sem atividades
         
-        const emAndamento = atividades.filter(a => a.status === 'andamento').length;
-        if (emAndamento > 0 || concluidas > 0) return 'andamento';
+        // Lógica para determinar o status principal do sistema
+        if (stats.concluidas === stats.total) return 'concluido';
+        if (stats.andamento > 0) return 'andamento';
+        if (stats.pendentes > 0) return 'pendente';
+        if (stats.naoIniciadas > 0) return 'nao_iniciado';
         
         return 'pendente';
     }
 
     getTextoStatusSistema(sistema) {
-        const status = this.getStatusSistema(sistema);
-        const atividades = sistema.atividades || [];
+        const stats = this.calcularEstatisticasSistema(sistema);
+        const total = stats.total;
         
-        switch(status) {
-            case 'concluido': 
-                return `Concluído (${atividades.filter(a => a.status === 'concluido').length}/${atividades.length})`;
-            case 'andamento':
-                return `Em Andamento (${atividades.filter(a => a.status === 'andamento').length}/${atividades.length})`;
-            default:
-                return `Pendente (${atividades.length})`;
+        // Se não houver atividades
+        if (total === 0) {
+            return 'Sem atividades';
         }
+        
+        // Criar array com todos os status que têm atividades
+        const partes = [];
+        
+        if (stats.naoIniciadas > 0) {
+            partes.push(`Não Iniciado (${stats.naoIniciadas}/${total})`);
+        }
+        if (stats.pendentes > 0) {
+            partes.push(`Pendente (${stats.pendentes}/${total})`);
+        }
+        if (stats.andamento > 0) {
+            partes.push(`Em Andamento (${stats.andamento}/${total})`);
+        }
+        if (stats.concluidas > 0) {
+            partes.push(`Concluído (${stats.concluidas}/${total})`);
+        }
+        
+        // Retornar todos os status separados por espaço
+        return partes.join(' ');
     }
 
     configurarListeners() {
