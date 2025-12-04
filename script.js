@@ -458,7 +458,7 @@ async function atualizarListaTarefasComAtividades() {
         </div>
     `).join('');
 }
-}
+
 
 // FUNÇÕES AUXILIARES PARA TIPOS
 function getIconTipo(tipo) {
