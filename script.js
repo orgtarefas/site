@@ -372,6 +372,12 @@ async function atualizarListaTarefasComAtividades() {
                     const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
                     
                     if (atividades.length > 0) {
+                        // DEBUG: Log para verificar status
+                        console.log('📋 Atividades encontradas para sistema', sistema.nome, ':');
+                        atividades.forEach((atividade, idx) => {
+                            console.log(`  ${idx + 1}. ${atividade.titulo} - Status: "${atividade.status}"`);
+                        });
+                        
                         atividadesHTML = `
                             <div class="atividades-sistema">
                                 <div class="atividades-header">
@@ -380,9 +386,15 @@ async function atualizarListaTarefasComAtividades() {
                                 </div>
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
-                                        // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE
-                                        const isPendente = atividade.status === 'Pendente';  // 
-                                        const piscandoClass = isPendente ? 'piscante' : '';
+                                        // VERIFICA SE A ATIVIDADE ESTÁ PENDENTE (case insensitive)
+                                        const statusNormalizado = atividade.status ? atividade.status.toLowerCase() : '';
+                                        const isPendente = statusNormalizado === 'pendente';
+                                        const isNaoIniciado = statusNormalizado === 'nao_iniciado';
+                                        const devePiscar = isPendente || isNaoIniciado; // ou apenas isPendente se quiser só pendentes
+                                        const piscandoClass = devePiscar ? 'piscante' : '';
+                                        
+                                        // DEBUG para esta atividade específica
+                                        console.log(`Atividade "${atividade.titulo}": Status="${atividade.status}", isPendente=${isPendente}, piscandoClass="${piscandoClass}"`);
                                         
                                         return `
                                             <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} ${piscandoClass}">
@@ -411,7 +423,7 @@ async function atualizarListaTarefasComAtividades() {
             
             return { ...tarefa, sistemaInfo, atividadesHTML };
         })
-    ); // ← AGORA ESTÁ CORRETAMENTE FECHADO
+    );
 
     // Renderizar tarefas
     container.innerHTML = tarefasProcessadas.map(tarefa => `
@@ -429,8 +441,7 @@ async function atualizarListaTarefasComAtividades() {
                     ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
                 </span>
                 <span class="badge status-${tarefa.status}">
-                    ${tarefa.status === 'pendente' ? 'Pendente' : 
-                      tarefa.status === 'andamento' ? 'Em Andamento' : 'Concluído'}
+                    ${getLabelStatus(tarefa.status)}
                 </span>
                 ${tarefa.responsavel ? `
                     <span class="task-responsavel">
@@ -457,6 +468,39 @@ async function atualizarListaTarefasComAtividades() {
         </div>
     `).join('');
 }
+
+// Função auxiliar para normalizar status (adicione ao seu código)
+function normalizarStatus(status) {
+    if (!status) return '';
+    return status.toLowerCase().trim();
+}
+
+// Função getLabelStatus atualizada (se ainda não tiver)
+function getLabelStatus(status) {
+    if (!status) return 'Não definido';
+    
+    const statusNorm = normalizarStatus(status);
+    
+    switch(statusNorm) {
+        case 'nao_iniciado':
+        case 'não iniciado':
+            return 'Não Iniciado';
+        case 'pendente':
+            return 'Pendente';
+        case 'andamento':
+        case 'em andamento':
+            return 'Em Andamento';
+        case 'concluido':
+        case 'concluído':
+            return 'Concluído';
+        default:
+            // Mantém o original se não reconhecer
+            return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+}
+
+
+    
 
 // FUNÇÕES AUXILIARES PARA TIPOS
 function getIconTipo(tipo) {
