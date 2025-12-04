@@ -239,18 +239,21 @@ body {
 }
 
 .badge.prioridade-alta {
-    background: #f8d7da;
-    color: #721c24;
+    background: #ffd6e7; /* Rosa claro */
+    color: #9c0059;
+    border: 1px solid #ff85b3;
 }
 
 .badge.prioridade-media {
-    background: #fff3cd;
-    color: #856404;
+    background: #cce5ff; /* Azul claro */
+    color: #00509e;
+    border: 1px solid #66b0ff;
 }
 
 .badge.prioridade-baixa {
-    background: #d4edda;
-    color: #155724;
+    background: #e9ecef; /* Cinza claro */
+    color: #495057;
+    border: 1px solid #adb5bd;
 }
 
 .badge.status-pendente {
