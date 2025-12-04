@@ -579,6 +579,23 @@ async function excluirSistema(sistemaId) {
     }
 }
 
+function formatarDataRegistro(dataRegistro) {
+    try {
+        if (dataRegistro && dataRegistro.toDate) {
+            // Se for um timestamp do Firebase
+            return dataRegistro.toDate().toLocaleString('pt-BR');
+        } else if (dataRegistro) {
+            // Se for uma string ou outro formato
+            return new Date(dataRegistro).toLocaleString('pt-BR');
+        } else {
+            return 'Não disponível';
+        }
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return 'Data inválida';
+    }
+}
+
 function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = null) {
     monitoramento.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
     
@@ -654,7 +671,7 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
                 <div class="form-group">
                     <label>Data de Criação</label>
                     <input type="text" class="form-control" readonly 
-                           value="${atividadeExistente.dataRegistro ? new Date(atividadeExistente.dataRegisto.toDate()).toLocaleString('pt-BR') : 'Não disponível'}">
+                           value="${atividadeExistente.dataRegistro ? formatarDataRegistro(atividadeExistente.dataRegistro) : 'Não disponível'}">
                 </div>
             ` : ''}
             <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
