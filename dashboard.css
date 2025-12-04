@@ -242,6 +242,10 @@ body {
     color: white;
 }
 
+.bg-secondary {
+    background-color: #6c757d !important;
+}
+
 .data-atual {
     background: var(--light);
     padding: 8px 15px;
