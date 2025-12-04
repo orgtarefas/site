@@ -404,7 +404,6 @@ async function atualizarListaTarefasComAtividades() {
                                             normalizado: statusNormalizado,
                                             isPendente: isPendente,
                                             isConcluida: isConcluida,
-                                            piscandoClass: piscandoClass,
                                             concluidaClass: concluidaClass
                                         });
                                         
