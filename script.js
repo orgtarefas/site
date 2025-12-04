@@ -411,7 +411,7 @@ async function atualizarListaTarefasComAtividades() {
             
             return { ...tarefa, sistemaInfo, atividadesHTML };
         })
-    ); // ← FECHA O Promise.all CORRETAMENTE AQUI
+    ); // ← AGORA ESTÁ CORRETAMENTE FECHADO
 
     // Renderizar tarefas
     container.innerHTML = tarefasProcessadas.map(tarefa => `
@@ -456,7 +456,7 @@ async function atualizarListaTarefasComAtividades() {
             </div>
         </div>
     `).join('');
-} 
+}
 
 // FUNÇÕES AUXILIARES PARA TIPOS
 function getIconTipo(tipo) {
