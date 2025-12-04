@@ -322,8 +322,7 @@ class SistemaMonitoramento {
                                             <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
                                             <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
                                             <span class="badge status-${atividade.status}">
-                                                ${atividade.status === 'pendente' ? 'Pendente' : 
-                                                  atividade.status === 'andamento' ? 'Em Andamento' : 'Concluído'}
+                                                ${getLabelStatus(atividade.status)}
                                             </span>
                                         </div>
                                     </div>
@@ -681,6 +680,29 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     `;
     
     modal.style.display = 'flex';
+}
+
+function getLabelStatus(status) {
+    if (!status) return 'Não Iniciado'; // Valor padrão se status for undefined
+    
+    switch(status.toLowerCase()) {
+        case 'nao_iniciado':
+        case 'nao_iniciada':
+        case 'nao_iniciadas':
+            return 'Não Iniciado';
+        case 'pendente':
+            return 'Pendente';
+        case 'andamento':
+        case 'em_andamento':
+            return 'Em Andamento';
+        case 'concluido':
+        case 'concluida':
+        case 'concluidos':
+        case 'concluidas':
+            return 'Concluído';
+        default:
+            return status.charAt(0).toUpperCase() + status.slice(1);
+    }
 }
 
 function fecharModalAtividade() {
