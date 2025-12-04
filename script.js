@@ -390,8 +390,6 @@ async function atualizarListaTarefasComAtividades() {
                                         const statusNormalizado = atividade.status ? atividade.status.toString().toLowerCase().trim() : '';
                                         const isPendente = statusNormalizado === 'pendente';
                                         
-                                        // APENAS pendentes recebem piscante
-                                        const piscandoClass = isPendente ? 'piscante' : '';
                                         
                                         // Verifique se é concluída (várias formas possíveis)
                                         const isConcluida = statusNormalizado === 'concluido' || 
@@ -411,7 +409,7 @@ async function atualizarListaTarefasComAtividades() {
                                         });
                                         
                                         return `
-                                            <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} ${piscandoClass}">
+                                            <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''}">
                                                 <div class="atividade-ordem">
                                                     <span class="ordem-numero">${index + 1}</span>
                                                 </div>
