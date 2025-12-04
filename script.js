@@ -476,14 +476,16 @@ function getLabelTipo(tipo) {
 }
 
 function getLabelStatus(status) {
+    if (!status) return 'Não Iniciado';
+    
     switch(status) {
+        case 'nao_iniciado': return 'Não Iniciado';
         case 'pendente': return 'Pendente';
         case 'andamento': return 'Em Andamento';
-        case 'concluido': return 'Concluída';
-        default: return status || 'Não definido';
+        case 'concluido': return 'Concluído';
+        default: return status;
     }
 }
-
 function getIconStatusAtividade(status) {
     switch(status) {
         case 'pendente': return 'clock';
