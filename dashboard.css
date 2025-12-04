@@ -477,6 +477,26 @@ body {
 .badge-concluido { background: #d4edda; color: #155724; }
 .badge-atrasado { background: #f8d7da; color: #721c24; }
 
+.badge.status-nao_iniciado {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.badge.status-pendente {
+    background-color: #f39c12;
+    color: white;
+}
+
+.badge.status-andamento {
+    background-color: #3498db;
+    color: white;
+}
+
+.badge.status-concluido {
+    background-color: #27ae60;
+    color: white;
+}
+
 .checklist {
     display: flex;
     flex-direction: column;
