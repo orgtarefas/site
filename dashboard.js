@@ -261,9 +261,9 @@ class SistemaMonitoramento {
                         ${sistema.nome}
                     </h2>
                     <div class="system-status">
-                        <span class="status-badge badge-${this.getStatusSistema(sistema)}">
+                        <div class="status-badges-container">
                             ${this.getTextoStatusSistema(sistema)}
-                        </span>
+                        </div>
                         <i class="fas fa-chevron-down"></i>
                         <div class="system-actions">
                             <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
@@ -393,27 +393,27 @@ class SistemaMonitoramento {
         
         // Se não houver atividades
         if (total === 0) {
-            return 'Sem atividades';
+            return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
         }
         
-        // Criar array com todos os status que têm atividades
-        const partes = [];
+        // Criar HTML para cada status que tem atividades
+        const badges = [];
         
         if (stats.naoIniciadas > 0) {
-            partes.push(`Não Iniciado (${stats.naoIniciadas}/${total})`);
+            badges.push(`<span class="status-mini-badge badge-nao_iniciado">Não Iniciado (${stats.naoIniciadas}/${total})</span>`);
         }
         if (stats.pendentes > 0) {
-            partes.push(`Pendente (${stats.pendentes}/${total})`);
+            badges.push(`<span class="status-mini-badge badge-pendente">Pendente (${stats.pendentes}/${total})</span>`);
         }
         if (stats.andamento > 0) {
-            partes.push(`Em Andamento (${stats.andamento}/${total})`);
+            badges.push(`<span class="status-mini-badge badge-andamento">Em Andamento (${stats.andamento}/${total})</span>`);
         }
         if (stats.concluidas > 0) {
-            partes.push(`Concluído (${stats.concluidas}/${total})`);
+            badges.push(`<span class="status-mini-badge badge-concluido">Concluído (${stats.concluidas}/${total})</span>`);
         }
         
-        // Retornar todos os status separados por espaço
-        return partes.join(' ');
+        // Retornar todos os badges
+        return badges.join(' ');
     }
 
     configurarListeners() {
