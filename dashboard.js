@@ -261,9 +261,9 @@ class SistemaMonitoramento {
                         ${sistema.nome}
                     </h2>
                     <div class="system-status">
-                        <span class="status-badge badge-${this.getStatusSistema(sistema)}">
+                        <div class="status-badges-container">
                             ${this.getTextoStatusSistema(sistema)}
-                        </span>
+                        </div>
                         <i class="fas fa-chevron-down"></i>
                         <div class="system-actions">
                             <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
@@ -275,6 +275,7 @@ class SistemaMonitoramento {
                         </div>
                     </div>
                 </div>
+                <!-- IMPORTANTE: Iniciar com display: none para recolhido -->
                 <div class="system-body" id="sistema-${sistema.id}" style="display: none;">
                     <p class="system-desc">${sistema.descricao || 'Sem descrição'}</p>
                     <div class="activities-grid">
@@ -506,17 +507,25 @@ function logout() {
 
 function toggleSistema(sistemaId) {
     const elemento = document.getElementById(`sistema-${sistemaId}`);
-    const chevron = document.querySelector(`#sistema-${sistemaId}`).previousElementSibling.querySelector('.fa-chevron-down');
+    const header = elemento.previousElementSibling;
+    const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
     
-    if (elemento.style.display === 'none' || !elemento.style.display) {
+    if (!elemento || !chevron) return;
+    
+    if (elemento.style.display === 'none') {
+        // Abrir
         elemento.style.display = 'block';
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-up');
     } else {
+        // Fechar
         elemento.style.display = 'none';
         chevron.classList.remove('fa-chevron-up');
         chevron.classList.add('fa-chevron-down');
     }
+    
+    // Prevenir propagação para não fechar imediatamente
+    event.stopPropagation();
 }
 
 function abrirModalSistema() {
