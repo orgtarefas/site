@@ -472,6 +472,7 @@ body {
     text-transform: uppercase;
 }
 
+.badge-nao_iniciado { background: #95a5a6; color: #556404; }
 .badge-pendente { background: #fff3cd; color: #856404; }
 .badge-andamento { background: #cce5ff; color: #004085; }
 .badge-concluido { background: #d4edda; color: #155724; }
