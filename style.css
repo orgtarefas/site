@@ -183,15 +183,15 @@ body {
 }
 
 .task-card.prioridade-alta {
-    border-color: var(--danger);
+    border-color: #ff80ab; /* Rosa mais forte */
 }
 
 .task-card.prioridade-media {
-    border-color: var(--warning);
+    border-color: #3399ff; /* Azul mais forte */
 }
 
 .task-card.prioridade-baixa {
-    border-color: var(--success);
+    border-color: #adb5bd; /* Cinza mais forte */
 }
 
 .task-header {
@@ -239,13 +239,13 @@ body {
 }
 
 .badge.prioridade-alta {
-    background: #ffd6e7; /* Rosa claro */
+    background: #CCAEFF; /* roxo claro */
     color: #9c0059;
     border: 1px solid #ff85b3;
 }
 
 .badge.prioridade-media {
-    background: #cce5ff; /* Azul claro */
+    background: #D4B8B8; /* tom marrom claro */
     color: #00509e;
     border: 1px solid #66b0ff;
 }
