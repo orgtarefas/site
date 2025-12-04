@@ -280,7 +280,7 @@ async function buscarAtividadesDoSistema(sistemaId) {
             }));
             
             // ORDENAR ATIVIDADES PELA ORDEM ESPECÍFICA
-            atividades = ordenarAtividadesPorCategoria(atividades);
+            atividades = ordenarAtividadesPorTipo(atividades);
             
             return atividades;
         }
@@ -291,40 +291,38 @@ async function buscarAtividadesDoSistema(sistemaId) {
     }
 }
 
-function ordenarAtividadesPorCategoria(atividades) {
-    // Definir a ordem de prioridade das categorias
-    const ordemCategorias = [
-        'Execução das Atividades',
-        'Monitoramento', 
-        'Conclusão e Revisão'
-    ];
+
+// FUNÇÃO PARA ORDENAR ATIVIDADES POR TIPO
+function ordenarAtividadesPorTipo(atividades) {
+    // Ordem específica dos tipos
+    const ordemTipos = ['execucao', 'monitoramento', 'conclusao'];
     
-    // Primeiro, separar atividades que têm categoria definida
-    const atividadesComCategoria = atividades.filter(a => a.categoria);
-    const atividadesSemCategoria = atividades.filter(a => !a.categoria);
+    // Primeiro, separar atividades que têm tipo definido
+    const atividadesComTipo = atividades.filter(a => a.tipo);
+    const atividadesSemTipo = atividades.filter(a => !a.tipo);
     
-    // Ordenar atividades com categoria
-    atividadesComCategoria.sort((a, b) => {
-        const indiceA = ordemCategorias.indexOf(a.categoria);
-        const indiceB = ordemCategorias.indexOf(b.categoria);
+    // Ordenar atividades com tipo na ordem específica
+    atividadesComTipo.sort((a, b) => {
+        const indiceA = ordemTipos.indexOf(a.tipo);
+        const indiceB = ordemTipos.indexOf(b.tipo);
         
-        // Se ambas estão na lista de ordenação
+        // Se ambos têm tipo na lista de ordenação
         if (indiceA !== -1 && indiceB !== -1) {
             return indiceA - indiceB;
         }
         
-        // Se apenas A está na lista, vem primeiro
+        // Se apenas A tem tipo na lista, vem primeiro
         if (indiceA !== -1) return -1;
         
-        // Se apenas B está na lista, vem depois
+        // Se apenas B tem tipo na lista, vem depois
         if (indiceB !== -1) return 1;
         
-        // Se nenhuma está na lista, ordenar alfabeticamente
-        return (a.categoria || '').localeCompare(b.categoria || '');
+        // Se nenhum tem tipo na lista, manter ordem original
+        return 0;
     });
     
-    // Combinar atividades ordenadas com categoria + atividades sem categoria
-    return [...atividadesComCategoria, ...atividadesSemCategoria];
+    // Combinar: atividades ordenadas por tipo + atividades sem tipo
+    return [...atividadesComTipo, ...atividadesSemTipo];
 }
 
 async function atualizarListaTarefasComAtividades() {
@@ -342,7 +340,7 @@ async function atualizarListaTarefasComAtividades() {
         return;
     }
 
-    // Processar tarefas com suas atividades
+    // Processar tarefas com suas atividades ORDENADAS
     const tarefasProcessadas = await Promise.all(
         tarefasFiltradas.map(async (tarefa) => {
             let sistemaInfo = '';
@@ -358,7 +356,7 @@ async function atualizarListaTarefasComAtividades() {
                         </div>
                     `;
                     
-                    // Buscar atividades do sistema
+                    // Buscar atividades do sistema (JÁ ORDENADAS)
                     const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
                     
                     if (atividades.length > 0) {
@@ -366,17 +364,24 @@ async function atualizarListaTarefasComAtividades() {
                             <div class="atividades-sistema">
                                 <div class="atividades-header">
                                     <i class="fas fa-list-check"></i>
-                                    <strong>Atividades do Sistema:</strong>
+                                    <strong>Atividades do Sistema (${atividades.length}):</strong>
                                 </div>
                                 <div class="atividades-lista">
-                                    ${atividades.map(atividade => `
-                                        <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''}">
-                                            <i class="fas fa-${getIconStatusAtividade(atividade.status)}"></i>
-                                            <span class="atividade-titulo">${atividade.titulo}</span>
-                                            <span class="atividade-status badge status-${atividade.status}">
-                                                ${atividade.status === 'pendente' ? 'Pendente' : 
-                                                  atividade.status === 'andamento' ? 'Em Andamento' : 'Concluída'}
-                                            </span>
+                                    ${atividades.map((atividade, index) => `
+                                        <div class="atividade-item ${atividade.status === 'concluido' ? 'concluida' : ''} tipo-${atividade.tipo || 'sem-tipo'}">
+                                            <div class="atividade-ordem">
+                                                <span class="ordem-numero">${index + 1}</span>
+                                            </div>
+                                            <div class="atividade-tipo">
+                                                <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
+                                                <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
+                                            </div>
+                                            <div class="atividade-conteudo">
+                                                <span class="atividade-titulo">${atividade.titulo}</span>
+                                                <span class="atividade-status badge status-${atividade.status}">
+                                                    ${getLabelStatus(atividade.status)}
+                                                </span>
+                                            </div>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -390,7 +395,7 @@ async function atualizarListaTarefasComAtividades() {
         })
     );
 
-    // Renderizar tarefas
+    // Renderizar tarefas (resto do código igual)
     container.innerHTML = tarefasProcessadas.map(tarefa => `
         <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
             <div class="task-header">
@@ -433,6 +438,38 @@ async function atualizarListaTarefasComAtividades() {
             </div>
         </div>
     `).join('');
+}
+
+// FUNÇÕES AUXILIARES PARA TIPOS
+function getIconTipo(tipo) {
+    if (!tipo) return 'question-circle';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'play-circle';
+        case 'monitoramento': return 'eye';
+        case 'conclusao': return 'check-double';
+        default: return 'tasks';
+    }
+}
+
+function getLabelTipo(tipo) {
+    if (!tipo) return 'Outras';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'Execução';
+        case 'monitoramento': return 'Monitoramento';
+        case 'conclusao': return 'Conclusão';
+        default: return tipo.charAt(0).toUpperCase() + tipo.slice(1);
+    }
+}
+
+function getLabelStatus(status) {
+    switch(status) {
+        case 'pendente': return 'Pendente';
+        case 'andamento': return 'Em Andamento';
+        case 'concluido': return 'Concluída';
+        default: return status || 'Não definido';
+    }
 }
 
 function getIconStatusAtividade(status) {
