@@ -511,13 +511,7 @@ body {
     color: var(--primary);
 }
 
-.status-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
+
 
 .badge-nao_iniciado { background: #95a5a6; color: #556404; }
 .badge-pendente { background: #fff3cd; color: #856404; }
