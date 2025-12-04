@@ -169,7 +169,7 @@ class SistemaMonitoramento {
                 datasets: [{
                     label: 'Progresso (%)',
                     data: sistemasProgresso,
-                    backgroundColor: this.sistemas.map(s => s.cor || '#3498db')
+                    backgroundColor: this.sistemas.map(s => s.cor || '#2C3E50')
                 }]
             },
             options: {
@@ -295,7 +295,7 @@ class SistemaMonitoramento {
             <div class="system-card">
                 <div class="system-header" onclick="toggleSistema('${sistema.id}')">
                     <h2>
-                        <i class="fas fa-project-diagram" style="color: ${sistema.cor || '#3498db'}"></i>
+                        <i class="fas fa-project-diagram" style="color: ${sistema.cor || '#2C3E50'}"></i>
                         ${sistema.nome}
                     </h2>
                     <div class="system-status">
@@ -527,7 +527,7 @@ class SistemaMonitoramento {
         // Preencher formulário
         document.getElementById('sistemaNome').value = sistema.nome;
         document.getElementById('sistemaDescricao').value = sistema.descricao || '';
-        document.getElementById('sistemaCor').value = sistema.cor || '#3498db';
+        document.getElementById('sistemaCor').value = sistema.cor || '#2C3E50';
     }
 
     async editarAtividade(atividadeId) {
@@ -591,7 +591,7 @@ function abrirModalSistema() {
     document.getElementById('modalSistema').style.display = 'flex';
     document.getElementById('modalSistemaTitulo').textContent = 'Novo Sistema';
     document.getElementById('formSistema').reset();
-    document.getElementById('sistemaCor').value = '#3498db';
+    document.getElementById('sistemaCor').value = '#2C3E50';
 }
 
 function fecharModalSistema() {
@@ -613,7 +613,7 @@ async function editarSistema(sistemaId) {
     // Preencher formulário
     document.getElementById('sistemaNome').value = sistema.nome;
     document.getElementById('sistemaDescricao').value = sistema.descricao || '';
-    document.getElementById('sistemaCor').value = sistema.cor || '#3498db';
+    document.getElementById('sistemaCor').value = sistema.cor || '#2C3E50';
 }
 
 async function salvarSistema() {
