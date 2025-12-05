@@ -190,13 +190,20 @@ class SistemaMonitoramento {
                     console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
                 }
                 
+                // ⚠️ CORREÇÃO: Remova o setTimeout que está depois deste bloco
+                // O recarregamento dos dados deve acontecer aqui, mas apenas uma vez
+                
                 // Recarregar dados após atualização
                 setTimeout(() => {
+                    // Atualizar apenas os dados necessários sem recolher
                     this.carregarDados().then(() => {
+                        // Manter sistemas expandidos
+                        restaurarEstadoExpansaoSistemas();
                         this.renderizarSistemas();
                         this.atualizarGraficos();
                     });
                 }, 1000);
+                
             } else {
                 console.log('ℹ️ Nenhuma atividade vinculada para processar');
             }
@@ -397,37 +404,50 @@ class SistemaMonitoramento {
             return;
         }
     
-        container.innerHTML = this.sistemas.map(sistema => `
-            <div class="system-card">
-                <div class="system-header" onclick="toggleSistema('${sistema.id}')">
-                    <h2>
-                        <i class="fas fa-project-diagram" style="color: ${sistema.cor || '#2C3E50'}"></i>
-                        ${sistema.nome}
-                    </h2>
-                    <div class="system-status">
-                        <div class="status-badges-container">
-                            ${this.getTextoStatusSistema(sistema)}
+        // Salvar estado atual ANTES de re-renderizar
+        manterEstadoExpansaoSistemas();
+        
+        container.innerHTML = this.sistemas.map(sistema => {
+            // Verificar se este sistema estava expandido
+            const estavaExpandido = sistemasExpandidos.has(sistema.id);
+            
+            return `
+                <div class="system-card">
+                    <div class="system-header" onclick="toggleSistema('${sistema.id}')">
+                        <h2>
+                            <i class="fas fa-project-diagram" style="color: ${sistema.cor || '#2C3E50'}"></i>
+                            ${sistema.nome}
+                        </h2>
+                        <div class="system-status">
+                            <div class="status-badges-container">
+                                ${this.getTextoStatusSistema(sistema)}
+                            </div>
+                            <i class="fas fa-chevron-${estavaExpandido ? 'up' : 'down'}"></i>
+                            <div class="system-actions">
+                                <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirSistema('${sistema.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
-                        <i class="fas fa-chevron-down"></i>
-                        <div class="system-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirSistema('${sistema.id}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                    </div>
+                    <!-- IMPORTANTE: Iniciar com display baseado no estado salvo -->
+                    <div class="system-body" id="sistema-${sistema.id}" style="display: ${estavaExpandido ? 'block' : 'none'};">
+                        <p class="system-desc">${sistema.descricao || 'Sem descrição'}</p>
+                        <div class="activities-grid">
+                            ${this.renderizarAtividadesSistema(sistema)}
                         </div>
                     </div>
                 </div>
-                <!-- IMPORTANTE: Iniciar com display: none para recolhido -->
-                <div class="system-body" id="sistema-${sistema.id}" style="display: none;">
-                    <p class="system-desc">${sistema.descricao || 'Sem descrição'}</p>
-                    <div class="activities-grid">
-                        ${this.renderizarAtividadesSistema(sistema)}
-                    </div>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+        
+        // Restaurar o estado de expansão (para garantir)
+        setTimeout(() => {
+            restaurarEstadoExpansaoSistemas();
+        }, 10);
     }
 
     calcularEstatisticasSistema(sistema) {
@@ -735,7 +755,38 @@ class SistemaMonitoramento {
     }
 }
 
-// ========== FUNÇÃO getLabelStatus (MOVA PARA FORA DA CLASSE) ==========
+// ==================== fim da classe
+
+// ========== NOVA FUNÇÃO PARA CONTROLAR ESTADO DE EXPANSÃO ==========
+let sistemasExpandidos = new Set(); // Armazenar IDs dos sistemas expandidos
+
+function manterEstadoExpansaoSistemas() {
+    // Salvar quais sistemas estão expandidos antes de recarregar
+    sistemasExpandidos.clear();
+    
+    document.querySelectorAll('.system-body').forEach(sistema => {
+        if (sistema.style.display !== 'none') {
+            const id = sistema.id.replace('sistema-', '');
+            sistemasExpandidos.add(id);
+        }
+    });
+}
+
+function restaurarEstadoExpansaoSistemas() {
+    // Restaurar estado dos sistemas expandidos após recarregar
+    sistemasExpandidos.forEach(id => {
+        const elemento = document.getElementById(`sistema-${id}`);
+        const header = elemento ? elemento.previousElementSibling : null;
+        const chevron = header ? header.querySelector('.fa-chevron-down, .fa-chevron-up') : null;
+        
+        if (elemento && header && chevron) {
+            elemento.style.display = 'block';
+            chevron.classList.remove('fa-chevron-down');
+            chevron.classList.add('fa-chevron-up');
+        }
+    });
+}
+
 function getLabelStatus(status) {
     switch(status) {
         case 'nao_iniciado': return 'Não Iniciado';
@@ -846,11 +897,13 @@ function toggleSistema(sistemaId) {
         elemento.style.display = 'block';
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-up');
+        sistemasExpandidos.add(sistemaId); // Adicionar ao conjunto
     } else {
         // Fechar
         elemento.style.display = 'none';
         chevron.classList.remove('fa-chevron-up');
         chevron.classList.add('fa-chevron-down');
+        sistemasExpandidos.delete(sistemaId); // Remover do conjunto
     }
     
     // Prevenir propagação para não fechar imediatamente
