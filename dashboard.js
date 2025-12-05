@@ -176,7 +176,7 @@ class SistemaMonitoramento {
             console.error('❌ Erro ao processar conclusão:', error);
         }
     }
-}
+
 
     inicializarGraficos() {
         this.inicializarGraficoStatus();
