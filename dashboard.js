@@ -300,7 +300,7 @@ class SistemaMonitoramento {
         const ctx = document.getElementById('timelineChart').getContext('2d');
         
         // Dados de exemplo
-        const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+        const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Qui', 'Sáb', 'Dom'];
         const dadosTimeline = [5, 8, 12, 6, 15, 10, 7];
 
         this.charts.timeline = new Chart(ctx, {
@@ -561,7 +561,6 @@ class SistemaMonitoramento {
         }).join('');
     }
 
-
     
     getStatusSistema(sistema) {
         const stats = this.calcularEstatisticasSistema(sistema);
@@ -648,6 +647,7 @@ class SistemaMonitoramento {
             });
         });
     }
+    
     atualizarGraficos() {
         if (this.charts.status) {
             const dados = this.calcularEstatisticas();
@@ -693,9 +693,6 @@ class SistemaMonitoramento {
         }
     }
 
-
-
-
     // NOVOS MÉTODOS PARA EDIÇÃO
     abrirModalEditarSistema(sistemaId) {
         this.sistemaEditando = sistemaId;
@@ -738,7 +735,16 @@ class SistemaMonitoramento {
     }
 }
 
-
+// ========== FUNÇÃO getLabelStatus (MOVA PARA FORA DA CLASSE) ==========
+function getLabelStatus(status) {
+    switch(status) {
+        case 'nao_iniciado': return 'Não Iniciado';
+        case 'pendente': return 'Pendente';
+        case 'andamento': return 'Em Andamento';
+        case 'concluido': return 'Concluído';
+        default: return status || 'Não definido';
+    }
+}
 
 // ========== ADICIONE A FUNÇÃO AQUI ==========
 async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
@@ -817,7 +823,6 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         }
     }
 }
-
     
 // Instanciar e inicializar o sistema
 const monitoramento = new SistemaMonitoramento();
@@ -1127,16 +1132,6 @@ function verificarConclusaoVinculos() {
         alertDiv.style.display = 'block';
     } else {
         alertDiv.style.display = 'none';
-    }
-}
-
-function getLabelStatus(status) {
-    switch(status) {
-        case 'nao_iniciado': return 'Não Iniciado';
-        case 'pendente': return 'Pendente';
-        case 'andamento': return 'Em Andamento';
-        case 'concluido': return 'Concluído';
-        default: return status || 'Não definido';
     }
 }
 
