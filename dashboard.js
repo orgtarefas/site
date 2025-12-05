@@ -454,11 +454,21 @@ class SistemaMonitoramento {
                             atividadesTipo.map(atividade => {
                                 // Garantir que o status tenha um valor
                                 const status = atividade.status || 'nao_iniciado';
+                                const atividadesVinculadas = atividade.atividadesVinculadas || [];
+                                const temVinculos = atividadesVinculadas.length > 0;
                                 
                                 return `
-                                    <div class="checklist-item">
+                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
                                         <div class="item-info">
-                                            <div class="item-title">${atividade.titulo}</div>
+                                            <div class="item-title">
+                                                ${atividade.titulo}
+                                                ${temVinculos ? 
+                                                    `<span class="vinculos-tooltip" title="${atividadesVinculadas.length} atividade(s) vinculada(s)">
+                                                        <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
+                                                    </span>` 
+                                                    : ''
+                                                }
+                                            </div>
                                             ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                                             <div class="item-meta">
                                                 <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
@@ -466,6 +476,12 @@ class SistemaMonitoramento {
                                                 <span class="badge status-${status}">
                                                     ${getLabelStatus(status)}
                                                 </span>
+                                                ${temVinculos ? 
+                                                    `<span class="vinculos-badge">
+                                                        <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
+                                                    </span>` 
+                                                    : ''
+                                                }
                                             </div>
                                         </div>
                                         <div class="item-actions">
@@ -965,6 +981,13 @@ async function salvarAtividade(sistemaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
+    // CORREÇÃO: Coletar atividades vinculadas
+    const atividadesVinculadas = [];
+    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
+    checkboxes.forEach(checkbox => {
+        atividadesVinculadas.push(checkbox.value);
+    });
+    
     const atividade = {
         sistemaId: sistemaId,
         tipo: tipo,
@@ -973,7 +996,8 @@ async function salvarAtividade(sistemaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        status: status, // Novo status
+        status: status,
+        atividadesVinculadas: atividadesVinculadas, // ✅ ADICIONAR ESTE CAMPO
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
