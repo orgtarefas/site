@@ -1047,7 +1047,7 @@ async function salvarAtividade(sistemaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    // ========== CORREÇÃO CRÍTICA: COLETAR VÍNCULOS ==========
+    // Coletar atividades vinculadas
     const atividadesVinculadas = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
@@ -1063,7 +1063,6 @@ async function salvarAtividade(sistemaId, tipo) {
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: status,
-        // ✅ AGORA ESTÁ SALVANDO OS VÍNCULOS
         atividadesVinculadas: atividadesVinculadas,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1076,7 +1075,10 @@ async function salvarAtividade(sistemaId, tipo) {
             atividadeId = monitoramento.atividadeEditando;
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada com vínculos:`, atividadesVinculadas);
-            alert('✅ Atividade atualizada com sucesso!');
+            
+            // ❌ REMOVER O ALERTA EXTRA - manter apenas o alert de sucesso
+            // Não adicionar alerta específico para vínculos
+            
         } else {
             // CRIAR nova atividade
             const docRef = await db.collection('atividades').add({
@@ -1086,10 +1088,9 @@ async function salvarAtividade(sistemaId, tipo) {
             });
             atividadeId = docRef.id;
             console.log(`✅ Nova atividade ${atividadeId} criada com vínculos:`, atividadesVinculadas);
-            alert('✅ Atividade criada com sucesso!');
         }
         
-        // ========== CORREÇÃO: PROCESSAR SE FOR CONCLUÍDA ==========
+        // Processar se for concluída
         if (status === 'concluido' && atividadesVinculadas.length > 0) {
             console.log(`🔄 Atividade ${atividadeId} concluída com vínculos, processando...`);
             await monitoramento.processarConclusaoAtividade(atividadeId);
@@ -1100,9 +1101,12 @@ async function salvarAtividade(sistemaId, tipo) {
         
         // Recarregar dados
         await monitoramento.carregarDados();
-        await monitoramento.carregarAtividadesParaVinculo(); // Recarregar para vínculos
+        await monitoramento.carregarAtividadesParaVinculo();
         monitoramento.renderizarSistemas();
         monitoramento.atualizarGraficos();
+        
+        // ✅ MANTENHA APENAS ESTE ALERTA (opcional)
+        alert(monitoramento.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
         
     } catch (error) {
         console.error('❌ Erro ao salvar atividade:', error);
