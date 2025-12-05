@@ -488,6 +488,20 @@ class SistemaMonitoramento {
                                 const atividadesVinculadas = atividade.atividadesVinculadas || [];
                                 const temVinculos = atividadesVinculadas.length > 0;
                                 
+                                // Gerar opções do select com o status atual selecionado
+                                const opcoesStatus = [
+                                    {value: 'nao_iniciado', label: 'Não Iniciado'},
+                                    {value: 'pendente', label: 'Pendente'},
+                                    {value: 'andamento', label: 'Em Andamento'},
+                                    {value: 'concluido', label: 'Concluído'}
+                                ];
+                                
+                                const selectHTML = opcoesStatus.map(opcao => `
+                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
+                                        ${opcao.label}
+                                    </option>
+                                `).join('');
+                                
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
                                         <div class="item-info">
@@ -516,6 +530,16 @@ class SistemaMonitoramento {
                                             </div>
                                         </div>
                                         <div class="item-actions">
+                                            <!-- NOVO: Seletor de Status -->
+                                            <div class="status-selector">
+                                                <select class="status-select" 
+                                                        data-id="${atividade.id}"
+                                                        data-titulo="${atividade.titulo}"
+                                                        onchange="alterarStatusAtividade('${atividade.id}', this.value, '${atividade.titulo}')">
+                                                    ${selectHTML}
+                                                </select>
+                                            </div>
+                                            
                                             <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -532,6 +556,83 @@ class SistemaMonitoramento {
                 </div>
             `;
         }).join('');
+    }
+
+    async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
+        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
+        const statusAnterior = select ? select.value : 'nao_iniciado';
+        
+        console.log(`🔄 Alterando status da atividade:`, {
+            id: atividadeId,
+            titulo: tituloAtividade,
+            de: statusAnterior,
+            para: novoStatus
+        });
+        
+        // Se for "concluido", pedir confirmação
+        if (novoStatus === 'concluido') {
+            const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
+            
+            if (!confirmar) {
+                // Reverter para status anterior
+                if (select) select.value = statusAnterior;
+                return;
+            }
+        }
+        
+        // Feedback visual de processamento
+        if (select) {
+            select.classList.add('processing');
+            select.disabled = true;
+        }
+        
+        try {
+            // Atualizar no Firebase
+            await db.collection('atividades').doc(atividadeId).update({
+                status: novoStatus,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log(`✅ Status da atividade "${tituloAtividade}" alterado para: ${novoStatus}`);
+            
+            // Atualizar o badge localmente
+            const checklistItem = select ? select.closest('.checklist-item') : null;
+            if (checklistItem) {
+                const badge = checklistItem.querySelector('.badge[class*="status-"]');
+                if (badge) {
+                    badge.className = `badge status-${novoStatus}`;
+                    badge.textContent = getLabelStatus(novoStatus);
+                }
+            }
+            
+            // Se foi marcado como concluído, processar atividades vinculadas
+            if (novoStatus === 'concluido') {
+                console.log(`🔗 Processando atividades vinculadas para "${tituloAtividade}"...`);
+                await monitoramento.processarConclusaoAtividade(atividadeId);
+            }
+            
+            // Atualizar estatísticas e gráficos
+            setTimeout(() => {
+                monitoramento.calcularEstatisticas();
+                monitoramento.atualizarGraficos();
+            }, 500);
+            
+        } catch (error) {
+            console.error('❌ Erro ao alterar status:', error);
+            
+            // Reverter para status anterior em caso de erro
+            if (select) {
+                select.value = statusAnterior;
+                alert('Erro ao alterar status: ' + error.message);
+            }
+            
+        } finally {
+            // Restaurar estado do select
+            if (select) {
+                select.classList.remove('processing');
+                select.disabled = false;
+            }
+        }
     }
     
     getStatusSistema(sistema) {
@@ -591,7 +692,6 @@ class SistemaMonitoramento {
         this.configurarListenerConclusoes();
     }
     
-    // ADICIONAR ESTE MÉTODO À CLASSE
     configurarListenerConclusoes() {
         console.log('🎯 Configurando listener para conclusões...');
         
@@ -601,13 +701,10 @@ class SistemaMonitoramento {
                     const atividadeAntiga = change.doc._previousData;
                     const atividadeNova = change.doc.data();
                     
-                    // DEBUG: Verificar dados
-                    console.log('📊 Mudança detectada:', {
-                        id: change.doc.id,
-                        antigo: atividadeAntiga?.status,
-                        novo: atividadeNova?.status,
-                        temVinculos: atividadeNova?.atividadesVinculadas?.length || 0
-                    });
+                    // Evitar processamento duplicado (se já foi feito pela função alterarStatusAtividade)
+                    if (atividadeAntiga?.status === atividadeNova.status) {
+                        return; // Nada mudou
+                    }
                     
                     // Verificar se o status mudou para "concluido"
                     if (atividadeAntiga?.status !== 'concluido' && 
