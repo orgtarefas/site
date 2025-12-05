@@ -59,10 +59,12 @@ let currentConversation = null;
 let conversationsRef = null;
 let usersRef = null;
 let messagesRef = null;
-let allUsers = []; // Cache de todos os usuários
+let allRealUsers = []; // Cache de TODOS os usuários REAIS do Firestore
+let onlineUsersCache = {}; // Cache de usuários online no chat
 
 // ========== INICIALIZAÇÃO ==========
 function init() {
+    console.log('🚀 Inicializando chat...');
     setupEventListeners();
     showLoginScreen();
 }
@@ -102,57 +104,105 @@ async function handleLogin() {
     }
     
     try {
-        showStatus('Verificando credenciais...', 'info');
+        showStatus('🔍 Verificando credenciais...', 'info');
+        console.log('Tentando login com:', login);
         
-        // Buscar usuário por login
+        // Buscar usuário por login (campo EXATO "login")
         const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS')
             .where('login', '==', login)
             .limit(1)
             .get();
         
+        console.log('Resultado da busca:', querySnapshot.size, 'documentos');
+        
         if (querySnapshot.empty) {
-            showStatus('Usuário não encontrado', 'error');
+            showStatus('❌ Usuário não encontrado', 'error');
             return;
         }
         
         const doc = querySnapshot.docs[0];
         const userData = doc.data();
         
-        // Verificar senha
+        console.log('Dados do usuário:', userData);
+        
+        // Verificar senha (campo EXATO "senha")
         if (userData.senha !== senha) {
-            showStatus('Senha incorreta', 'error');
+            showStatus('❌ Senha incorreta', 'error');
             return;
         }
         
         // Verificar status (se existir)
         if (userData.status && userData.status !== 'Ativo') {
-            showStatus('Usuário inativo', 'error');
+            showStatus('❌ Usuário inativo', 'error');
             return;
         }
         
         // Login bem-sucedido
         currentUser = {
-            uid: doc.id, // ID do documento
-            login: userData.login,
-            nome: userData.displayName || userData.login,
+            uid: doc.id,
+            login: userData.login || login,
+            nome: userData.displayName || userData.login || 'Usuário',
             perfil: userData.perfil || 'Usuário',
             email: userData.email || ''
         };
         
+        console.log('✅ Login bem-sucedido:', currentUser);
+        
+        // 1. Carregar TODOS os usuários reais do Firestore
+        await loadAllRealUsers();
+        
+        // 2. Configurar usuário no chat
         await setupChatUser(currentUser);
         
-        showStatus(`Bem-vindo, ${currentUser.nome}!`, 'success');
+        // 3. Mostrar chat
+        showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
         clearLoginForm();
         showChatScreen();
+        
+        // 4. Configurar listeners em tempo real
         setupRealtimeListeners();
         
     } catch (error) {
-        console.error('Erro no login:', error);
-        showStatus('Erro: ' + error.message, 'error');
+        console.error('❌ Erro no login:', error);
+        showStatus('❌ Erro: ' + error.message, 'error');
     }
 }
 
+// ========== CARREGAR TODOS OS USUÁRIOS REAIS ==========
+async function loadAllRealUsers() {
+    try {
+        console.log('🔍 Carregando TODOS os usuários do Firestore...');
+        const snapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
+        allRealUsers = [];
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const usuario = {
+                uid: doc.id,
+                login: data.login || '',
+                nome: data.displayName || data.login || 'Usuário',
+                perfil: data.perfil || 'Usuário',
+                email: data.email || ''
+            };
+            
+            // Adicionar apenas se tiver login
+            if (usuario.login) {
+                allRealUsers.push(usuario);
+                console.log(`👤 Usuário real: ${usuario.nome} (${usuario.login})`);
+            }
+        });
+        
+        console.log(`📊 Total de usuários reais carregados: ${allRealUsers.length}`);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+    }
+}
+
+// ========== CONFIGURAR USUÁRIO NO CHAT ==========
 async function setupChatUser(userData) {
+    console.log('⚙️ Configurando usuário no chat:', userData);
+    
     // Atualizar interface
     currentUserName.textContent = userData.nome;
     currentUserLogin.textContent = userData.login;
@@ -164,19 +214,26 @@ async function setupChatUser(userData) {
     // Salvar no RTDB do chat
     const userRef = chatDb.ref(`users/${userData.uid}`);
     
-    await userRef.set({
-        uid: userData.uid,
-        login: userData.login,
-        nome: userData.nome,
-        perfil: userData.perfil,
-        avatarUrl: avatarUrl,
-        isOnline: true,
-        lastSeen: Date.now()
-    });
-    
-    // Configurar desconexão automática
-    userRef.child('isOnline').onDisconnect().set(false);
-    userRef.child('lastSeen').onDisconnect().set(Date.now());
+    try {
+        await userRef.set({
+            uid: userData.uid,
+            login: userData.login,
+            nome: userData.nome,
+            perfil: userData.perfil,
+            avatarUrl: avatarUrl,
+            isOnline: true,
+            lastSeen: Date.now()
+        });
+        
+        console.log('✅ Usuário salvo no RTDB');
+        
+        // Configurar desconexão automática
+        userRef.child('isOnline').onDisconnect().set(false);
+        userRef.child('lastSeen').onDisconnect().set(Date.now());
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar usuário no RTDB:', error);
+    }
     
     return userData;
 }
@@ -185,55 +242,36 @@ async function setupChatUser(userData) {
 function setupRealtimeListeners() {
     if (!currentUser) return;
     
-    // Carregar todos os usuários do Firestore
-    loadAllUsers();
+    console.log('📡 Configurando listeners em tempo real...');
     
-    // Ouvir conversas do usuário atual
+    // 1. Ouvir conversas do usuário atual
     conversationsRef = chatDb.ref(`userConversations/${currentUser.uid}`);
     conversationsRef.on('value', (snapshot) => {
         const conversationsData = snapshot.val();
         renderConversations(conversationsData);
     });
     
-    // Ouvir usuários online no chat
+    // 2. Ouvir usuários online no chat
     usersRef = chatDb.ref('users');
     usersRef.orderByChild('isOnline').equalTo(true).on('value', (snapshot) => {
         const usersData = snapshot.val();
+        onlineUsersCache = usersData || {};
         renderOnlineUsers(usersData);
     });
+    
+    // 3. Atualizar status online
+    updateOnlineStatus();
 }
 
-// ========== CARREGAR TODOS OS USUÁRIOS ==========
-async function loadAllUsers() {
-    try {
-        const snapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
-        allUsers = [];
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (doc.id !== currentUser.uid) { // Excluir usuário atual
-                allUsers.push({
-                    uid: doc.id,
-                    login: data.login,
-                    nome: data.displayName || data.login,
-                    perfil: data.perfil || 'Usuário'
-                });
-            }
-        });
-        
-        console.log('Usuários carregados:', allUsers.length);
-    } catch (error) {
-        console.error('Erro ao carregar usuários:', error);
-    }
-}
-
-// ========== CONVERSAS ==========
+// ========== RENDERIZAR CONVERSAS ==========
 function renderConversations(conversationsData) {
-    if (!conversationsData) {
+    console.log('💬 Renderizando conversas...', conversationsData);
+    
+    if (!conversationsData || Object.keys(conversationsData).length === 0) {
         conversationsList.innerHTML = `
             <div class="no-conversations">
                 <i class="fas fa-comments"></i>
-                <p>Nenhuma conversa</p>
+                <p>Nenhuma conversa ainda</p>
                 <small>Selecione um usuário online para começar</small>
             </div>`;
         return;
@@ -242,40 +280,34 @@ function renderConversations(conversationsData) {
     let html = '';
     const conversations = Object.entries(conversationsData);
     
-    if (conversations.length === 0) {
-        html = `
-            <div class="no-conversations">
-                <i class="fas fa-comments"></i>
-                <p>Nenhuma conversa</p>
-                <small>Selecione um usuário online para começar</small>
-            </div>`;
-    } else {
-        conversations.forEach(([conversationId, conversationData]) => {
-            const otherUserId = getOtherUserId(conversationData.participants);
-            const otherUser = allUsers.find(u => u.uid === otherUserId);
+    conversations.forEach(([conversationId, conversationData]) => {
+        // Encontrar o outro usuário da conversa
+        const otherUserId = getOtherUserId(conversationData.participants);
+        
+        // Buscar informações REAIS do usuário
+        const otherUser = allRealUsers.find(u => u.uid === otherUserId);
+        
+        if (otherUser) {
+            const isActive = currentConversation === conversationId;
+            const time = conversationData.lastTimestamp ? 
+                formatTime(conversationData.lastTimestamp) : '';
             
-            if (otherUser) {
-                const isActive = currentConversation === conversationId;
-                const time = conversationData.lastTimestamp ? 
-                    formatTime(conversationData.lastTimestamp) : '';
-                
-                html += `
-                    <div class="conversation-item ${isActive ? 'active' : ''}" 
-                         data-conversation="${conversationId}"
-                         data-user="${otherUserId}">
-                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
-                             class="conversation-avatar" alt="${otherUser.nome}">
-                        <div class="conversation-details">
-                            <div class="conversation-name">${otherUser.nome}</div>
-                            <div class="conversation-last-message">${conversationData.lastMessage || ''}</div>
-                        </div>
-                        <div class="conversation-time">${time}</div>
-                        ${conversationData.unreadCount > 0 ? 
-                            `<div class="unread-badge">${conversationData.unreadCount}</div>` : ''}
-                    </div>`;
-            }
-        });
-    }
+            html += `
+                <div class="conversation-item ${isActive ? 'active' : ''}" 
+                     data-conversation="${conversationId}"
+                     data-user="${otherUserId}">
+                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
+                         class="conversation-avatar" alt="${otherUser.nome}">
+                    <div class="conversation-details">
+                        <div class="conversation-name">${otherUser.nome}</div>
+                        <div class="conversation-last-message">${conversationData.lastMessage || ''}</div>
+                    </div>
+                    <div class="conversation-time">${time}</div>
+                    ${conversationData.unreadCount > 0 ? 
+                        `<div class="unread-badge">${conversationData.unreadCount}</div>` : ''}
+                </div>`;
+        }
+    });
     
     conversationsList.innerHTML = html;
     
@@ -289,15 +321,128 @@ function renderConversations(conversationsData) {
     });
 }
 
-function getOtherUserId(participants) {
-    if (!participants) return null;
-    const participantIds = Object.keys(participants);
-    return participantIds.find(id => id !== currentUser.uid);
+// ========== RENDERIZAR USUÁRIOS ONLINE ==========
+function renderOnlineUsers(usersData) {
+    console.log('👥 Renderizando usuários online...', usersData);
+    
+    if (!usersData) {
+        onlineUsersList.innerHTML = '<div class="loading">Carregando...</div>';
+        return;
+    }
+    
+    let html = '';
+    const onlineUsers = [];
+    
+    // Filtrar usuários que estão online E são diferentes do usuário atual
+    Object.keys(usersData).forEach(uid => {
+        const user = usersData[uid];
+        if (user.isOnline && uid !== currentUser.uid) {
+            onlineUsers.push({
+                uid: uid,
+                login: user.login,
+                nome: user.nome || 'Usuário',
+                perfil: user.perfil || 'Online',
+                avatarUrl: user.avatarUrl
+            });
+        }
+    });
+    
+    if (onlineUsers.length === 0) {
+        html = '<div class="no-users">Nenhum usuário online</div>';
+    } else {
+        onlineUsers.forEach(user => {
+            // Tentar encontrar informações mais completas nos usuários reais
+            const realUser = allRealUsers.find(u => u.uid === user.uid);
+            const displayName = realUser ? realUser.nome : user.nome;
+            const perfil = realUser ? realUser.perfil : user.perfil;
+            
+            html += `
+                <div class="user-online-item" data-user="${user.uid}">
+                    <img src="${user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`}" 
+                         class="user-online-avatar" alt="${displayName}">
+                    <div>
+                        <div class="user-online-name">${displayName}</div>
+                        <div class="user-online-perfil">${perfil}</div>
+                    </div>
+                    <div class="status-indicator online"></div>
+                </div>`;
+        });
+    }
+    
+    onlineUsersList.innerHTML = html;
+    
+    // Adicionar listeners para usuários online
+    document.querySelectorAll('.user-online-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const userId = item.dataset.user;
+            startNewConversation(userId);
+        });
+    });
+}
+
+// ========== INICIAR NOVA CONVERSA ==========
+async function startNewConversation(otherUserId) {
+    console.log('💬 Iniciando nova conversa com:', otherUserId);
+    
+    // Encontrar informações REAIS do outro usuário
+    const otherUser = allRealUsers.find(u => u.uid === otherUserId);
+    
+    if (!otherUser) {
+        console.error('❌ Usuário não encontrado:', otherUserId);
+        showError('Usuário não encontrado');
+        return;
+    }
+    
+    // Criar ID da conversa (ordenado para ser único)
+    const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+    
+    console.log('ID da conversa:', conversationId);
+    
+    try {
+        // Verificar se conversa já existe
+        const conversationRef = chatDb.ref(`userConversations/${currentUser.uid}/${conversationId}`);
+        const snapshot = await conversationRef.once('value');
+        
+        if (!snapshot.exists()) {
+            // Criar conversa para ambos os usuários
+            const conversationData = {
+                participants: {
+                    [currentUser.uid]: true,
+                    [otherUserId]: true
+                },
+                lastMessage: '',
+                lastTimestamp: Date.now(),
+                unreadCount: 0
+            };
+            
+            await conversationRef.set(conversationData);
+            await chatDb.ref(`userConversations/${otherUserId}/${conversationId}`).set(conversationData);
+            
+            console.log('✅ Nova conversa criada');
+        }
+        
+        // Abrir a conversa
+        openConversation(conversationId, otherUserId);
+        
+    } catch (error) {
+        console.error('❌ Erro ao criar conversa:', error);
+        showError('Erro ao iniciar conversa');
+    }
 }
 
 // ========== ABRIR CONVERSA ==========
 function openConversation(conversationId, otherUserId) {
+    console.log('📂 Abrindo conversa:', conversationId, 'com usuário:', otherUserId);
+    
     currentConversation = conversationId;
+    
+    // Encontrar informações REAIS do outro usuário
+    const otherUser = allRealUsers.find(u => u.uid === otherUserId);
+    
+    if (!otherUser) {
+        console.error('❌ Usuário não encontrado para conversa');
+        return;
+    }
     
     // Ativar item na lista
     document.querySelectorAll('.conversation-item').forEach(item => {
@@ -305,17 +450,13 @@ function openConversation(conversationId, otherUserId) {
     });
     document.querySelector(`[data-conversation="${conversationId}"]`)?.classList.add('active');
     
-    // Encontrar informações do outro usuário
-    const otherUser = allUsers.find(u => u.uid === otherUserId);
-    if (!otherUser) return;
-    
-    // Atualizar cabeçalho
+    // Atualizar cabeçalho com informações REAIS
     chatInfo.innerHTML = `
         <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
              style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px;">
         <div>
             <h2>${otherUser.nome}</h2>
-            <small>${otherUser.perfil}</small>
+            <small>${otherUser.perfil} • ${otherUser.login}</small>
         </div>`;
     
     // Mostrar área de input
@@ -329,6 +470,8 @@ function openConversation(conversationId, otherUserId) {
 
 // ========== CARREGAR MENSAGENS ==========
 function loadMessages(conversationId) {
+    console.log('📨 Carregando mensagens da conversa:', conversationId);
+    
     // Remover listener anterior
     if (messagesRef) {
         messagesRef.off();
@@ -346,6 +489,7 @@ function loadMessages(conversationId) {
             });
             messages.sort((a, b) => a.timestamp - b.timestamp);
             renderMessages(messages);
+            console.log(`📊 ${messages.length} mensagens carregadas`);
         } else {
             messagesContainer.innerHTML = `
                 <div class="no-messages">
@@ -353,6 +497,7 @@ function loadMessages(conversationId) {
                     <p>Nenhuma mensagem ainda</p>
                     <small>Envie a primeira mensagem!</small>
                 </div>`;
+            console.log('📭 Nenhuma mensagem nesta conversa');
         }
     });
 }
@@ -367,6 +512,8 @@ async function sendMessage() {
     const messageId = chatDb.ref().push().key;
     const timestamp = Date.now();
     
+    console.log('📤 Enviando mensagem:', text);
+    
     try {
         // 1. Salvar mensagem
         await chatDb.ref(`messages/${currentConversation}/${messageId}`).set({
@@ -379,11 +526,14 @@ async function sendMessage() {
             read: false
         });
         
-        // 2. Atualizar conversa
-        const conversationRef = chatDb.ref(`userConversations/${currentUser.uid}/${currentConversation}`);
+        // 2. Encontrar o outro usuário da conversa
         const otherUserId = getOtherUserIdFromConversation(currentConversation);
-        const otherUserConversationRef = chatDb.ref(`userConversations/${otherUserId}/${currentConversation}`);
         
+        if (!otherUserId) {
+            throw new Error('Não foi possível identificar o destinatário');
+        }
+        
+        // 3. Atualizar conversa para AMBOS os usuários
         const conversationUpdate = {
             lastMessage: text,
             lastTimestamp: timestamp,
@@ -393,17 +543,26 @@ async function sendMessage() {
             }
         };
         
-        await conversationRef.update(conversationUpdate);
-        await otherUserConversationRef.update(conversationUpdate);
+        await chatDb.ref(`userConversations/${currentUser.uid}/${currentConversation}`).update(conversationUpdate);
+        await chatDb.ref(`userConversations/${otherUserId}/${currentConversation}`).update(conversationUpdate);
         
-        // 3. Limpar input
+        console.log('✅ Mensagem enviada e conversa atualizada');
+        
+        // 4. Limpar input
         messageInput.value = '';
         scrollToBottom();
         
     } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        showError('Erro ao enviar mensagem');
+        console.error('❌ Erro ao enviar mensagem:', error);
+        showError('Erro ao enviar mensagem: ' + error.message);
     }
+}
+
+// ========== FUNÇÕES AUXILIARES ==========
+function getOtherUserId(participants) {
+    if (!participants) return null;
+    const participantIds = Object.keys(participants);
+    return participantIds.find(id => id !== currentUser.uid);
 }
 
 function getOtherUserIdFromConversation(conversationId) {
@@ -413,83 +572,13 @@ function getOtherUserIdFromConversation(conversationId) {
     return parts.find(part => part !== currentUser.uid);
 }
 
-// ========== INICIAR NOVA CONVERSA ==========
-async function startNewConversation(otherUserId) {
-    // Criar ID da conversa (ordenado para ser único)
-    const conversationId = [currentUser.uid, otherUserId].sort().join('_');
-    
-    // Verificar se conversa já existe
-    const conversationRef = chatDb.ref(`userConversations/${currentUser.uid}/${conversationId}`);
-    const snapshot = await conversationRef.once('value');
-    
-    if (!snapshot.exists()) {
-        // Criar conversa para ambos os usuários
-        const conversationData = {
-            participants: {
-                [currentUser.uid]: true,
-                [otherUserId]: true
-            },
-            lastMessage: '',
-            lastTimestamp: Date.now(),
-            unreadCount: 0
-        };
-        
-        await conversationRef.set(conversationData);
-        await chatDb.ref(`userConversations/${otherUserId}/${conversationId}`).set(conversationData);
+function updateOnlineStatus() {
+    if (onlineStatus) {
+        onlineStatus.textContent = 'online';
+        onlineStatus.style.color = '#4caf50';
     }
-    
-    // Abrir a conversa
-    openConversation(conversationId, otherUserId);
 }
 
-// ========== RENDERIZAR USUÁRIOS ONLINE ==========
-function renderOnlineUsers(usersData) {
-    if (!usersData) {
-        onlineUsersList.innerHTML = '<div class="loading">Carregando...</div>';
-        return;
-    }
-    
-    let html = '';
-    const onlineUsers = [];
-    
-    Object.keys(usersData).forEach(uid => {
-        const user = usersData[uid];
-        if (user.isOnline && uid !== currentUser.uid) {
-            onlineUsers.push({
-                uid: uid,
-                nome: user.nome || 'Usuário',
-                perfil: user.perfil || 'Online',
-                avatarUrl: user.avatarUrl
-            });
-        }
-    });
-    
-    if (onlineUsers.length === 0) {
-        html = '<div class="no-users">Nenhum usuário online</div>';
-    } else {
-        onlineUsers.forEach(user => {
-            html += `
-                <div class="user-online-item" data-user="${user.uid}">
-                    <img src="${user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`}" 
-                         class="user-online-avatar" alt="${user.nome}">
-                    <div class="user-online-name">${user.nome}</div>
-                    <div class="status-indicator online"></div>
-                </div>`;
-        });
-    }
-    
-    onlineUsersList.innerHTML = html;
-    
-    // Adicionar listeners para usuários online
-    document.querySelectorAll('.user-online-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const userId = item.dataset.user;
-            startNewConversation(userId);
-        });
-    });
-}
-
-// ========== RENDERIZAR MENSAGENS ==========
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
     
@@ -513,7 +602,6 @@ function renderMessages(messages) {
     scrollToBottom();
 }
 
-// ========== FUNÇÕES AUXILIARES ==========
 function showStatus(message, type) {
     loginStatus.textContent = message;
     loginStatus.style.color = type === 'error' ? '#f44336' : 
@@ -529,7 +617,8 @@ function formatTime(timestamp) {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('pt-BR', { 
         hour: '2-digit', 
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false 
     });
 }
 
@@ -539,15 +628,34 @@ function formatMessageText(text) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
+        .replace(/\n/g, '<br>')
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: inherit; text-decoration: underline;">$1</a>');
 }
 
 function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
 }
 
 function showError(message) {
-    alert(message);
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${message}</span>
+    `;
+    
+    // Adicionar ao chat
+    const chatHeader = document.querySelector('.chat-header');
+    if (chatHeader) {
+        chatHeader.parentNode.insertBefore(errorDiv, chatHeader.nextSibling);
+        
+        // Remover após 5 segundos
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
+    }
 }
 
 function clearLoginForm() {
@@ -568,6 +676,8 @@ function showChatScreen() {
 async function handleLogout() {
     if (currentUser) {
         try {
+            console.log('👋 Fazendo logout...');
+            
             // Marcar como offline
             await chatDb.ref(`users/${currentUser.uid}`).update({
                 isOnline: false,
@@ -582,13 +692,16 @@ async function handleLogout() {
             // Limpar estado
             currentUser = null;
             currentConversation = null;
-            allUsers = [];
+            allRealUsers = [];
+            onlineUsersCache = {};
             
             // Mostrar tela de login
             showLoginScreen();
             
+            console.log('✅ Logout concluído');
+            
         } catch (error) {
-            console.error('Erro no logout:', error);
+            console.error('❌ Erro no logout:', error);
         }
     }
 }
