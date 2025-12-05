@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat em Tempo Real</title>
+    <title>Chat OrgTarefas - Mensagens Reais</title>
     <link rel="stylesheet" href="chat.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Firebase SDK -->
@@ -11,545 +11,447 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Tela do Chat SEM LOGIN -->
-        <div id="chat-screen" class="screen">
-            <!-- Sidebar com usuários -->
+        <!-- Tela de Login -->
+        <div id="login-screen" class="screen">
+            <div class="login-container">
+                <div class="login-header">
+                    <img src="https://ui-avatars.com/api/?name=OT&background=667eea&color=fff&size=50" alt="Logo" class="logo">
+                    <h1><i class="fas fa-comments"></i> Chat OrgTarefas</h1>
+                </div>
+                
+                <div class="login-form">
+                    <div class="input-group">
+                        <input type="text" id="usuario" placeholder="Digite seu usuário" autocomplete="username">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" id="senha" placeholder="Digite sua senha" autocomplete="current-password">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="login-btn" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Acessar Sistema
+                        </button>
+                    </div>
+                    
+                    <div class="status" id="login-status"></div>
+                </div>
+                
+                <div class="login-info">
+                    <h3><i class="fas fa-users"></i> Usuários Disponíveis</h3>
+                    <div class="users-list">
+                        <div class="user-example">
+                            <strong>thiago.barbosa</strong> - Thiago Barbosa (Dev)
+                        </div>
+                        <div class="user-example">
+                            <strong>evandro.junior</strong> - Evandro Messias (Convenios)
+                        </div>
+                        <p class="small">Use as credenciais do sistema principal</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tela do Chat -->
+        <div id="chat-screen" class="screen hidden">
+            <!-- Sidebar -->
             <div class="sidebar">
                 <div class="sidebar-header">
-                    <h3><i class="fas fa-users"></i> Usuários Online</h3>
-                    <button id="refresh-btn" class="btn-logout" title="Atualizar">
-                        <i class="fas fa-sync-alt"></i>
+                    <div class="header-left">
+                        <h3><i class="fas fa-comments"></i> Mensagens</h3>
+                        <span class="app-name">OrgTarefas</span>
+                    </div>
+                    <button id="logout-btn" class="btn-logout" title="Sair do sistema">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
                 
-                <!-- Informações do usuário atual -->
+                <!-- Usuário atual -->
                 <div class="user-info">
-                    <img id="user-avatar" src="https://ui-avatars.com/api/?name=Usuario&background=667eea&color=fff" alt="Avatar">
+                    <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
                     <div class="user-details">
-                        <span id="current-user-name">Usuário Teste</span>
-                        <span id="current-user-perfil" class="user-perfil">Convidado</span>
+                        <span id="current-user-name" class="user-name">Carregando...</span>
+                        <div class="user-info-bottom">
+                            <span id="current-user-login" class="user-login"></span>
+                            <span id="current-user-perfil" class="user-perfil"></span>
+                            <span id="online-status" class="status-online">● online</span>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Lista de usuários online -->
-                <div class="online-users" id="online-users">
-                    <div class="loading">
+                <!-- Pesquisa -->
+                <div class="search-container">
+                    <div class="input-group search-group">
+                        <input type="text" id="search-input" placeholder="Pesquisar conversas...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                </div>
+                
+                <!-- Lista de conversas -->
+                <div class="section-header">
+                    <h4><i class="fas fa-inbox"></i> Conversas</h4>
+                    <span id="conversations-count" class="count-badge">0</span>
+                </div>
+                <div class="conversations-list" id="conversations-list">
+                    <div class="loading-conversations">
                         <i class="fas fa-spinner fa-spin"></i>
-                        <p>Conectando...</p>
+                        <p>Carregando suas conversas...</p>
+                    </div>
+                </div>
+                
+                <!-- Usuários online -->
+                <div class="section-header">
+                    <h4><i class="fas fa-user-check"></i> Colegas Online</h4>
+                    <span id="online-count" class="count-badge">0</span>
+                </div>
+                <div class="online-users" id="online-users-list">
+                    <div class="loading-online">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Buscando colegas online...</p>
                     </div>
                 </div>
             </div>
 
             <!-- Área principal do chat -->
             <div class="main-content">
-                <!-- Cabeçalho do chat -->
-                <div class="chat-header">
-                    <div class="chat-info">
-                        <i class="fas fa-comments"></i>
-                        <h2>Chat Geral</h2>
+                <!-- Cabeçalho da conversa -->
+                <div class="chat-header" id="chat-header">
+                    <div class="chat-info-default" id="chat-info-default">
+                        <div class="default-icon">
+                            <i class="fas fa-comment-dots"></i>
+                        </div>
+                        <div class="default-content">
+                            <h2>Bem-vindo ao Chat</h2>
+                            <p>Selecione uma conversa ou inicie uma nova</p>
+                        </div>
                     </div>
-                    <div class="chat-stats">
-                        <span id="online-count">1 online</span>
+                    
+                    <div class="chat-info-active hidden" id="chat-info-active">
+                        <div class="active-user">
+                            <img id="active-user-avatar" src="" alt="Avatar" class="active-avatar">
+                            <div class="active-user-info">
+                                <h2 id="active-user-name">Nome do Usuário</h2>
+                                <div class="active-user-details">
+                                    <span id="active-user-perfil" class="user-perfil-small"></span>
+                                    <span id="active-user-status" class="user-status">● online</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="btn-action" title="Informações">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Mensagens -->
-                <div class="messages-container" id="messages-container">
-                    <div class="welcome-message">
-                        <i class="fas fa-comment-alt"></i>
-                        <h3>Bem-vindo ao Chat!</h3>
-                        <p>Digite uma mensagem para começar.</p>
+                <!-- Área de mensagens -->
+                <div class="messages-area">
+                    <div class="messages-container" id="messages-container">
+                        <div class="welcome-screen" id="welcome-screen">
+                            <div class="welcome-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <div class="welcome-content">
+                                <h3>Chat em Tempo Real</h3>
+                                <p>Conecte-se com seus colegas de trabalho</p>
+                                <div class="welcome-features">
+                                    <div class="feature">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <span>Seguro e privado</span>
+                                    </div>
+                                    <div class="feature">
+                                        <i class="fas fa-history"></i>
+                                        <span>Histórico salvo</span>
+                                    </div>
+                                    <div class="feature">
+                                        <i class="fas fa-bolt"></i>
+                                        <span>Tempo real</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Input de mensagem -->
-                <div class="message-input-area">
-                    <div class="input-tools">
-                        <button id="emoji-btn" class="btn-tool" title="Emoji">
-                            <i class="fas fa-smile"></i>
+                    <!-- Input de mensagem -->
+                    <div class="message-input-area hidden" id="message-input-area">
+                        <div class="input-tools">
+                            <button id="emoji-btn" class="btn-tool" title="Emoji">
+                                <i class="fas fa-smile"></i>
+                            </button>
+                            <button id="attach-btn" class="btn-tool" title="Anexar arquivo">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="message-input" placeholder="Digite sua mensagem..." autocomplete="off">
+                        <button id="send-btn" class="btn-send">
+                            <i class="fas fa-paper-plane"></i>
                         </button>
-                        <button id="attach-btn" class="btn-tool" title="Anexar arquivo">
-                            <i class="fas fa-paperclip"></i>
-                        </button>
-                        <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt" hidden>
                     </div>
-                    <input type="text" id="message-input" placeholder="Digite sua mensagem..." autocomplete="off">
-                    <button id="send-btn" class="btn-send">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-
-                <!-- Upload em progresso -->
-                <div id="upload-progress" class="upload-progress hidden">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                    </div>
-                    <span class="progress-text">Enviando arquivo...</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal para visualizar imagem -->
-    <div id="image-modal" class="modal hidden">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <img id="modal-image" src="" alt="Imagem">
-        </div>
-    </div>
-
-    <script>
-        // ========== CONFIGURAÇÃO FIREBASE ==========
-        const chatFirebaseConfig = {
-            apiKey: "AIzaSyAYROPCh-558mNXPrO7onAXFvfBe13q5Js",
-            authDomain: "orgtarefas-chat.firebaseapp.com",
-            databaseURL: "https://orgtarefas-chat-default-rtdb.firebaseio.com",
-            projectId: "orgtarefas-chat",
-            storageBucket: "orgtarefas-chat.firebasestorage.app",
-            messagingSenderId: "380919096800",
-            appId: "1:380919096800:web:7b54e7e341c9266c207785"
-        };
-
-        // ========== INICIALIZAR FIREBASE ==========
-        firebase.initializeApp(chatFirebaseConfig);
-        const db = firebase.database();
-        const storage = firebase.storage();
-
-        // ========== ELEMENTOS DOM ==========
-        const chatScreen = document.getElementById('chat-screen');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
-        const messagesContainer = document.getElementById('messages-container');
-        const onlineUsersContainer = document.getElementById('online-users');
-        const currentUserName = document.getElementById('current-user-name');
-        const currentUserPerfil = document.getElementById('current-user-perfil');
-        const userAvatar = document.getElementById('user-avatar');
-        const onlineCount = document.getElementById('online-count');
-        const attachBtn = document.getElementById('attach-btn');
-        const emojiBtn = document.getElementById('emoji-btn');
-        const fileInput = document.getElementById('file-input');
-        const refreshBtn = document.getElementById('refresh-btn');
-
-        // ========== VARIÁVEIS GLOBAIS ==========
-        let currentUser = {
-            uid: 'user_' + Math.random().toString(36).substr(2, 9),
-            nome: 'Usuário Teste ' + Math.floor(Math.random() * 100),
-            perfil: 'Convidado',
-            avatar: 'https://ui-avatars.com/api/?name=Usuario&background=' + 
-                   ['667eea', '764ba2', 'f093fb', '4facfe'][Math.floor(Math.random() * 4)] + 
-                   '&color=fff'
-        };
-        
-        let messagesRef = null;
-        let usersRef = null;
-
-        // ========== INICIALIZAÇÃO ==========
-        async function init() {
-            console.log('🚀 Inicializando chat...');
-            
-            // Configurar usuário
-            setupCurrentUser();
-            
-            // Configurar event listeners
-            setupEventListeners();
-            
-            // Conectar ao banco de dados
-            await connectToDatabase();
-            
-            console.log('✅ Chat pronto!');
-        }
-
-        // ========== CONFIGURAR USUÁRIO ==========
-        function setupCurrentUser() {
-            // Definir nome aleatório se quiser
-            const nomes = ['Ana Silva', 'Carlos Santos', 'Maria Oliveira', 'João Pereira', 'Laura Costa'];
-            const perfis = ['Desenvolvedor', 'Designer', 'Gerente', 'Analista', 'Suporte'];
-            
-            currentUser.nome = nomes[Math.floor(Math.random() * nomes.length)];
-            currentUser.perfil = perfis[Math.floor(Math.random() * perfis.length)];
-            currentUser.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.nome)}&background=667eea&color=fff`;
-            
-            // Atualizar interface
-            currentUserName.textContent = currentUser.nome;
-            currentUserPerfil.textContent = currentUser.perfil;
-            userAvatar.src = currentUser.avatar;
-        }
-
-        // ========== CONECTAR AO BANCO DE DADOS ==========
-        async function connectToDatabase() {
-            try {
-                // Salvar usuário online
-                await db.ref(`users/${currentUser.uid}`).set({
-                    uid: currentUser.uid,
-                    displayName: currentUser.nome,
-                    perfil: currentUser.perfil,
-                    avatarUrl: currentUser.avatar,
-                    isOnline: true,
-                    lastSeen: Date.now()
-                });
-
-                // Configurar desconexão automática
-                db.ref(`users/${currentUser.uid}/isOnline`).onDisconnect().set(false);
-                db.ref(`users/${currentUser.uid}/lastSeen`).onDisconnect().set(Date.now());
-
-                // Iniciar listeners
-                setupRealtimeListeners();
-                
-            } catch (error) {
-                console.error('❌ Erro ao conectar:', error);
-                showError('Erro ao conectar ao chat');
-            }
-        }
-
-        // ========== LISTENERS EM TEMPO REAL ==========
-        function setupRealtimeListeners() {
-            // Ouvir mensagens
-            messagesRef = db.ref('messages');
-            messagesRef.orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
-                const messagesData = snapshot.val();
-                const messages = [];
-                
-                if (messagesData) {
-                    Object.keys(messagesData).forEach(key => {
-                        messages.push({ id: key, ...messagesData[key] });
-                    });
-                    messages.sort((a, b) => a.timestamp - b.timestamp);
-                    renderMessages(messages);
-                }
-            });
-
-            // Ouvir usuários online
-            usersRef = db.ref('users');
-            usersRef.orderByChild('isOnline').equalTo(true).on('value', (snapshot) => {
-                const usersData = snapshot.val();
-                const users = [];
-                
-                if (usersData) {
-                    Object.keys(usersData).forEach(key => {
-                        if (key !== currentUser.uid) {
-                            users.push({ id: key, ...usersData[key] });
-                        }
-                    });
-                    renderOnlineUsers(users);
-                    onlineCount.textContent = `${users.length + 1} online`;
-                }
-            });
-        }
-
-        // ========== EVENT LISTENERS ==========
-        function setupEventListeners() {
-            // Enviar mensagem
-            sendBtn.addEventListener('click', sendMessage);
-            
-            // Enter para enviar
-            messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-
-            // Atualizar lista
-            refreshBtn.addEventListener('click', () => {
-                location.reload();
-            });
-
-            // Anexar arquivo
-            attachBtn.addEventListener('click', () => {
-                fileInput.click();
-            });
-
-            // Emoji (simples)
-            emojiBtn.addEventListener('click', () => {
-                const emojis = ['😀', '😊', '👍', '❤️', '🎉', '🔥', '💯'];
-                const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                messageInput.value += emoji;
-                messageInput.focus();
-            });
-
-            // Upload de arquivo
-            fileInput.addEventListener('change', handleFileUpload);
-        }
-
-        // ========== ENVIAR MENSAGEM ==========
-        async function sendMessage() {
-            const text = messageInput.value.trim();
-            
-            if (!text) {
-                messageInput.focus();
-                return;
-            }
-
-            try {
-                const messageId = db.ref('messages').push().key;
-                const messageData = {
-                    id: messageId,
-                    senderId: currentUser.uid,
-                    senderName: currentUser.nome,
-                    senderPerfil: currentUser.perfil,
-                    text: text,
-                    timestamp: Date.now()
-                };
-
-                await db.ref(`messages/${messageId}`).set(messageData);
-                messageInput.value = '';
-                scrollToBottom();
-                
-            } catch (error) {
-                console.error('❌ Erro ao enviar:', error);
-                showError('Erro ao enviar mensagem');
-            }
-        }
-
-        // ========== UPLOAD DE ARQUIVO ==========
-        async function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Arquivo muito grande (máx 5MB)');
-                return;
-            }
-
-            // Aqui você implementaria o upload real
-            alert('Upload de arquivo funcionando! (implementação completa no próximo passo)');
-            fileInput.value = '';
-        }
-
-        // ========== RENDERIZAR MENSAGENS ==========
-        function renderMessages(messages) {
-            messagesContainer.innerHTML = '';
-            
-            if (messages.length === 0) {
-                messagesContainer.innerHTML = `
-                    <div class="welcome-message">
-                        <i class="fas fa-comment-alt"></i>
-                        <h3>Bem-vindo ao Chat!</h3>
-                        <p>Seja o primeiro a enviar uma mensagem!</p>
-                    </div>`;
-                return;
-            }
-
-            messages.forEach(msg => {
-                const div = document.createElement('div');
-                const isSent = msg.senderId === currentUser.uid;
-                const time = formatTime(msg.timestamp);
-                
-                div.className = `message ${isSent ? 'sent' : 'received'}`;
-                div.innerHTML = `
-                    <div class="message-header">
-                        <span class="message-sender">${msg.senderName}</span>
-                        <span class="message-time">${time}</span>
-                    </div>
-                    <div class="message-text">${formatMessageText(msg.text)}</div>
-                    ${msg.senderPerfil ? `<div class="message-perfil">${msg.senderPerfil}</div>` : ''}
-                `;
-                
-                messagesContainer.appendChild(div);
-            });
-            
-            scrollToBottom();
-        }
-
-        // ========== RENDERIZAR USUÁRIOS ONLINE ==========
-        function renderOnlineUsers(users) {
-            onlineUsersContainer.innerHTML = '';
-            
-            if (users.length === 0) {
-                onlineUsersContainer.innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-user-friends"></i>
-                        <p>Apenas você está online</p>
-                    </div>`;
-                return;
-            }
-
-            // Adicionar usuário atual no topo
-            const currentUserElement = document.createElement('div');
-            currentUserElement.className = 'user-item current';
-            currentUserElement.innerHTML = `
-                <img src="${currentUser.avatar}" alt="${currentUser.nome}" class="user-avatar">
-                <div class="user-details">
-                    <div class="user-name">${currentUser.nome} <small>(Você)</small></div>
-                    <div class="user-status">${currentUser.perfil}</div>
-                </div>
-                <div class="status-indicator online"></div>
-            `;
-            onlineUsersContainer.appendChild(currentUserElement);
-
-            // Adicionar outros usuários
-            users.forEach(user => {
-                const userElement = document.createElement('div');
-                userElement.className = 'user-item';
-                userElement.innerHTML = `
-                    <img src="${user.avatarUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'U') + '&background=667eea&color=fff'}" 
-                         alt="${user.displayName}" class="user-avatar">
-                    <div class="user-details">
-                        <div class="user-name">${user.displayName || 'Usuário'}</div>
-                        <div class="user-status">${user.perfil || 'Online'}</div>
-                    </div>
-                    <div class="status-indicator online"></div>
-                `;
-                onlineUsersContainer.appendChild(userElement);
-            });
-        }
-
-        // ========== FUNÇÕES AUXILIARES ==========
-        function formatTime(timestamp) {
-            const date = new Date(timestamp);
-            return date.toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-            });
-        }
-
-        function formatMessageText(text) {
-            if (!text) return '';
-            return text
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\n/g, '<br>')
-                .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="message-link">$1</a>');
-        }
-
-        function scrollToBottom() {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function showError(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>${message}</span>
-            `;
-            
-            // Adicionar ao chat
-            const chatHeader = document.querySelector('.chat-header');
-            chatHeader.parentNode.insertBefore(errorDiv, chatHeader.nextSibling);
-            
-            // Remover após 5 segundos
-            setTimeout(() => {
-                errorDiv.remove();
-            }, 5000);
-        }
-
-        // ========== INICIAR ==========
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
-
+    <script src="chat.js"></script>
+    
     <style>
-        /* Estilos adicionais */
-        .user-item.current {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-left: 3px solid #667eea;
+        /* ESTILOS ESPECÍFICOS PARA O CHAT REAL */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
-        .user-item.current .user-name small {
-            font-size: 0.8em;
-            color: #667eea;
-            font-style: italic;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
         }
         
-        .message-perfil {
-            font-size: 0.8em;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 5px;
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 8px;
-            border-radius: 10px;
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         
-        .message.received .message-perfil {
-            color: rgba(0, 0, 0, 0.6);
-            background: rgba(0, 0, 0, 0.05);
+        /* TELA DE LOGIN */
+        .screen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
         
-        .message-link {
-            color: #667eea;
-            text-decoration: underline;
-            word-break: break-all;
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 450px;
+            overflow: hidden;
         }
         
-        .message.sent .message-link {
-            color: #ffffff;
-            opacity: 0.9;
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
         }
         
-        .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 10px 20px;
-            border-radius: 5px;
-            margin: 10px;
+        .login-header .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .login-header h1 {
+            font-size: 1.8em;
+            font-weight: 600;
             display: flex;
             align-items: center;
             gap: 10px;
-            animation: slideIn 0.3s ease;
+            margin: 0;
         }
         
-        .error-message i {
-            font-size: 1.2em;
+        .login-form {
+            padding: 30px;
         }
         
-        @keyframes slideIn {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
         }
         
-        .fa-spin {
-            animation: fa-spin 1s infinite linear;
+        .input-group input {
+            width: 100%;
+            padding: 16px 16px 16px 50px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f8f9fa;
         }
         
-        @keyframes fa-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .input-group i {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #667eea;
+            font-size: 18px;
+        }
+        
+        .button-group {
+            margin-top: 30px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
+            min-height: 20px;
+            display: none;
+        }
+        
+        .login-info {
+            background: #f8f9fa;
+            padding: 25px;
+            border-top: 1px solid #e1e5e9;
+        }
+        
+        .login-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .users-list {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .user-example {
+            padding: 12px;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .user-example:last-child {
+            border-bottom: none;
+        }
+        
+        .user-example strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .small {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            text-align: center;
+            font-style: italic;
+        }
+        
+        /* TELA DO CHAT */
+        #chat-screen {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            background: #f0f2f5;
         }
         
         .hidden {
             display: none !important;
         }
         
-        /* Botão de refresh */
-        #refresh-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s;
+        /* SIDEBAR */
+        .sidebar {
+            width: 350px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+        
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .sidebar-header h3 {
+            font-size: 18px;
+            color: #333;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 10px;
         }
         
-        #refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(180deg);
+        .app-name {
+            font-size: 12px;
+            color: #667eea;
+            background: #f0f2f5;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-weight: 600;
         }
         
-        /* Botão de emoji */
-        #emoji-btn {
+        .btn-logout {
             background: #f0f2f5;
             border: none;
             width: 45px;
             height: 45px;
-            border-radius: 50%;
+            border-radius: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -558,21 +460,672 @@
             transition: all 0.3s;
         }
         
-        #emoji-btn:hover {
-            background: #667eea;
-            color: white;
+        .btn-logout:hover {
+            background: #ffebee;
+            color: #f44336;
+            transform: rotate(90deg);
         }
         
-        /* Status indicator */
+        /* USUÁRIO ATUAL */
+        .user-info {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #eee;
+            background: white;
+        }
+        
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .user-details {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .user-name {
+            font-weight: 700;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .user-info-bottom {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .user-login {
+            font-size: 13px;
+            color: #666;
+            background: #f0f2f5;
+            padding: 3px 10px;
+            border-radius: 10px;
+        }
+        
+        .user-perfil {
+            font-size: 12px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .status-online {
+            font-size: 12px;
+            color: #4caf50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-online:before {
+            content: '●';
+            font-size: 16px;
+        }
+        
+        /* PESQUISA */
+        .search-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .search-group input {
+            background: #f8f9fa;
+            border: 2px solid #e1e5e9;
+            padding: 12px 12px 12px 45px;
+            font-size: 14px;
+        }
+        
+        .search-group i {
+            color: #999;
+            font-size: 16px;
+        }
+        
+        /* SEÇÕES */
+        .section-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        
+        .section-header h4 {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .count-badge {
+            background: #667eea;
+            color: white;
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            min-width: 25px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* LISTA DE CONVERSAS */
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        
+        .loading-conversations, .loading-online {
+            padding: 40px 20px;
+            text-align: center;
+            color: #666;
+        }
+        
+        .loading-conversations i, .loading-online i {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .loading-conversations p, .loading-online p {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .conversation-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        
+        .conversation-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .conversation-item.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 3px solid #667eea;
+        }
+        
+        .conversation-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e1e5e9;
+        }
+        
+        .conversation-details {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .conversation-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+        
+        .conversation-last-message {
+            font-size: 13px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .conversation-time {
+            font-size: 11px;
+            color: #999;
+            white-space: nowrap;
+        }
+        
+        .unread-badge {
+            background: #f44336;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* USUÁRIOS ONLINE */
+        .online-users {
+            padding: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .user-online-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .user-online-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .user-online-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #4caf50;
+        }
+        
+        .user-online-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .user-online-perfil {
+            font-size: 12px;
+            color: #666;
+        }
+        
         .status-indicator {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-        }
-        
-        .status-indicator.online {
             background: #4caf50;
             box-shadow: 0 0 5px #4caf50;
+            margin-left: auto;
+        }
+        
+        /* ÁREA PRINCIPAL */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .chat-header {
+            background: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .chat-info-default, .chat-info-active {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .default-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .default-content h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .default-content p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .active-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .active-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+        
+        .active-user-info h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .active-user-details {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-perfil-small {
+            font-size: 12px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+        
+        .user-status {
+            font-size: 12px;
+            color: #4caf50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .user-status:before {
+            content: '●';
+            font-size: 14px;
+        }
+        
+        .chat-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-action {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            border: 2px solid #e1e5e9;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .btn-action:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f8f9fa;
+        }
+        
+        /* ÁREA DE MENSAGENS */
+        .messages-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: #666;
+        }
+        
+        .welcome-icon {
+            font-size: 80px;
+            color: #667eea;
+            margin-bottom: 30px;
+            opacity: 0.7;
+        }
+        
+        .welcome-content h3 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .welcome-content p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+        
+        .welcome-features {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .feature {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .feature i {
+            font-size: 24px;
+            color: #667eea;
+        }
+        
+        .feature span {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* MENSAGENS */
+        .message {
+            max-width: 70%;
+            padding: 15px;
+            border-radius: 18px;
+            margin-bottom: 15px;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+            word-wrap: break-word;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .message-sender {
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .message-time {
+            opacity: 0.8;
+            font-size: 12px;
+        }
+        
+        .message.received .message-time {
+            color: #888;
+        }
+        
+        .message-text {
+            line-height: 1.5;
+            font-size: 15px;
+        }
+        
+        .message-text a {
+            color: inherit;
+            text-decoration: underline;
+        }
+        
+        .message.sent .message-text a {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        /* INPUT DE MENSAGEM */
+        .message-input-area {
+            background: white;
+            padding: 20px 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border-top: 1px solid #ddd;
+        }
+        
+        .input-tools {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-tool {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e1e5e9;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .btn-tool:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f8f9fa;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        #message-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-send {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* NO CONVERSATIONS / NO USERS */
+        .no-conversations, .no-users {
+            padding: 40px 20px;
+            text-align: center;
+            color: #999;
+        }
+        
+        .no-conversations i, .no-users i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        /* RESPONSIVIDADE */
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 300px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            #chat-screen {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 40vh;
+            }
+            
+            .main-content {
+                height: 60vh;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+            
+            .login-container {
+                margin: 20px;
+                padding: 0;
+            }
+            
+            .welcome-features {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+        
+        /* ANIMAÇÃO SPIN */
+        .fa-spin {
+            animation: fa-spin 1s infinite linear;
+        }
+        
+        @keyframes fa-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </body>
