@@ -714,7 +714,57 @@ body {
 
 .item-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    align-items: center;
+}
+
+.status-selector {
+    margin-right: 8px;
+}
+
+.status-select {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 120px;
+}
+
+.status-select:hover {
+    border-color: #3498db;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Cores para cada status no select */
+.status-select option[value="nao_iniciado"] {
+    color: #6c757d;
+}
+
+.status-select option[value="pendente"] {
+    color: #f39c12;
+}
+
+.status-select option[value="andamento"] {
+    color: #3498db;
+}
+
+.status-select option[value="concluido"] {
+    color: #27ae60;
+}
+
+/* Indicador visual quando está processando */
+.status-select.processing {
+    opacity: 0.7;
+    cursor: wait;
+    background-color: #f8f9fa;
 }
 
 .btn-icon {
@@ -899,9 +949,6 @@ textarea.form-control {
         align-items: flex-start;
     }
     
-    .item-actions {
-        align-self: flex-end;
-    }
 }
 
 @keyframes pulse {
