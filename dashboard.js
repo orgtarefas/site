@@ -136,24 +136,6 @@ class SistemaMonitoramento {
         }
     }
 
-    // Função de teste
-    async function testarVinculos() {
-        console.log('🧪 TESTANDO VÍNCULOS...');
-        
-        // Buscar todas as atividades
-        const snapshot = await db.collection('atividades').get();
-        
-        snapshot.docs.forEach(doc => {
-            const atividade = doc.data();
-            console.log(`📝 ${doc.id}: ${atividade.titulo}`);
-            console.log(`   Status: ${atividade.status}`);
-            console.log(`   Vínculos: ${atividade.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
-        });
-        
-        // Testar listener
-        console.log('👂 Listener está ativo?', db._listeners?.length || 0);
-    }
-
 
     async processarConclusaoAtividade(atividadeId) {
         try {
