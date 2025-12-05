@@ -77,6 +77,124 @@ body {
     border-color: #2980b9;
 }
 
+/* Adicionar ao final do dashboard.css existente */
+
+/* Estilos para vínculos de atividades */
+.vinculos-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.vinculos-container .form-check {
+    margin-bottom: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.vinculos-container .form-check:last-child {
+    border-bottom: none;
+}
+
+.vinculos-container .form-check-input {
+    margin-right: 8px;
+}
+
+.vinculos-container .form-check-label {
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.vinculos-container .form-check-label strong {
+    color: #2C3E50;
+}
+
+.vinculos-container .form-check-label small {
+    color: #6c757d;
+}
+
+.alert-info {
+    background-color: #e8f4fd;
+    border: 1px solid #b6d4fe;
+    color: #055160;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.alert-info i {
+    margin-right: 8px;
+    color: #0dcaf0;
+}
+
+/* Estilo para mostrar atividades vinculadas na lista */
+.checklist-item .item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.checklist-item .vinculos-badge {
+    background-color: #e8f4fd;
+    color: #055160;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.checklist-item .vinculos-badge i {
+    font-size: 10px;
+}
+
+/* Ícone de vínculo nas atividades */
+.item-info::before {
+    /* Remover o pseudo-elemento anterior se existir */
+}
+
+/* Nova classe para atividades com vínculos */
+.atividade-com-vinculos {
+    border-left: 3px solid #0dcaf0;
+}
+
+/* Tooltip para vínculos */
+.vinculos-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.vinculos-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+}
+
+.vinculos-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+
 /* Status de sincronização */
 .status-sync {
     display: flex;
