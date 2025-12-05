@@ -738,7 +738,7 @@ class SistemaMonitoramento {
     }
 }
 
-} // ← Esta é a linha de FECHAMENTO da classe SistemaMonitoramento (linha ~680)
+
 
 // ========== ADICIONE A FUNÇÃO AQUI ==========
 async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
