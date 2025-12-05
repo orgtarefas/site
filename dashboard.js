@@ -502,6 +502,9 @@ class SistemaMonitoramento {
                                     </option>
                                 `).join('');
                                 
+                                // IMPORTANTE: Escapar aspas no título para evitar erros
+                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
+                                
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
                                         <div class="item-info">
@@ -534,8 +537,8 @@ class SistemaMonitoramento {
                                             <div class="status-selector">
                                                 <select class="status-select" 
                                                         data-id="${atividade.id}"
-                                                        data-titulo="${atividade.titulo}"
-                                                        onchange="alterarStatusAtividade('${atividade.id}', this.value, '${atividade.titulo}')">
+                                                        data-titulo="${tituloEscapado}"
+                                                        onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
                                                     ${selectHTML}
                                                 </select>
                                             </div>
