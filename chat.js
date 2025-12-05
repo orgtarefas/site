@@ -22,107 +22,198 @@ const chatFirebaseConfig = {
 };
 
 // ========== INICIALIZAR OS DOIS APPS ==========
-
-// App de Login (nome: 'loginApp')
 const loginApp = firebase.initializeApp(loginFirebaseConfig, 'loginApp');
-
-// App do Chat (nome: 'chatApp') - Este será o DEFAULT
 const chatApp = firebase.initializeApp(chatFirebaseConfig);
 
 // ========== OBTER REFERÊNCIAS DOS SERVIÇOS ==========
+const loginDb = firebase.firestore(loginApp);
+const chatDb = firebase.database();
+const storage = firebase.storage();
 
-// Serviços do App de Login
-const loginAuth = loginApp.auth();
-const loginDb = firebase.firestore(loginApp); // Firestore para logins
-
-// Serviços do App do Chat
-const chatAuth = firebase.auth(); // DEFAULT app (chat)
-const chatDb = firebase.database(); // Realtime Database para chat
-const storage = firebase.storage(); // Storage para chat
+// ========== ELEMENTOS DOM ==========
+const loginScreen = document.getElementById('login-screen');
+const chatScreen = document.getElementById('chat-screen');
+const emailInput = document.getElementById('email'); // Vamos reutilizar como "usuário"
+const passwordInput = document.getElementById('password');
+const displayNameInput = document.getElementById('displayName');
+const loginBtn = document.getElementById('login-btn');
+const signupBtn = document.getElementById('signup-btn');
+const loginStatus = document.getElementById('login-status');
+const logoutBtn = document.getElementById('logout-btn');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const messagesContainer = document.getElementById('messages-container');
+const onlineUsersContainer = document.getElementById('online-users');
+const currentUserName = document.getElementById('current-user-name');
+const userAvatar = document.getElementById('user-avatar');
+const onlineCount = document.getElementById('online-count');
+const attachBtn = document.getElementById('attach-btn');
+const fileInput = document.getElementById('file-input');
 
 // ========== VARIÁVEIS GLOBAIS ==========
 let currentUser = null;
 let messagesRef = null;
 let usersRef = null;
 
-// Elementos DOM (mantidos iguais)
-// ...
-
-// ========== FUNÇÕES DE AUTENTICAÇÃO (Firestore) ==========
-
+// ========== FUNÇÕES DE AUTENTICAÇÃO ==========
 async function handleLogin() {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
+    const usuario = emailInput.value.trim(); // Agora é "usuário", não "email"
+    const senha = passwordInput.value;
     
-    if (!email || !password) {
-        showStatus('Preencha e-mail e senha', 'error');
+    if (!usuario || !senha) {
+        showStatus('Preencha usuário e senha', 'error');
         return;
     }
     
     try {
-        // 1. Buscar usuário na coleção LOGINS_ORGTAREFAS
-        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS')
-            .where('user1_email', '==', email)
-            .limit(1)
-            .get();
+        console.log('Buscando usuário:', usuario);
+        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
+        console.log('Total de documentos:', querySnapshot.size);
         
-        if (querySnapshot.empty) {
+        let usuarioEncontrado = null;
+        let encontrou = false;
+        
+        querySnapshot.forEach(doc => {
+            if (encontrou) return; // Se já encontrou, para
+        
+            const dados = doc.data();
+            console.log('Analisando documento:', doc.id);
+            
+            // Procurar por qualquer campo que termine com _login
+            for (const [chave, valor] of Object.entries(dados)) {
+                if (chave.endsWith('_login') && valor === usuario) {
+                    console.log('Login encontrado no campo:', chave);
+                    
+                    const prefixo = chave.replace('_login', '');
+                    console.log('Prefixo identificado:', prefixo);
+                    
+                    // Construir nomes dos outros campos
+                    const senhaKey = `${prefixo}_senha`;
+                    const statusKey = `${prefixo}_status`;
+                    const emailKey = `${prefixo}_email`;
+                    const nomeKey = `${prefixo}_nome`;
+                    const perfilKey = `${prefixo}_perfil`;
+                    
+                    console.log('Campos a verificar:', {
+                        senhaKey,
+                        statusKey,
+                        emailKey,
+                        nomeKey,
+                        perfilKey
+                    });
+                    
+                    // Verificar se os campos existem
+                    if (!dados[senhaKey]) {
+                        console.log('Campo de senha não encontrado:', senhaKey);
+                        continue;
+                    }
+                    
+                    // Verificar senha
+                    if (dados[senhaKey] === senha) {
+                        console.log('Senha correta!');
+                        
+                        // Verificar status
+                        if (dados[statusKey] === 'Ativo') {
+                            console.log('Usuário ativo!');
+                            
+                            usuarioEncontrado = {
+                                uid: `${doc.id}_${prefixo}`,
+                                docId: doc.id,
+                                prefixo: prefixo,
+                                login: valor, // nome de usuário
+                                email: dados[emailKey] || '', // e-mail (se existir)
+                                nome: dados[nomeKey] || valor, // nome completo ou login
+                                perfil: dados[perfilKey] || '',
+                                status: dados[statusKey]
+                            };
+                            
+                            console.log('Usuário montado:', usuarioEncontrado);
+                            encontrou = true;
+                            return;
+                        } else {
+                            showStatus('Usuário inativo', 'error');
+                            encontrou = true;
+                            return;
+                        }
+                    } else {
+                        console.log('Senha incorreta');
+                        showStatus('Senha incorreta', 'error');
+                        encontrou = true;
+                        return;
+                    }
+                }
+            }
+        });
+        
+        if (!usuarioEncontrado && !encontrou) {
             showStatus('Usuário não encontrado', 'error');
             return;
         }
         
-        const userDoc = querySnapshot.docs[0];
-        const userData = userDoc.data();
-        
-        // 2. Verificar senha
-        if (userData.user1_senha !== password) {
-            showStatus('Senha incorreta', 'error');
-            return;
+        if (usuarioEncontrado) {
+            currentUser = usuarioEncontrado;
+            await setupChatUser(currentUser);
+            
+            showStatus(`Bem-vindo, ${currentUser.nome}!`, 'success');
+            clearLoginForm();
+            showChatScreen();
+            setupRealtimeListeners();
         }
-        
-        // 3. Verificar status
-        if (userData.user1_status !== 'Ativo') {
-            showStatus('Usuário inativo', 'error');
-            return;
-        }
-        
-        // 4. Login bem sucedido - criar sessão manual
-        currentUser = {
-            uid: userDoc.id,
-            email: userData.user1_email,
-            displayName: userData.user1_nome || userData.user1_login,
-            login: userData.user1_login,
-            nome: userData.user1_nome,
-            perfil: userData.user1_perfil,
-            dataCadastro: userData.user1_datacadastro
-        };
-        
-        // 5. Criar usuário no app de chat (sem auth do Firebase)
-        await setupChatUser(currentUser);
-        
-        showStatus('Login realizado com sucesso!', 'success');
-        clearLoginForm();
-        showChatScreen();
-        setupRealtimeListeners();
         
     } catch (error) {
         console.error('Erro no login:', error);
-        showStatus('Erro ao fazer login', 'error');
+        showStatus('Erro no sistema: ' + error.message, 'error');
     }
+}
+
+// Função para buscar por email também (opcional)
+async function buscarPorEmail(email) {
+    const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
+    
+    let usuarioEncontrado = null;
+    
+    querySnapshot.forEach(doc => {
+        const dados = doc.data();
+        
+        for (const [chave, valor] of Object.entries(dados)) {
+            if (chave.endsWith('_email') && valor === email) {
+                const prefixo = chave.replace('_email', '');
+                
+                const loginKey = `${prefixo}_login`;
+                const senhaKey = `${prefixo}_senha`;
+                const statusKey = `${prefixo}_status`;
+                const nomeKey = `${prefixo}_nome`;
+                const perfilKey = `${prefixo}_perfil`;
+                
+                if (dados[statusKey] === 'Ativo') {
+                    usuarioEncontrado = {
+                        uid: `${doc.id}_${prefixo}`,
+                        docId: doc.id,
+                        prefixo: prefixo,
+                        login: dados[loginKey] || '',
+                        email: valor,
+                        nome: dados[nomeKey] || dados[loginKey] || '',
+                        perfil: dados[perfilKey] || '',
+                        status: dados[statusKey]
+                    };
+                    return;
+                }
+            }
+        }
+    });
+    
+    return usuarioEncontrado;
 }
 
 async function handleSignup() {
     showStatus('Cadastro apenas via sistema principal', 'info');
-    // Ou implemente cadastro aqui se necessário
 }
 
 // ========== FUNÇÕES DO CHAT ==========
-
 async function setupChatUser(userData) {
-    // Atualizar interface
     currentUserName.textContent = userData.nome || userData.login;
     
-    // Gerar avatar
+    // Gerar avatar baseado no nome
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome || userData.login)}&background=667eea&color=fff`;
     userAvatar.src = avatarUrl;
     
@@ -131,10 +222,10 @@ async function setupChatUser(userData) {
     
     await userRef.set({
         uid: userData.uid,
-        email: userData.email,
-        displayName: userData.nome || userData.login,
         login: userData.login,
-        perfil: userData.perfil,
+        email: userData.email || '',
+        displayName: userData.nome || userData.login,
+        perfil: userData.perfil || '',
         avatarUrl: avatarUrl,
         isOnline: true,
         lastSeen: Date.now()
@@ -197,7 +288,7 @@ async function sendMessage() {
         const messageData = {
             id: messageId,
             senderId: currentUser.uid,
-            senderName: currentUser.displayName,
+            senderName: currentUser.nome || currentUser.login,
             senderLogin: currentUser.login,
             senderPerfil: currentUser.perfil,
             text: text || '',
@@ -229,7 +320,6 @@ async function handleLogout() {
 }
 
 // ========== FUNÇÕES AUXILIARES ==========
-
 function checkAuthState() {
     // Verificar se há sessão salva
     const savedUser = localStorage.getItem('chatUser');
@@ -240,7 +330,10 @@ function checkAuthState() {
             setupRealtimeListeners();
         } catch (e) {
             localStorage.removeItem('chatUser');
+            showLoginScreen();
         }
+    } else {
+        showLoginScreen();
     }
 }
 
@@ -282,7 +375,6 @@ function disconnectListeners() {
     if (usersRef) usersRef.off();
 }
 
-// Renderizar mensagens (adaptado para mostrar perfil)
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
     
@@ -334,7 +426,6 @@ function formatMessageText(text) {
         .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
 }
 
-// Renderizar usuários online
 function renderOnlineUsers(users) {
     onlineUsersContainer.innerHTML = '';
     
@@ -395,7 +486,7 @@ function setupEventListeners() {
     fileInput.addEventListener('change', handleFileUpload);
 }
 
-// Upload de arquivo (simplificado)
+// Upload de arquivo
 function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
