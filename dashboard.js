@@ -10,7 +10,9 @@ class SistemaMonitoramento {
         this.charts = {};
         this.sistemaEditando = null;
         this.atividadeEditando = null;
+        this.atividadesDisponiveis = []; // Todas as atividades para vínculos
     }
+
 
     async init() {
         console.log('🚀 Inicializando Dashboard...');
@@ -20,6 +22,9 @@ class SistemaMonitoramento {
         
         // Carregar dados PRIMEIRO
         await this.carregarDados();
+        
+        // Carregar atividades disponíveis para vínculos
+        await this.carregarAtividadesParaVinculo();
         
         // Inicializar gráficos DEPOIS de carregar dados
         this.inicializarGraficos();
@@ -32,6 +37,26 @@ class SistemaMonitoramento {
         
         console.log('✅ Dashboard inicializado com sucesso!');
     }
+
+    async carregarAtividadesParaVinculo() {
+        try {
+            const snapshot = await db.collection('atividades').get();
+            this.atividadesDisponiveis = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
+            }));
+            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
+        } catch (error) {
+            console.error('❌ Erro ao carregar atividades para vínculo:', error);
+        }
+    }
+
+    getNomeSistema(sistemaId) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
+        return sistema ? sistema.nome : 'Sistema não encontrado';
+    }
+    
 
     async verificarAutenticacao() {
         const usuarioLogado = localStorage.getItem('usuarioLogado');
@@ -58,6 +83,7 @@ class SistemaMonitoramento {
         document.getElementById('mainContent').style.display = 'block';
     }
 
+
     async carregarDados() {
         console.log('📊 Carregando dados do Firebase...');
         
@@ -82,7 +108,8 @@ class SistemaMonitoramento {
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
+                ...doc.data(),
+                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
             }));
             
             // Agrupar atividades por sistema
@@ -102,6 +129,54 @@ class SistemaMonitoramento {
                 '<i class="fas fa-exclamation-triangle"></i> Offline';
         }
     }
+
+    async processarConclusaoAtividade(atividadeId) {
+        try {
+            // Buscar a atividade
+            const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+            if (!atividadeDoc.exists) return;
+
+            const atividade = atividadeDoc.data();
+            
+            // Verificar se há atividades vinculadas
+            if (atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0) {
+                console.log(`🔄 Processando conclusão da atividade ${atividadeId}`);
+                console.log(`📋 Atividades vinculadas: ${atividade.atividadesVinculadas.join(', ')}`);
+                
+                // Atualizar todas as atividades vinculadas para "pendente"
+                const batch = db.batch();
+                
+                for (const vinculadaId of atividade.atividadesVinculadas) {
+                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
+                    
+                    // Verificar se a atividade existe
+                    const vinculadaDoc = await atividadeVinculadaRef.get();
+                    if (vinculadaDoc.exists) {
+                        batch.update(atividadeVinculadaRef, {
+                            status: 'pendente',
+                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        console.log(`✅ Atividade ${vinculadaId} atualizada para pendente`);
+                    }
+                }
+                
+                await batch.commit();
+                console.log(`✅ Todas as atividades vinculadas atualizadas`);
+                
+                // Recarregar dados após atualização
+                setTimeout(() => {
+                    this.carregarDados().then(() => {
+                        this.renderizarSistemas();
+                        this.atualizarGraficos();
+                    });
+                }, 1000);
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao processar conclusão:', error);
+        }
+    }
+}
 
     inicializarGraficos() {
         this.inicializarGraficoStatus();
@@ -744,6 +819,45 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     // Verificar qual status está selecionado
     const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
     
+    // Preparar lista de atividades disponíveis para vínculo
+    let atividadesVinculadasHTML = '';
+    if (monitoramento.atividadesDisponiveis.length > 0) {
+        // Filtrar para não mostrar a própria atividade (se for edição)
+        const atividadesParaVincular = monitoramento.atividadesDisponiveis.filter(atv => 
+            !atividadeExistente || atv.id !== atividadeExistente.id
+        );
+        
+        // Verificar quais atividades já estão vinculadas
+        const atividadesVinculadasIds = atividadeExistente && atividadeExistente.atividadesVinculadas 
+            ? atividadeExistente.atividadesVinculadas 
+            : [];
+        
+        atividadesVinculadasHTML = `
+            <div class="form-group">
+                <label for="vinculosAtividade">
+                    <i class="fas fa-link"></i> Vincular Atividades (opcional)
+                    <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
+                </label>
+                <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                    ${atividadesParaVincular.map(atv => {
+                        const checked = atividadesVinculadasIds.includes(atv.id) ? 'checked' : '';
+                        return `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
+                                <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
+                                    <strong>${atv.titulo}</strong>
+                                    <small class="text-muted"> (${atv.sistemaNome || 'Sistema'}) - ${getLabelStatus(atv.status)}</small>
+                                </label>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                ${atividadesParaVincular.length === 0 ? 
+                    '<p class="text-muted small">Não há outras atividades disponíveis para vínculo</p>' : ''}
+            </div>
+        `;
+    }
+    
     document.getElementById('modalAtividadeBody').innerHTML = `
         <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${sistemaId}', '${tipo}');">
             <div class="form-group">
@@ -780,7 +894,7 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
                 </div>
                 <div class="form-group">
                     <label for="statusAtividade">Status</label>
-                    <select id="statusAtividade" class="form-control">
+                    <select id="statusAtividade" class="form-control" onchange="verificarConclusaoVinculos()">
                         <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>Não Iniciado</option>
                         <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>Pendente</option>
                         <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>Em Andamento</option>
@@ -788,6 +902,14 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
                     </select>
                 </div>
             </div>
+            
+            ${atividadesVinculadasHTML}
+            
+            <div class="alert alert-info" id="alertVinculos" style="display: none; margin-top: 15px;">
+                <i class="fas fa-info-circle"></i> 
+                <span id="alertVinculosText"></span>
+            </div>
+            
             <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
                 <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Cancelar</button>
                 <button type="submit" class="btn btn-primary">
@@ -798,6 +920,23 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     `;
     
     modal.style.display = 'flex';
+    
+    // Verificar se há alerta para mostrar
+    verificarConclusaoVinculos();
+}
+
+function verificarConclusaoVinculos() {
+    const statusSelecionado = document.getElementById('statusAtividade').value;
+    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
+    const alertDiv = document.getElementById('alertVinculos');
+    const alertText = document.getElementById('alertVinculosText');
+    
+    if (statusSelecionado === 'concluido' && checkboxes.length > 0) {
+        alertText.textContent = `Ao salvar, ${checkboxes.length} atividade(s) vinculada(s) será(ão) alterada(s) para "Pendente".`;
+        alertDiv.style.display = 'block';
+    } else {
+        alertDiv.style.display = 'none';
+    }
 }
 
 function getLabelStatus(status) {
@@ -874,6 +1013,9 @@ async function salvarAtividade(sistemaId, tipo) {
 
 async function editarAtividade(atividadeId) {
     try {
+        // Atualizar lista de atividades para vínculo
+        await monitoramento.carregarAtividadesParaVinculo();
+        
         // Buscar atividade no Firebase
         const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
         
@@ -893,6 +1035,30 @@ async function editarAtividade(atividadeId) {
         console.error('❌ Erro ao buscar atividade:', error);
         alert('Erro ao carregar atividade: ' + error.message);
     }
+}
+
+// Listener para monitorar mudanças de status
+function configurarListenerConclusoes() {
+    db.collection('atividades').onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'modified') {
+                const atividadeAntiga = change.doc._previousData;
+                const atividadeNova = change.doc.data();
+                
+                // Verificar se o status mudou para "concluido"
+                if (atividadeAntiga.status !== 'concluido' && 
+                    atividadeNova.status === 'concluido') {
+                    
+                    console.log(`🔄 Atividade ${change.doc.id} foi concluída!`);
+                    
+                    // Processar atividades vinculadas
+                    setTimeout(() => {
+                        monitoramento.processarConclusaoAtividade(change.doc.id);
+                    }, 500);
+                }
+            }
+        });
+    });
 }
 
 async function excluirAtividade(atividadeId) {
@@ -916,6 +1082,11 @@ async function excluirAtividade(atividadeId) {
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
     monitoramento.init();
+
+    // Iniciar listener para conclusões após um delay
+    setTimeout(() => {
+        configurarListenerConclusoes();
+    }, 3000);
 });
 
 // Fechar modais clicando fora
