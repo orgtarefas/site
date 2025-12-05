@@ -59,8 +59,8 @@ let currentConversation = null;
 let conversationsRef = null;
 let usersRef = null;
 let messagesRef = null;
-let allRealUsers = []; // Cache de TODOS os usuários REAIS do Firestore
-let onlineUsersCache = {}; // Cache de usuários online no chat
+let allRealUsers = [];
+let onlineUsersCache = {};
 
 // ========== INICIALIZAÇÃO ==========
 function init() {
@@ -107,48 +107,59 @@ async function handleLogin() {
         showStatus('🔍 Verificando credenciais...', 'info');
         console.log('Tentando login com:', login);
         
-        // Buscar usuário por login (campo EXATO "login")
-        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS')
-            .where('login', '==', login)
-            .limit(1)
-            .get();
+        // BUSCAR EM TODOS OS DOCUMENTOS DA COLEÇÃO
+        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
+        console.log('Total de documentos:', querySnapshot.size);
         
-        console.log('Resultado da busca:', querySnapshot.size, 'documentos');
+        let usuarioEncontrado = null;
         
-        if (querySnapshot.empty) {
+        querySnapshot.forEach(doc => {
+            const dados = doc.data();
+            console.log('Analisando documento:', doc.id, dados);
+            
+            // PROCURAR EM TODOS OS CAMPOS DO DOCUMENTO
+            for (const [campo, valor] of Object.entries(dados)) {
+                // Verificar se é um campo do tipo map (objeto)
+                if (typeof valor === 'object' && valor !== null && valor.login) {
+                    console.log('Campo encontrado:', campo, valor);
+                    
+                    if (valor.login === login) {
+                        console.log('✅ Login encontrado no campo:', campo);
+                        
+                        // Verificar senha
+                        if (valor.senha === senha) {
+                            console.log('✅ Senha correta!');
+                            
+                            usuarioEncontrado = {
+                                uid: `${doc.id}_${campo}`, // ID único: docId_campo
+                                docId: doc.id,
+                                campo: campo,
+                                login: valor.login,
+                                nome: valor.displayName || valor.login,
+                                perfil: valor.perfil || 'Usuário',
+                                email: valor.email || '',
+                                status: valor.status || 'Ativo'
+                            };
+                            
+                            console.log('👤 Usuário montado:', usuarioEncontrado);
+                            return; // Para a busca
+                        } else {
+                            showStatus('❌ Senha incorreta', 'error');
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        
+        if (!usuarioEncontrado) {
             showStatus('❌ Usuário não encontrado', 'error');
             return;
         }
         
-        const doc = querySnapshot.docs[0];
-        const userData = doc.data();
+        currentUser = usuarioEncontrado;
         
-        console.log('Dados do usuário:', userData);
-        
-        // Verificar senha (campo EXATO "senha")
-        if (userData.senha !== senha) {
-            showStatus('❌ Senha incorreta', 'error');
-            return;
-        }
-        
-        // Verificar status (se existir)
-        if (userData.status && userData.status !== 'Ativo') {
-            showStatus('❌ Usuário inativo', 'error');
-            return;
-        }
-        
-        // Login bem-sucedido
-        currentUser = {
-            uid: doc.id,
-            login: userData.login || login,
-            nome: userData.displayName || userData.login || 'Usuário',
-            perfil: userData.perfil || 'Usuário',
-            email: userData.email || ''
-        };
-        
-        console.log('✅ Login bem-sucedido:', currentUser);
-        
-        // 1. Carregar TODOS os usuários reais do Firestore
+        // 1. Carregar TODOS os usuários reais
         await loadAllRealUsers();
         
         // 2. Configurar usuário no chat
@@ -171,24 +182,33 @@ async function handleLogin() {
 // ========== CARREGAR TODOS OS USUÁRIOS REAIS ==========
 async function loadAllRealUsers() {
     try {
-        console.log('🔍 Carregando TODOS os usuários do Firestore...');
+        console.log('🔍 Carregando TODOS os usuários...');
         const snapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
         allRealUsers = [];
         
         snapshot.forEach(doc => {
-            const data = doc.data();
-            const usuario = {
-                uid: doc.id,
-                login: data.login || '',
-                nome: data.displayName || data.login || 'Usuário',
-                perfil: data.perfil || 'Usuário',
-                email: data.email || ''
-            };
+            const dados = doc.data();
             
-            // Adicionar apenas se tiver login
-            if (usuario.login) {
-                allRealUsers.push(usuario);
-                console.log(`👤 Usuário real: ${usuario.nome} (${usuario.login})`);
+            // Percorrer todos os campos do documento
+            for (const [campo, valor] of Object.entries(dados)) {
+                if (typeof valor === 'object' && valor !== null && valor.login) {
+                    const usuario = {
+                        uid: `${doc.id}_${campo}`,
+                        docId: doc.id,
+                        campo: campo,
+                        login: valor.login,
+                        nome: valor.displayName || valor.login,
+                        perfil: valor.perfil || 'Usuário',
+                        email: valor.email || '',
+                        status: valor.status || 'Ativo'
+                    };
+                    
+                    // Adicionar apenas se for diferente do usuário atual
+                    if (usuario.uid !== currentUser.uid) {
+                        allRealUsers.push(usuario);
+                        console.log(`👤 Usuário carregado: ${usuario.nome} (${usuario.login})`);
+                    }
+                }
             }
         });
         
