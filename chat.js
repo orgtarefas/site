@@ -6,8 +6,8 @@ const loginFirebaseConfig = {
     authDomain: "logins-c3407.firebaseapp.com",
     projectId: "logins-c3407",
     storageBucket: "logins-c3407.firebasestorage.app",
-    messagingSenderId: "809861558230",
-    appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
+    messagingSenderId: "809861058230",
+    appId: "1:809861058230:web:e6e41bf1db9b3cfd887e77"
 };
 
 // 2. PROJETO DO CHAT (Realtime Database)
@@ -30,194 +30,75 @@ const loginDb = firebase.firestore(loginApp);
 const chatDb = firebase.database();
 const storage = firebase.storage();
 
-// ========== ELEMENTOS DOM ==========
-const loginScreen = document.getElementById('login-screen');
+// ========== ELEMENTOS DOM DO CHAT ==========
+// REMOVA TODOS OS ELEMENTOS DE LOGIN QUE NÃO EXISTEM MAIS
 const chatScreen = document.getElementById('chat-screen');
-const emailInput = document.getElementById('email'); // Vamos reutilizar como "usuário"
-const passwordInput = document.getElementById('password');
-const displayNameInput = document.getElementById('displayName');
-const loginBtn = document.getElementById('login-btn');
-const signupBtn = document.getElementById('signup-btn');
-const loginStatus = document.getElementById('login-status');
-const logoutBtn = document.getElementById('logout-btn');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const messagesContainer = document.getElementById('messages-container');
 const onlineUsersContainer = document.getElementById('online-users');
 const currentUserName = document.getElementById('current-user-name');
+const currentUserPerfil = document.getElementById('current-user-perfil');
 const userAvatar = document.getElementById('user-avatar');
 const onlineCount = document.getElementById('online-count');
 const attachBtn = document.getElementById('attach-btn');
 const fileInput = document.getElementById('file-input');
+const logoutBtn = document.getElementById('logout-btn');
 
 // ========== VARIÁVEIS GLOBAIS ==========
 let currentUser = null;
 let messagesRef = null;
 let usersRef = null;
 
-// ========== FUNÇÕES DE AUTENTICAÇÃO ==========
-async function handleLogin() {
-    const usuario = emailInput.value.trim(); // Agora é "usuário", não "email"
-    const senha = passwordInput.value;
-    
-    if (!usuario || !senha) {
-        showStatus('Preencha usuário e senha', 'error');
-        return;
-    }
-    
+// ========== CONFIGURAÇÃO INICIAL ==========
+async function init() {
     try {
-        console.log('Buscando usuário:', usuario);
-        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
-        console.log('Total de documentos:', querySnapshot.size);
-        
-        let usuarioEncontrado = null;
-        let encontrou = false;
-        
-        querySnapshot.forEach(doc => {
-            if (encontrou) return; // Se já encontrou, para
-        
-            const dados = doc.data();
-            console.log('Analisando documento:', doc.id);
-            
-            // Procurar por qualquer campo que termine com _login
-            for (const [chave, valor] of Object.entries(dados)) {
-                if (chave.endsWith('_login') && valor === usuario) {
-                    console.log('Login encontrado no campo:', chave);
-                    
-                    const prefixo = chave.replace('_login', '');
-                    console.log('Prefixo identificado:', prefixo);
-                    
-                    // Construir nomes dos outros campos
-                    const senhaKey = `${prefixo}_senha`;
-                    const statusKey = `${prefixo}_status`;
-                    const emailKey = `${prefixo}_email`;
-                    const nomeKey = `${prefixo}_nome`;
-                    const perfilKey = `${prefixo}_perfil`;
-                    
-                    console.log('Campos a verificar:', {
-                        senhaKey,
-                        statusKey,
-                        emailKey,
-                        nomeKey,
-                        perfilKey
-                    });
-                    
-                    // Verificar se os campos existem
-                    if (!dados[senhaKey]) {
-                        console.log('Campo de senha não encontrado:', senhaKey);
-                        continue;
-                    }
-                    
-                    // Verificar senha
-                    if (dados[senhaKey] === senha) {
-                        console.log('Senha correta!');
-                        
-                        // Verificar status
-                        if (dados[statusKey] === 'Ativo') {
-                            console.log('Usuário ativo!');
-                            
-                            usuarioEncontrado = {
-                                uid: `${doc.id}_${prefixo}`,
-                                docId: doc.id,
-                                prefixo: prefixo,
-                                login: valor, // nome de usuário
-                                email: dados[emailKey] || '', // e-mail (se existir)
-                                nome: dados[nomeKey] || valor, // nome completo ou login
-                                perfil: dados[perfilKey] || '',
-                                status: dados[statusKey]
-                            };
-                            
-                            console.log('Usuário montado:', usuarioEncontrado);
-                            encontrou = true;
-                            return;
-                        } else {
-                            showStatus('Usuário inativo', 'error');
-                            encontrou = true;
-                            return;
-                        }
-                    } else {
-                        console.log('Senha incorreta');
-                        showStatus('Senha incorreta', 'error');
-                        encontrou = true;
-                        return;
-                    }
-                }
-            }
-        });
-        
-        if (!usuarioEncontrado && !encontrou) {
-            showStatus('Usuário não encontrado', 'error');
-            return;
+        // 1. REMOVA A TELA DE LOGIN DO HTML OU ESCONDA-A
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) {
+            loginScreen.style.display = 'none';
         }
         
-        if (usuarioEncontrado) {
-            currentUser = usuarioEncontrado;
-            await setupChatUser(currentUser);
-            
-            showStatus(`Bem-vindo, ${currentUser.nome}!`, 'success');
-            clearLoginForm();
-            showChatScreen();
-            setupRealtimeListeners();
-        }
+        // 2. MOSTRAR O CHAT DIRETAMENTE
+        chatScreen.classList.remove('hidden');
+        
+        // 3. DEFINIR UM USUÁRIO FIXO PARA TESTE (REMOVA DEPOIS)
+        currentUser = {
+            uid: 'test_user_1',
+            login: 'usuarioteste',
+            nome: 'Usuário Teste',
+            perfil: 'Teste',
+            email: 'teste@exemplo.com'
+        };
+        
+        // 4. CONFIGURAR O USUÁRIO
+        await setupChatUser(currentUser);
+        
+        // 5. CONFIGURAR EVENT LISTENERS DO CHAT
+        setupChatEventListeners();
+        
+        // 6. INICIAR LISTENERS EM TEMPO REAL
+        setupRealtimeListeners();
+        
+        console.log('✅ Chat inicializado com sucesso!');
         
     } catch (error) {
-        console.error('Erro no login:', error);
-        showStatus('Erro no sistema: ' + error.message, 'error');
+        console.error('❌ Erro ao inicializar chat:', error);
+        alert('Erro ao carregar o chat. Recarregue a página.');
     }
 }
 
-// Função para buscar por email também (opcional)
-async function buscarPorEmail(email) {
-    const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
-    
-    let usuarioEncontrado = null;
-    
-    querySnapshot.forEach(doc => {
-        const dados = doc.data();
-        
-        for (const [chave, valor] of Object.entries(dados)) {
-            if (chave.endsWith('_email') && valor === email) {
-                const prefixo = chave.replace('_email', '');
-                
-                const loginKey = `${prefixo}_login`;
-                const senhaKey = `${prefixo}_senha`;
-                const statusKey = `${prefixo}_status`;
-                const nomeKey = `${prefixo}_nome`;
-                const perfilKey = `${prefixo}_perfil`;
-                
-                if (dados[statusKey] === 'Ativo') {
-                    usuarioEncontrado = {
-                        uid: `${doc.id}_${prefixo}`,
-                        docId: doc.id,
-                        prefixo: prefixo,
-                        login: dados[loginKey] || '',
-                        email: valor,
-                        nome: dados[nomeKey] || dados[loginKey] || '',
-                        perfil: dados[perfilKey] || '',
-                        status: dados[statusKey]
-                    };
-                    return;
-                }
-            }
-        }
-    });
-    
-    return usuarioEncontrado;
-}
-
-async function handleSignup() {
-    showStatus('Cadastro apenas via sistema principal', 'info');
-}
-
-// ========== FUNÇÕES DO CHAT ==========
+// ========== CONFIGURAR USUÁRIO NO CHAT ==========
 async function setupChatUser(userData) {
-    currentUserName.textContent = userData.nome || userData.login;
+    // Atualizar interface
+    if (currentUserName) currentUserName.textContent = userData.nome || userData.login;
+    if (currentUserPerfil) currentUserPerfil.textContent = userData.perfil || 'Usuário';
     
-    // Gerar avatar baseado no nome
+    // Gerar avatar
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome || userData.login)}&background=667eea&color=fff`;
-    userAvatar.src = avatarUrl;
+    if (userAvatar) userAvatar.src = avatarUrl;
     
-    // Salvar/atualizar usuário no RTDB do chat
+    // Salvar no RTDB do chat
     const userRef = chatDb.ref(`users/${userData.uid}`);
     
     await userRef.set({
@@ -225,7 +106,7 @@ async function setupChatUser(userData) {
         login: userData.login,
         email: userData.email || '',
         displayName: userData.nome || userData.login,
-        perfil: userData.perfil || '',
+        perfil: userData.perfil || 'Usuário',
         avatarUrl: avatarUrl,
         isOnline: true,
         lastSeen: Date.now()
@@ -238,6 +119,42 @@ async function setupChatUser(userData) {
     return userData;
 }
 
+// ========== EVENT LISTENERS DO CHAT ==========
+function setupChatEventListeners() {
+    // Botão de enviar mensagem
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    
+    // Enter para enviar mensagem
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+    
+    // Botão de logout
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+    
+    // Botão de anexar arquivo
+    if (attachBtn) {
+        attachBtn.addEventListener('click', () => {
+            if (fileInput) fileInput.click();
+        });
+    }
+    
+    // Upload de arquivo
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileUpload);
+    }
+}
+
+// ========== LISTENERS EM TEMPO REAL ==========
 function setupRealtimeListeners() {
     if (!currentUser) return;
     
@@ -269,13 +186,14 @@ function setupRealtimeListeners() {
                 }
             });
             renderOnlineUsers(users);
-            onlineCount.textContent = `${users.length + 1} online`;
+            if (onlineCount) onlineCount.textContent = `${users.length + 1} online`;
         }
     });
 }
 
+// ========== ENVIAR MENSAGEM ==========
 async function sendMessage() {
-    if (!currentUser) return;
+    if (!currentUser || !messageInput) return;
     
     const text = messageInput.value.trim();
     
@@ -300,82 +218,32 @@ async function sendMessage() {
         scrollToBottom();
     } catch (error) {
         console.error('Erro:', error);
-        showStatus('Erro ao enviar mensagem', 'error');
+        alert('Erro ao enviar mensagem');
     }
 }
 
+// ========== LOGOUT ==========
 async function handleLogout() {
     if (currentUser) {
-        // Marcar como offline no chat
-        await chatDb.ref(`users/${currentUser.uid}`).update({
-            isOnline: false,
-            lastSeen: Date.now()
-        });
-        
-        // Limpar sessão
-        currentUser = null;
-        disconnectListeners();
-        showLoginScreen();
-    }
-}
-
-// ========== FUNÇÕES AUXILIARES ==========
-function checkAuthState() {
-    // Verificar se há sessão salva
-    const savedUser = localStorage.getItem('chatUser');
-    if (savedUser) {
         try {
-            currentUser = JSON.parse(savedUser);
-            showChatScreen();
-            setupRealtimeListeners();
-        } catch (e) {
-            localStorage.removeItem('chatUser');
-            showLoginScreen();
+            // Marcar como offline no chat
+            await chatDb.ref(`users/${currentUser.uid}`).update({
+                isOnline: false,
+                lastSeen: Date.now()
+            });
+            
+            // Recarregar a página (simula logout)
+            location.reload();
+        } catch (error) {
+            console.error('Erro no logout:', error);
         }
-    } else {
-        showLoginScreen();
     }
 }
 
-function showStatus(message, type) {
-    loginStatus.textContent = message;
-    loginStatus.style.color = type === 'error' ? '#f44336' : 
-                              type === 'success' ? '#4caf50' : '#2196f3';
-    loginStatus.style.display = 'block';
-    
-    setTimeout(() => {
-        loginStatus.style.display = 'none';
-    }, 3000);
-}
-
-function clearLoginForm() {
-    emailInput.value = '';
-    passwordInput.value = '';
-    displayNameInput.value = '';
-}
-
-function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-function showChatScreen() {
-    loginScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
-    messageInput.focus();
-}
-
-function showLoginScreen() {
-    loginScreen.classList.remove('hidden');
-    chatScreen.classList.add('hidden');
-    emailInput.focus();
-}
-
-function disconnectListeners() {
-    if (messagesRef) messagesRef.off();
-    if (usersRef) usersRef.off();
-}
-
+// ========== RENDERIZAR MENSAGENS ==========
 function renderMessages(messages) {
+    if (!messagesContainer) return;
+    
     messagesContainer.innerHTML = '';
     
     if (messages.length === 0) {
@@ -416,17 +284,10 @@ function renderMessages(messages) {
     scrollToBottom();
 }
 
-function formatMessageText(text) {
-    if (!text) return '';
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>')
-        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-}
-
+// ========== RENDERIZAR USUÁRIOS ONLINE ==========
 function renderOnlineUsers(users) {
+    if (!onlineUsersContainer) return;
+    
     onlineUsersContainer.innerHTML = '';
     
     if (users.length === 0) {
@@ -454,51 +315,40 @@ function renderOnlineUsers(users) {
     });
 }
 
-// Inicializar app
-function init() {
-    setupEventListeners();
-    checkAuthState();
+// ========== FUNÇÕES AUXILIARES ==========
+function formatMessageText(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>')
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #667eea;">$1</a>');
 }
 
-// Event listeners
-function setupEventListeners() {
-    loginBtn.addEventListener('click', handleLogin);
-    signupBtn.addEventListener('click', handleSignup);
-    logoutBtn.addEventListener('click', handleLogout);
-    
-    emailInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    
-    passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFileUpload);
+function scrollToBottom() {
+    if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
 }
 
-// Upload de arquivo
 function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     
     if (file.size > 5 * 1024 * 1024) {
-        showStatus('Arquivo muito grande (máx 5MB)', 'error');
+        alert('Arquivo muito grande (máx 5MB)');
         return;
     }
     
-    showStatus('Upload em desenvolvimento...', 'info');
+    alert('Upload em desenvolvimento...');
     fileInput.value = '';
 }
 
-// Iniciar quando o DOM carregar
-document.addEventListener('DOMContentLoaded', init);
+// ========== INICIAR O CHAT ==========
+// Aguardar o DOM carregar
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
