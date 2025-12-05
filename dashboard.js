@@ -183,8 +183,9 @@ class SistemaMonitoramento {
                     await batch.commit();
                     console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
                     
-                    // Mostrar alerta
-                    alert(`✅ ${atualizadas} atividade(s) vinculada(s) foram alteradas para "Pendente"`);
+                    // ❌ REMOVER ESTE ALERTA - Apenas log no console
+                    // alert(`✅ ${atualizadas} atividade(s) vinculada(s) foram alteradas para "Pendente"`);
+                    
                 } else {
                     console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
                 }
@@ -202,7 +203,8 @@ class SistemaMonitoramento {
             
         } catch (error) {
             console.error('❌ Erro ao processar conclusão:', error);
-            alert('Erro ao processar conclusão: ' + error.message);
+            // ❌ REMOVER ESTE ALERTA TAMBÉM
+            // alert('Erro ao processar conclusão: ' + error.message);
         }
     }
 
