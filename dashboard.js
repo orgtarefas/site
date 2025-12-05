@@ -33,9 +33,15 @@ class SistemaMonitoramento {
         this.renderizarSistemas();
         
         // Configurar listeners
-        this.configurarListeners();
+        this.configurarListeners(); // ✅ Isso chama o listener de conclusões
         
         console.log('✅ Dashboard inicializado com sucesso!');
+        
+        // Teste rápido
+        setTimeout(() => {
+            console.log('🔍 Verificando configuração do listener...');
+            testarVinculos();
+        }, 3000);
     }
 
     async carregarAtividadesParaVinculo() {
@@ -130,13 +136,43 @@ class SistemaMonitoramento {
         }
     }
 
+    // Função de teste
+    async function testarVinculos() {
+        console.log('🧪 TESTANDO VÍNCULOS...');
+        
+        // Buscar todas as atividades
+        const snapshot = await db.collection('atividades').get();
+        
+        snapshot.docs.forEach(doc => {
+            const atividade = doc.data();
+            console.log(`📝 ${doc.id}: ${atividade.titulo}`);
+            console.log(`   Status: ${atividade.status}`);
+            console.log(`   Vínculos: ${atividade.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
+        });
+        
+        // Testar listener
+        console.log('👂 Listener está ativo?', db._listeners?.length || 0);
+    }
+
+
     async processarConclusaoAtividade(atividadeId) {
         try {
+            console.log(`🔍 PROCESSAR: Buscando atividade ${atividadeId}...`);
+            
             // Buscar a atividade
             const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-            if (!atividadeDoc.exists) return;
-
+            
+            if (!atividadeDoc.exists) {
+                console.log(`❌ Atividade ${atividadeId} não encontrada`);
+                return;
+            }
+    
             const atividade = atividadeDoc.data();
+            console.log(`📄 Dados da atividade:`, {
+                titulo: atividade.titulo,
+                status: atividade.status,
+                vinculos: atividade.atividadesVinculadas
+            });
             
             // Verificar se há atividades vinculadas
             if (atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0) {
@@ -145,6 +181,7 @@ class SistemaMonitoramento {
                 
                 // Atualizar todas as atividades vinculadas para "pendente"
                 const batch = db.batch();
+                let atualizadas = 0;
                 
                 for (const vinculadaId of atividade.atividadesVinculadas) {
                     const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
@@ -152,16 +189,28 @@ class SistemaMonitoramento {
                     // Verificar se a atividade existe
                     const vinculadaDoc = await atividadeVinculadaRef.get();
                     if (vinculadaDoc.exists) {
+                        const atividadeVinculada = vinculadaDoc.data();
+                        console.log(`🔄 Atualizando ${vinculadaId}: ${atividadeVinculada.titulo}`);
+                        
                         batch.update(atividadeVinculadaRef, {
                             status: 'pendente',
                             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                         });
-                        console.log(`✅ Atividade ${vinculadaId} atualizada para pendente`);
+                        atualizadas++;
+                    } else {
+                        console.log(`⚠️ Atividade vinculada ${vinculadaId} não existe`);
                     }
                 }
                 
-                await batch.commit();
-                console.log(`✅ Todas as atividades vinculadas atualizadas`);
+                if (atualizadas > 0) {
+                    await batch.commit();
+                    console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
+                    
+                    // Mostrar alerta
+                    alert(`✅ ${atualizadas} atividade(s) vinculada(s) foram alteradas para "Pendente"`);
+                } else {
+                    console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
+                }
                 
                 // Recarregar dados após atualização
                 setTimeout(() => {
@@ -170,10 +219,13 @@ class SistemaMonitoramento {
                         this.atualizarGraficos();
                     });
                 }, 1000);
+            } else {
+                console.log('ℹ️ Nenhuma atividade vinculada para processar');
             }
             
         } catch (error) {
             console.error('❌ Erro ao processar conclusão:', error);
+            alert('Erro ao processar conclusão: ' + error.message);
         }
     }
 
@@ -547,7 +599,7 @@ class SistemaMonitoramento {
     }
 
     configurarListeners() {
-        // Configurar listener em tempo real
+        // Listener para atualizações gerais
         db.collection('atividades').onSnapshot(() => {
             console.log('🔄 Atualizando dados em tempo real...');
             this.carregarDados().then(() => {
@@ -555,8 +607,43 @@ class SistemaMonitoramento {
                 this.atualizarGraficos();
             });
         });
+        
+        // ========== LISTENER ESPECÍFICO PARA CONCLUSÕES ==========
+        this.configurarListenerConclusoes();
     }
-
+    
+    // ADICIONAR ESTE MÉTODO À CLASSE
+    configurarListenerConclusoes() {
+        console.log('🎯 Configurando listener para conclusões...');
+        
+        db.collection('atividades').onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'modified') {
+                    const atividadeAntiga = change.doc._previousData;
+                    const atividadeNova = change.doc.data();
+                    
+                    // DEBUG: Verificar dados
+                    console.log('📊 Mudança detectada:', {
+                        id: change.doc.id,
+                        antigo: atividadeAntiga?.status,
+                        novo: atividadeNova?.status,
+                        temVinculos: atividadeNova?.atividadesVinculadas?.length || 0
+                    });
+                    
+                    // Verificar se o status mudou para "concluido"
+                    if (atividadeAntiga?.status !== 'concluido' && 
+                        atividadeNova.status === 'concluido') {
+                        
+                        console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
+                        console.log(`📋 Vínculos: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
+                        
+                        // Processar atividades vinculadas
+                        this.processarConclusaoAtividade(change.doc.id);
+                    }
+                }
+            });
+        });
+    }
     atualizarGraficos() {
         if (this.charts.status) {
             const dados = this.calcularEstatisticas();
@@ -981,7 +1068,7 @@ async function salvarAtividade(sistemaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    // CORREÇÃO: Coletar atividades vinculadas
+    // ========== CORREÇÃO CRÍTICA: COLETAR VÍNCULOS ==========
     const atividadesVinculadas = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
@@ -997,28 +1084,36 @@ async function salvarAtividade(sistemaId, tipo) {
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: status,
-        atividadesVinculadas: atividadesVinculadas, // ✅ ADICIONAR ESTE CAMPO
+        // ✅ AGORA ESTÁ SALVANDO OS VÍNCULOS
+        atividadesVinculadas: atividadesVinculadas,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // Se for nova atividade e status não foi definido, define como "Não Iniciado"
-    if (!monitoramento.atividadeEditando && !status) {
-        atividade.status = 'nao_iniciado';
-    }
-    
     try {
+        let atividadeId;
+        
         if (monitoramento.atividadeEditando) {
             // EDITAR atividade existente
-            await db.collection('atividades').doc(monitoramento.atividadeEditando).update(atividade);
+            atividadeId = monitoramento.atividadeEditando;
+            await db.collection('atividades').doc(atividadeId).update(atividade);
+            console.log(`✅ Atividade ${atividadeId} atualizada com vínculos:`, atividadesVinculadas);
             alert('✅ Atividade atualizada com sucesso!');
         } else {
             // CRIAR nova atividade
-            await db.collection('atividades').add({
+            const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
                 criadoPor: monitoramento.usuario.usuario
             });
+            atividadeId = docRef.id;
+            console.log(`✅ Nova atividade ${atividadeId} criada com vínculos:`, atividadesVinculadas);
             alert('✅ Atividade criada com sucesso!');
+        }
+        
+        // ========== CORREÇÃO: PROCESSAR SE FOR CONCLUÍDA ==========
+        if (status === 'concluido' && atividadesVinculadas.length > 0) {
+            console.log(`🔄 Atividade ${atividadeId} concluída com vínculos, processando...`);
+            await monitoramento.processarConclusaoAtividade(atividadeId);
         }
         
         fecharModalAtividade();
@@ -1026,6 +1121,7 @@ async function salvarAtividade(sistemaId, tipo) {
         
         // Recarregar dados
         await monitoramento.carregarDados();
+        await monitoramento.carregarAtividadesParaVinculo(); // Recarregar para vínculos
         monitoramento.renderizarSistemas();
         monitoramento.atualizarGraficos();
         
