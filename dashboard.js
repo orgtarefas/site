@@ -37,11 +37,6 @@ class SistemaMonitoramento {
         
         console.log('✅ Dashboard inicializado com sucesso!');
         
-        // Teste rápido
-        setTimeout(() => {
-            console.log('🔍 Verificando configuração do listener...');
-            testarVinculos();
-        }, 3000);
     }
 
     async carregarAtividadesParaVinculo() {
