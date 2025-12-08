@@ -4,146 +4,70 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat OrgTarefas</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div id="chat-screen" class="screen">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <div class="header-left">
-                        <h3><i class="fas fa-comments"></i> Mensagens</h3>
-                        <span class="app-name">OrgTarefas</span>
-                    </div>
-                    <button id="back-btn" class="btn-logout">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
+    <div id="app">
+        <!-- Seletor de Usuário -->
+        <div id="user-selector" style="padding: 20px;">
+            <h2>Entrar no Chat</h2>
+            <select id="user-select" style="padding: 10px; width: 300px;">
+                <option value="">Selecione seu usuário...</option>
+            </select>
+            <button id="login-btn" style="padding: 10px 20px; margin-left: 10px;">Entrar</button>
+            <div id="status" style="margin-top: 10px;"></div>
+        </div>
+
+        <!-- Interface do Chat (inicialmente escondida) -->
+        <div id="chat-interface" style="display: none;">
+            <!-- Cabeçalho -->
+            <div style="background: #f0f0f0; padding: 10px; display: flex; justify-content: space-between;">
+                <div>
+                    <h3>Chat</h3>
+                    <div>Usuário: <span id="current-user"></span></div>
                 </div>
-                
-                <!-- Seletor de Usuário (aparece apenas se não fez auto-login) -->
-                <div class="user-selector-container" id="user-selector-container">
-                    <div class="section-header">
-                        <h4><i class="fas fa-user"></i> Eu sou</h4>
-                    </div>
-                    <div class="user-selector">
-                        <select id="user-select" class="user-select-dropdown">
-                            <option value="">Selecione seu usuário...</option>
-                        </select>
-                        <button id="confirm-user-btn" class="btn-confirm-user" disabled>
-                            <i class="fas fa-check"></i> Entrar no Chat
-                        </button>
-                    </div>
-                    <div id="login-status" class="login-status"></div>
-                </div>
-                
-                <!-- Área do Usuário Logado (aparece após login) -->
-                <div class="user-info hidden" id="logged-user-area">
-                    <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
-                    <div class="user-details">
-                        <span id="current-user-name" class="user-name">Carregando...</span>
-                        <div class="user-info-bottom">
-                            <span id="current-user-login" class="user-login"></span>
-                            <span id="current-user-perfil" class="user-perfil"></span>
-                            <span id="online-status" class="status-online">● online</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Seção: Usuários Online (aparece após login) -->
-                <div class="section-header hidden" id="online-users-header">
-                    <h4><i class="fas fa-user-check"></i> Colegas Online</h4>
-                    <span id="online-count" class="count-badge">0</span>
-                </div>
-                <div class="online-users hidden" id="online-users-list">
-                    <div class="loading-online">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Buscando colegas online...</p>
-                    </div>
-                </div>
-                
-                <!-- Seção: Conversas (aparece após login) -->
-                <div class="section-header hidden" id="conversations-header">
-                    <h4><i class="fas fa-inbox"></i> Conversas</h4>
-                    <span id="conversations-count" class="count-badge">0</span>
-                </div>
-                <div class="conversations-list hidden" id="conversations-list">
-                    <div class="loading-conversations">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <p>Carregando suas conversas...</p>
-                    </div>
-                </div>
+                <button id="logout-btn">Sair</button>
             </div>
-            
-            <!-- Área principal do chat -->
-            <div class="main-content">
-                <!-- Cabeçalho da conversa -->
-                <div class="chat-header" id="chat-header">
-                    <div class="chat-info-default" id="chat-info-default">
-                        <div class="default-icon">
-                            <i class="fas fa-comment-dots"></i>
-                        </div>
-                        <div class="default-content">
-                            <h2>Bem-vindo ao Chat</h2>
-                            <p>Selecione um colega online para conversar</p>
-                        </div>
-                    </div>
+
+            <!-- Conteúdo principal -->
+            <div style="display: flex; height: 80vh;">
+                <!-- Lista de Usuários Online -->
+                <div style="width: 300px; border-right: 1px solid #ccc; padding: 10px;">
+                    <h4>Usuários Online (<span id="online-count">0</span>)</h4>
+                    <div id="online-users" style="height: 300px; overflow-y: auto;"></div>
                     
-                    <div class="chat-info-active hidden" id="chat-info-active">
-                        <div class="active-user">
-                            <img id="active-user-avatar" src="" alt="Avatar" class="active-avatar">
-                            <div class="active-user-info">
-                                <h2 id="active-user-name">Nome do Usuário</h2>
-                                <div class="active-user-details">
-                                    <span id="active-user-perfil" class="user-perfil-small"></span>
-                                    <span id="active-user-status" class="user-status">● online</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <h4 style="margin-top: 20px;">Conversas</h4>
+                    <div id="conversations" style="height: 300px; overflow-y: auto;"></div>
                 </div>
 
-                <!-- Área de mensagens -->
-                <div class="messages-area">
-                    <div class="messages-container" id="messages-container">
-                        <div class="welcome-screen" id="welcome-screen">
-                            <div class="welcome-icon">
-                                <i class="fas fa-comments"></i>
-                            </div>
-                            <div class="welcome-content">
-                                <h3>Chat em Tempo Real</h3>
-                                <p>Conecte-se com seus colegas de trabalho</p>
-                                <div class="welcome-features">
-                                    <div class="feature">
-                                        <i class="fas fa-shield-alt"></i>
-                                        <span>Seguro e privado</span>
-                                    </div>
-                                    <div class="feature">
-                                        <i class="fas fa-history"></i>
-                                        <span>Histórico salvo</span>
-                                    </div>
-                                    <div class="feature">
-                                        <i class="fas fa-bolt"></i>
-                                        <span>Tempo real</span>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Área de Chat -->
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <!-- Cabeçalho da conversa -->
+                    <div id="chat-header" style="padding: 10px; background: #e8e8e8;">
+                        <div id="no-conversation">
+                            <h4>Selecione um usuário para conversar</h4>
+                        </div>
+                        <div id="active-conversation" style="display: none;">
+                            <h4>Conversando com: <span id="other-user-name"></span></h4>
                         </div>
                     </div>
 
-                    <!-- Input de mensagem (aparece quando tem conversa ativa) -->
-                    <div class="message-input-area hidden" id="message-input-area">
-                        <input type="text" id="message-input" placeholder="Digite sua mensagem..." autocomplete="off">
-                        <button id="send-btn" class="btn-send">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
+                    <!-- Mensagens -->
+                    <div id="messages-container" style="flex: 1; padding: 10px; overflow-y: auto;"></div>
+
+                    <!-- Input de mensagem -->
+                    <div id="message-input-area" style="display: none; padding: 10px;">
+                        <input type="text" id="message-input" placeholder="Digite sua mensagem..." 
+                               style="width: 80%; padding: 10px;">
+                        <button id="send-btn" style="padding: 10px 20px;">Enviar</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK MODULAR -->
+    <!-- Firebase SDK -->
     <script type="module">
+        // ========== CONFIGURAÇÃO FIREBASE ==========
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { 
             getFirestore, 
@@ -158,16 +82,12 @@
             set, 
             update, 
             push, 
-            onValue, 
-            orderByChild, 
-            limitToLast,
-            onDisconnect,
-            query as rtdbQuery
+            onValue,
+            onDisconnect
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-        // ========== CONFIGURAÇÃO FIREBASE ==========
-        // PROJETO DE LOGINS (Firestore)
-        const loginsFirebaseConfig = {
+        // PROJETO 1: LOGINS (Firestore)
+        const loginsConfig = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
             authDomain: "logins-c3407.firebaseapp.com",
             projectId: "logins-c3407",
@@ -176,8 +96,8 @@
             appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
 
-        // PROJETO DO CHAT (Realtime Database)
-        const chatFirebaseConfig = {
+        // PROJETO 2: CHAT (Realtime Database)
+        const chatConfig = {
             apiKey: "AIzaSyAYROPCh-558mNXPrO7onAXFvfBe13q5Js",
             authDomain: "orgtarefas-chat.firebaseapp.com",
             databaseURL: "https://orgtarefas-chat-default-rtdb.firebaseio.com",
@@ -190,1537 +110,418 @@
         // ========== VARIÁVEIS GLOBAIS ==========
         let loginsDb, chatDb, currentUser = null;
         let currentConversation = null;
-        let conversationsRef = null;
-        let messagesRef = null;
-        let allUsers = [];
-        let unsubscribeLogins = null;
 
-        // ========== INICIALIZAR FIREBASE ==========
-        function initializeFirebase() {
+        // ========== INICIALIZAR ==========
+        async function init() {
+            console.log('Inicializando...');
+            
             try {
-                console.log('🚀 Inicializando Firebase...');
+                // Inicializar os dois projetos
+                const loginsApp = initializeApp(loginsConfig, 'loginsApp');
+                const chatApp = initializeApp(chatConfig, 'chatApp');
                 
-                // Inicializar app de logins (Firestore)
-                const loginsApp = initializeApp(loginsFirebaseConfig, 'loginsApp');
                 loginsDb = getFirestore(loginsApp);
-                console.log('✅ Firebase Logins inicializado');
-                
-                // Inicializar app do chat (Realtime Database)
-                const chatApp = initializeApp(chatFirebaseConfig, 'chatApp');
                 chatDb = getDatabase(chatApp);
-                console.log('✅ Firebase Chat inicializado');
                 
-                return true;
+                console.log('Firebase inicializado com sucesso!');
+                
+                // Verificar se já está logado
+                await tryAutoLogin();
+                
+                // Carregar lista de usuários
+                await loadUsers();
+                
+                setupEventListeners();
                 
             } catch (error) {
-                console.error('❌ Erro ao inicializar Firebase:', error);
-                showStatus('Erro ao conectar com o servidor', 'error');
-                return false;
-            }
-        }
-
-        // ========== ELEMENTOS DOM ==========
-        let userSelect, confirmUserBtn, loginStatus;
-
-        // ========== INICIALIZAÇÃO ==========
-        async function init() {
-            console.log('🚀 Inicializando chat...');
-            
-            if (!initializeFirebase()) return;
-            
-            setupDOM();
-            setupEventListeners();
-            
-            // Tentar auto-login
-            const autoLogged = await tryAutoLogin();
-            
-            // Se não fez auto-login, carregar lista para seleção
-            if (!autoLogged) {
-                await loadUsersForSelection();
-            }
-        }
-
-        // ========== CONFIGURAR ELEMENTOS DOM ==========
-        function setupDOM() {
-            userSelect = document.getElementById('user-select');
-            confirmUserBtn = document.getElementById('confirm-user-btn');
-            loginStatus = document.getElementById('login-status');
-        }
-
-        // ========== EVENT LISTENERS ==========
-        function setupEventListeners() {
-            if (userSelect) {
-                userSelect.addEventListener('change', (e) => {
-                    if (confirmUserBtn) confirmUserBtn.disabled = !e.target.value;
-                });
-            }
-            
-            if (confirmUserBtn) {
-                confirmUserBtn.addEventListener('click', handleUserSelection);
-            }
-            
-            // Listener para botão voltar
-            const backBtn = document.getElementById('back-btn');
-            if (backBtn) {
-                backBtn.addEventListener('click', handleBackButton);
-            }
-            
-            // Listener para envio de mensagem
-            const sendBtn = document.getElementById('send-btn');
-            const messageInput = document.getElementById('message-input');
-            
-            if (sendBtn) {
-                sendBtn.addEventListener('click', sendMessage);
-            }
-            
-            if (messageInput) {
-                messageInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        sendMessage();
-                    }
-                });
+                console.error('Erro ao inicializar:', error);
+                showStatus('Erro ao conectar', 'error');
             }
         }
 
         // ========== TENTAR AUTO-LOGIN ==========
         async function tryAutoLogin() {
+            const savedUser = localStorage.getItem('chatUser');
+            if (!savedUser) return false;
+            
             try {
-                const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
-                if (!usuarioLogadoStr) {
-                    console.log('ℹ️ Nenhum usuário logado no localStorage');
-                    return false;
-                }
+                const userData = JSON.parse(savedUser);
+                console.log('Tentando auto-login para:', userData.login);
                 
-                const usuarioLogado = JSON.parse(usuarioLogadoStr);
-                console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
-                
-                // Buscar usuário no documento LOGINS_ORGTAREFAS (Firestore do projeto logins)
+                // Verificar se o usuário ainda existe
                 const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-                console.log('🔍 Buscando documento: logins/LOGINS_ORGTAREFAS');
-                
                 const docSnap = await getDoc(loginsRef);
-                
-                console.log('📄 Documento encontrado?', docSnap.exists());
                 
                 if (docSnap.exists()) {
                     const loginsData = docSnap.data();
-                    console.log('📊 Usuários no documento:', Object.keys(loginsData).length);
                     
-                    // Procurar o usuário pelo login
-                    for (const [uid, userData] of Object.entries(loginsData)) {
-                        if (userData && userData.login === usuarioLogado.usuario) {
-                            console.log('✅ Usuário encontrado:', userData.login);
-                            console.log('📋 Dados do usuário:', userData);
-                            
-                            const usuarioChat = {
-                                uid: uid,
-                                docId: uid,
-                                login: userData.login,
-                                nome: userData.displayName || userData.login,
-                                perfil: userData.perfil || 'usuario',
-                                isOnline: userData.isOnline || false
-                            };
-                            
-                            // Fazer login automático
-                            await performLogin(usuarioChat);
-                            return true;
-                        }
+                    // Buscar usuário pelo UID
+                    if (loginsData[userData.uid]) {
+                        console.log('Auto-login bem-sucedido!');
+                        await loginUser(userData);
+                        return true;
                     }
-                    
-                    console.log('❌ Usuário não encontrado na lista de logins');
-                    console.log('Usuários disponíveis:', Object.values(loginsData).map(u => u?.login).filter(Boolean));
-                } else {
-                    console.log('❌ Documento de logins não encontrado');
                 }
-                return false;
-                
             } catch (error) {
-                console.error('❌ Erro no auto-login:', error);
-                return false;
+                console.error('Erro no auto-login:', error);
             }
+            
+            localStorage.removeItem('chatUser');
+            return false;
         }
 
-        // ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
-        async function loadUsersForSelection() {
+        // ========== CARREGAR USUÁRIOS ==========
+        async function loadUsers() {
             try {
-                showStatus('Carregando usuários...', 'info');
-                
-                // Buscar na coleção de logins (Firestore do projeto logins)
                 const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-                console.log('🔍 Buscando documento para seleção: logins/LOGINS_ORGTAREFAS');
-                
                 const docSnap = await getDoc(loginsRef);
                 
                 if (!docSnap.exists()) {
-                    showStatus('Nenhum usuário encontrado', 'error');
-                    console.log('❌ Documento não encontrado');
+                    showStatus('Erro: Nenhum usuário encontrado', 'error');
                     return;
                 }
                 
                 const loginsData = docSnap.data();
-                console.log(`📄 ${Object.keys(loginsData).length} usuários encontrados`);
+                const userSelect = document.getElementById('user-select');
                 
-                if (userSelect) {
-                    userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
-                }
+                // Limpar opções existentes
+                userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
                 
-                let userCount = 0;
+                // Adicionar cada usuário
                 for (const [uid, userData] of Object.entries(loginsData)) {
                     if (userData && userData.login) {
-                        userCount++;
-                        const usuario = {
+                        const option = document.createElement('option');
+                        const userObj = {
                             uid: uid,
                             login: userData.login,
                             nome: userData.displayName || userData.login,
-                            perfil: userData.perfil || 'usuario',
-                            isOnline: userData.isOnline || false
+                            perfil: userData.perfil || 'usuario'
                         };
-                        
-                        if (userSelect) {
-                            const option = document.createElement('option');
-                            option.value = JSON.stringify(usuario);
-                            option.textContent = `${usuario.nome} (${usuario.login}) - ${usuario.perfil}`;
-                            userSelect.appendChild(option);
-                        }
+                        option.value = JSON.stringify(userObj);
+                        option.textContent = `${userData.displayName || userData.login} (${userData.login})`;
+                        userSelect.appendChild(option);
                     }
                 }
                 
-                console.log(`👤 ${userCount} usuários carregados para seleção`);
-                
-                if (userCount === 0) {
-                    showStatus('Nenhum usuário disponível', 'warning');
-                } else {
-                    showStatus('Selecione seu usuário', 'info');
-                }
-                
             } catch (error) {
-                console.error('❌ Erro ao carregar usuários:', error);
+                console.error('Erro ao carregar usuários:', error);
                 showStatus('Erro ao carregar usuários', 'error');
             }
         }
 
-        // ========== ATUALIZAR STATUS NO FIRESTORE (PROJETO LOGINS) ==========
-        async function updateUserStatusInFirestore(userUid, isOnline) {
+        // ========== LOGIN ==========
+        async function loginUser(userData) {
             try {
+                currentUser = userData;
+                
+                // Salvar no localStorage
+                localStorage.setItem('chatUser', JSON.stringify(userData));
+                
+                // Atualizar status no Firestore (logins)
                 const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                await updateDoc(loginsRef, {
+                    [`${userData.uid}.isOnline`]: true
+                });
                 
-                const updateData = {};
-                updateData[`${userUid}.isOnline`] = isOnline;
-                
-                await updateDoc(loginsRef, updateData);
-                console.log(`✅ Status atualizado no Firestore (logins): ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Erro ao atualizar status no Firestore:', error);
-                return false;
-            }
-        }
-
-        // ========== REALIZAR LOGIN ==========
-        async function performLogin(userData) {
-            console.log('🔑 Realizando login para:', userData.login);
-            
-            currentUser = userData;
-            
-            // Atualizar status no Firestore (projeto logins)
-            await updateUserStatusInFirestore(currentUser.uid, true);
-            
-            // Atualizar interface
-            updateUserInterface();
-            
-            // Configurar usuário no chat RTDB (projeto chat)
-            await setupChatUser(currentUser);
-            
-            // Carregar todos os usuários para conversar
-            await loadAllUsers();
-            
-            // Configurar listeners em tempo real
-            setupRealtimeListeners();
-            
-            showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
-            
-            // Esconder seletor
-            const userSelectorContainer = document.getElementById('user-selector-container');
-            if (userSelectorContainer) {
-                userSelectorContainer.style.display = 'none';
-            }
-        }
-
-        // ========== SELEÇÃO MANUAL DE USUÁRIO ==========
-        async function handleUserSelection() {
-            if (!userSelect || !userSelect.value) return;
-            
-            try {
-                const userData = JSON.parse(userSelect.value);
-                console.log('👤 Usuário selecionado:', userData);
-                
-                showStatus('Conectando ao chat...', 'info');
-                await performLogin(userData);
-                
-            } catch (error) {
-                console.error('Erro ao selecionar usuário:', error);
-                showStatus('Erro ao selecionar usuário', 'error');
-            }
-        }
-
-        // ========== CONFIGURAR USUÁRIO NO CHAT (RTDB) ==========
-        async function setupChatUser(userData) {
-            console.log('⚙️ Configurando usuário no RTDB (chat):', userData);
-            
-            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome)}&background=667eea&color=fff`;
-            
-            const userRef = ref(chatDb, `users/${userData.uid}`);
-            
-            try {
+                // Configurar no Realtime Database (chat)
+                const userRef = ref(chatDb, `users/${userData.uid}`);
                 await set(userRef, {
                     uid: userData.uid,
                     login: userData.login,
                     nome: userData.nome,
-                    perfil: userData.perfil,
-                    avatarUrl: avatarUrl,
                     isOnline: true,
                     lastSeen: Date.now()
                 });
                 
-                console.log('✅ Usuário configurado no RTDB (chat)');
-                
-                // Configurar desconexão automática no RTDB
+                // Configurar desconexão automática
                 onDisconnect(ref(chatDb, `users/${userData.uid}/isOnline`)).set(false);
                 onDisconnect(ref(chatDb, `users/${userData.uid}/lastSeen`)).set(Date.now());
                 
+                // Atualizar interface
+                document.getElementById('current-user').textContent = userData.nome;
+                document.getElementById('user-selector').style.display = 'none';
+                document.getElementById('chat-interface').style.display = 'block';
+                
+                // Configurar listeners
+                setupChatListeners();
+                
+                showStatus(`Bem-vindo, ${userData.nome}!`, 'success');
+                
             } catch (error) {
-                console.error('❌ Erro ao configurar usuário no RTDB:', error);
+                console.error('Erro no login:', error);
+                showStatus('Erro ao fazer login', 'error');
             }
         }
 
-        // ========== CARREGAR TODOS OS USUÁRIOS ==========
-        async function loadAllUsers() {
+        // ========== LOGOUT ==========
+        async function logout() {
+            if (!currentUser) return;
+            
             try {
-                console.log('🔍 Carregando todos os usuários do Firestore (logins)...');
-                
-                // Buscar na coleção de logins (Firestore)
+                // Atualizar status no Firestore (logins)
                 const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-                const docSnap = await getDoc(loginsRef);
+                await updateDoc(loginsRef, {
+                    [`${currentUser.uid}.isOnline`]: false
+                });
                 
-                if (!docSnap.exists()) {
-                    console.log('❌ Nenhum usuário encontrado na coleção de logins');
-                    allUsers = [];
-                    return;
-                }
+                // Atualizar no Realtime Database (chat)
+                const userRef = ref(chatDb, `users/${currentUser.uid}`);
+                await update(userRef, {
+                    isOnline: false,
+                    lastSeen: Date.now()
+                });
                 
-                const loginsData = docSnap.data();
-                allUsers = [];
+                // Limpar dados locais
+                localStorage.removeItem('chatUser');
+                currentUser = null;
                 
-                for (const [uid, userData] of Object.entries(loginsData)) {
-                    if (userData && userData.login) {
-                        const usuario = {
-                            uid: uid,
-                            docId: uid,
-                            login: userData.login,
-                            nome: userData.displayName || userData.login,
-                            perfil: userData.perfil || 'usuario',
-                            isOnline: userData.isOnline || false
-                        };
-                        
-                        // Adicionar todos os usuários (incluindo offline)
-                        allUsers.push(usuario);
-                    }
-                }
+                // Atualizar interface
+                document.getElementById('user-selector').style.display = 'block';
+                document.getElementById('chat-interface').style.display = 'none';
                 
-                console.log(`📊 Total de usuários no sistema: ${allUsers.length}`);
+                showStatus('Desconectado', 'info');
                 
             } catch (error) {
-                console.error('❌ Erro ao carregar usuários:', error);
-                allUsers = [];
+                console.error('Erro no logout:', error);
             }
         }
 
-        // ========== ATUALIZAR INTERFACE ==========
-        function updateUserInterface() {
+        // ========== CONFIGURAR LISTENERS DO CHAT ==========
+        function setupChatListeners() {
             if (!currentUser) return;
             
-            // Atualizar informações do usuário
-            const userName = document.getElementById('current-user-name');
-            const userLogin = document.getElementById('current-user-login');
-            const userPerfil = document.getElementById('current-user-perfil');
-            const userAvatar = document.getElementById('user-avatar');
-            const loggedUserArea = document.getElementById('logged-user-area');
-            
-            if (userName) userName.textContent = currentUser.nome;
-            if (userLogin) userLogin.textContent = currentUser.login;
-            if (userPerfil) userPerfil.textContent = currentUser.perfil;
-            
-            if (userAvatar) {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.nome)}&background=667eea&color=fff`;
-                userAvatar.src = avatarUrl;
-            }
-            
-            // Mostrar área do usuário logado
-            if (loggedUserArea) {
-                loggedUserArea.classList.remove('hidden');
-            }
-            
-            // Mostrar seções do chat
-            const onlineUsersHeader = document.getElementById('online-users-header');
-            const onlineUsersList = document.getElementById('online-users-list');
-            const conversationsHeader = document.getElementById('conversations-header');
-            const conversationsList = document.getElementById('conversations-list');
-            
-            if (onlineUsersHeader) onlineUsersHeader.classList.remove('hidden');
-            if (onlineUsersList) onlineUsersList.classList.remove('hidden');
-            if (conversationsHeader) conversationsHeader.classList.remove('hidden');
-            if (conversationsList) conversationsList.classList.remove('hidden');
-            
-            // Atualizar cabeçalho do chat
-            const chatHeader = document.querySelector('.chat-header');
-            if (chatHeader) {
-                chatHeader.querySelector('.default-content h2').textContent = `Olá, ${currentUser.nome}!`;
-                chatHeader.querySelector('.default-content p').textContent = 'Selecione um colega online para conversar';
-            }
-        }
-
-        // ========== LISTENERS EM TEMPO REAL ==========
-        function setupRealtimeListeners() {
-            if (!currentUser) return;
-            
-            console.log('📡 Configurando listeners em tempo real...');
-            
-            // 1. Ouvir usuários online do Firestore (projeto logins)
+            // 1. Ouvir usuários online (do Firestore - logins)
             const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-            
-            // Listener para mudanças nos logins
-            unsubscribeLogins = onSnapshot(loginsRef, (doc) => {
+            onSnapshot(loginsRef, (doc) => {
                 if (doc.exists()) {
                     const loginsData = doc.data();
                     const onlineUsers = [];
                     
-                    // Filtrar usuários online (exceto o usuário atual)
                     for (const [uid, userData] of Object.entries(loginsData)) {
-                        if (userData && userData.isOnline === true && uid !== currentUser.uid) {
+                        if (userData && userData.isOnline && uid !== currentUser.uid) {
                             onlineUsers.push({
                                 uid: uid,
-                                login: userData.login,
                                 nome: userData.displayName || userData.login,
-                                perfil: userData.perfil || 'usuario',
-                                isOnline: true
+                                login: userData.login
                             });
                         }
                     }
                     
-                    console.log(`👥 ${onlineUsers.length} usuários online encontrados`);
                     renderOnlineUsers(onlineUsers);
                 }
-            }, (error) => {
-                console.error('❌ Erro ao escutar logins:', error);
             });
             
-            // 2. Ouvir conversas do usuário no RTDB (projeto chat)
-            conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
+            // 2. Ouvir conversas (do Realtime Database - chat)
+            const conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
             onValue(conversationsRef, (snapshot) => {
-                const conversationsData = snapshot.val();
-                renderConversations(conversationsData);
+                const conversations = snapshot.val();
+                renderConversations(conversations);
             });
         }
 
         // ========== RENDERIZAR USUÁRIOS ONLINE ==========
-        function renderOnlineUsers(onlineUsers) {
-            const onlineUsersList = document.getElementById('online-users-list');
-            if (!onlineUsersList) return;
+        function renderOnlineUsers(users) {
+            const container = document.getElementById('online-users');
+            const count = document.getElementById('online-count');
             
-            // Atualizar contador
-            const onlineCount = document.getElementById('online-count');
-            if (onlineCount) {
-                onlineCount.textContent = onlineUsers.length;
-            }
+            count.textContent = users.length;
             
-            if (onlineUsers.length === 0) {
-                onlineUsersList.innerHTML = '<div class="no-users">Nenhum colega online no momento</div>';
+            if (users.length === 0) {
+                container.innerHTML = '<div>Nenhum usuário online</div>';
                 return;
             }
             
             let html = '';
-            
-            onlineUsers.forEach(user => {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
-                
+            users.forEach(user => {
                 html += `
-                    <div class="user-online-item" data-user="${user.uid}">
-                        <img src="${avatarUrl}" 
-                             class="user-online-avatar" alt="${user.nome}">
-                        <div>
-                            <div class="user-online-name">${user.nome}</div>
-                            <div class="user-online-details">
-                                <span class="user-online-login">${user.login}</span>
-                                <span class="user-online-perfil">${user.perfil}</span>
-                            </div>
-                        </div>
-                        <div class="status-indicator online"></div>
+                    <div style="padding: 5px; border-bottom: 1px solid #eee; cursor: pointer;" 
+                         onclick="startConversation('${user.uid}')">
+                        <strong>${user.nome}</strong><br>
+                        <small>${user.login}</small>
+                        <span style="color: green; float: right;">●</span>
                     </div>`;
             });
             
-            onlineUsersList.innerHTML = html;
-            
-            // Adicionar listeners para iniciar conversa
-            document.querySelectorAll('.user-online-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const userId = item.dataset.user;
-                    startNewConversation(userId);
-                });
-            });
+            container.innerHTML = html;
         }
 
-        // ========== RENDERIZAR CONVERSAS ==========
-        function renderConversations(conversationsData) {
-            const conversationsList = document.getElementById('conversations-list');
-            if (!conversationsList) return;
-            
-            if (!conversationsData || Object.keys(conversationsData).length === 0) {
-                conversationsList.innerHTML = `
-                    <div class="no-conversations">
-                        <i class="fas fa-comments"></i>
-                        <p>Nenhuma conversa ainda</p>
-                        <small>Selecione um usuário online para começar</small>
-                    </div>`;
-                return;
-            }
-            
-            let html = '';
-            const conversations = Object.entries(conversationsData);
-            
-            // Atualizar contador
-            const conversationsCount = document.getElementById('conversations-count');
-            if (conversationsCount) {
-                conversationsCount.textContent = conversations.length;
-            }
-            
-            conversations.forEach(([conversationId, conversationData]) => {
-                const otherUserId = getOtherUserId(conversationData.participants);
-                const otherUser = allUsers.find(u => u.uid === otherUserId);
-                
-                if (otherUser) {
-                    const isActive = currentConversation === conversationId;
-                    const time = conversationData.lastTimestamp ? 
-                        formatTime(conversationData.lastTimestamp) : '';
-                    
-                    html += `
-                        <div class="conversation-item ${isActive ? 'active' : ''}" 
-                             data-conversation="${conversationId}"
-                             data-user="${otherUserId}">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
-                                 class="conversation-avatar" alt="${otherUser.nome}">
-                            <div class="conversation-details">
-                                <div class="conversation-name">${otherUser.nome}</div>
-                                <div class="conversation-last-message">${conversationData.lastMessage || ''}</div>
-                            </div>
-                            <div class="conversation-time">${time}</div>
-                        </div>`;
-                }
-            });
-            
-            conversationsList.innerHTML = html;
-            
-            // Adicionar listeners para abrir conversas
-            document.querySelectorAll('.conversation-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const conversationId = item.dataset.conversation;
-                    const userId = item.dataset.user;
-                    openConversation(conversationId, userId);
-                });
-            });
-        }
-
-        // ========== INICIAR NOVA CONVERSA ==========
-        async function startNewConversation(otherUserId) {
-            console.log('💬 Iniciando nova conversa com:', otherUserId);
-            
-            const otherUser = allUsers.find(u => u.uid === otherUserId);
-            if (!otherUser) {
-                showStatus('Usuário não encontrado', 'error');
-                return;
-            }
+        // ========== INICIAR CONVERSA ==========
+        window.startConversation = async function(otherUserId) {
+            if (!currentUser || !otherUserId) return;
             
             const conversationId = [currentUser.uid, otherUserId].sort().join('_');
-            console.log('ID da conversa:', conversationId);
+            currentConversation = conversationId;
             
             try {
+                // Criar/atualizar conversa no Realtime Database (chat)
                 const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${conversationId}`);
                 
-                // Verificar se já existe usando once()
-                onValue(conversationRef, (snapshot) => {
-                    if (!snapshot.exists()) {
-                        const conversationData = {
-                            participants: {
-                                [currentUser.uid]: true,
-                                [otherUserId]: true
-                            },
-                            lastMessage: '',
-                            lastTimestamp: Date.now(),
-                            unreadCount: 0
-                        };
-                        
-                        set(conversationRef, conversationData);
-                        set(ref(chatDb, `userConversations/${otherUserId}/${conversationId}`), conversationData);
-                        
-                        console.log('✅ Nova conversa criada');
-                    }
+                // Obter dados do outro usuário do Firestore (logins)
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                const docSnap = await getDoc(loginsRef);
+                
+                if (docSnap.exists()) {
+                    const loginsData = docSnap.data();
+                    const otherUser = loginsData[otherUserId];
                     
-                    openConversation(conversationId, otherUserId);
-                }, { onlyOnce: true });
+                    if (otherUser) {
+                        // Atualizar interface
+                        document.getElementById('other-user-name').textContent = 
+                            otherUser.displayName || otherUser.login;
+                        document.getElementById('no-conversation').style.display = 'none';
+                        document.getElementById('active-conversation').style.display = 'block';
+                        document.getElementById('message-input-area').style.display = 'block';
+                        
+                        // Criar conversa se não existir
+                        onValue(conversationRef, (snapshot) => {
+                            if (!snapshot.exists()) {
+                                const conversationData = {
+                                    participants: {
+                                        [currentUser.uid]: true,
+                                        [otherUserId]: true
+                                    },
+                                    lastMessage: '',
+                                    lastTimestamp: Date.now()
+                                };
+                                
+                                set(conversationRef, conversationData);
+                                set(ref(chatDb, `userConversations/${otherUserId}/${conversationId}`), conversationData);
+                            }
+                            
+                            // Carregar mensagens
+                            loadMessages(conversationId);
+                        }, { onlyOnce: true });
+                    }
+                }
                 
             } catch (error) {
-                console.error('❌ Erro ao criar conversa:', error);
+                console.error('Erro ao iniciar conversa:', error);
                 showStatus('Erro ao iniciar conversa', 'error');
             }
-        }
-
-        // ========== ABRIR CONVERSA ==========
-        function openConversation(conversationId, otherUserId) {
-            console.log('📂 Abrindo conversa:', conversationId);
-            
-            currentConversation = conversationId;
-            const otherUser = allUsers.find(u => u.uid === otherUserId);
-            
-            if (!otherUser) return;
-            
-            // Atualizar cabeçalho
-            const chatInfoDefault = document.getElementById('chat-info-default');
-            const chatInfoActive = document.getElementById('chat-info-active');
-            const activeUserName = document.getElementById('active-user-name');
-            const activeUserAvatar = document.getElementById('active-user-avatar');
-            const activeUserPerfil = document.getElementById('active-user-perfil');
-            
-            if (chatInfoDefault) chatInfoDefault.classList.add('hidden');
-            if (chatInfoActive) chatInfoActive.classList.remove('hidden');
-            if (activeUserName) activeUserName.textContent = otherUser.nome;
-            if (activeUserPerfil) activeUserPerfil.textContent = otherUser.perfil;
-            
-            if (activeUserAvatar) {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff`;
-                activeUserAvatar.src = avatarUrl;
-            }
-            
-            // Mostrar input de mensagem
-            const messageInputArea = document.getElementById('message-input-area');
-            if (messageInputArea) {
-                messageInputArea.classList.remove('hidden');
-            }
-            
-            // Carregar mensagens
-            loadMessages(conversationId);
-        }
+        };
 
         // ========== CARREGAR MENSAGENS ==========
         function loadMessages(conversationId) {
-            // Limpar listener anterior se existir
-            if (messagesRef) {
-                // Em uma implementação mais robusta, você guardaria a função unsubscribe
-            }
+            const messagesRef = ref(chatDb, `messages/${conversationId}`);
+            const container = document.getElementById('messages-container');
             
-            messagesRef = ref(chatDb, `messages/${conversationId}`);
-            onValue(rtdbQuery(messagesRef, orderByChild('timestamp'), limitToLast(50)), (snapshot) => {
-                const messagesData = snapshot.val();
-                const messagesContainer = document.getElementById('messages-container');
+            onValue(messagesRef, (snapshot) => {
+                const messages = snapshot.val();
+                container.innerHTML = '';
                 
-                if (!messagesContainer) return;
-                
-                if (messagesData) {
-                    const messages = [];
-                    Object.keys(messagesData).forEach(key => {
-                        messages.push({ id: key, ...messagesData[key] });
-                    });
-                    messages.sort((a, b) => a.timestamp - b.timestamp);
-                    renderMessages(messages);
-                } else {
-                    messagesContainer.innerHTML = `
-                        <div class="no-messages">
-                            <i class="fas fa-comment-slash"></i>
-                            <p>Nenhuma mensagem ainda</p>
-                            <small>Envie a primeira mensagem!</small>
-                        </div>`;
+                if (!messages) {
+                    container.innerHTML = '<div>Nenhuma mensagem ainda</div>';
+                    return;
                 }
+                
+                // Ordenar mensagens por timestamp
+                const sortedMessages = Object.values(messages)
+                    .sort((a, b) => a.timestamp - b.timestamp);
+                
+                sortedMessages.forEach(msg => {
+                    const isCurrentUser = msg.senderId === currentUser.uid;
+                    const msgDiv = document.createElement('div');
+                    msgDiv.style.textAlign = isCurrentUser ? 'right' : 'left';
+                    msgDiv.style.margin = '5px 0';
+                    msgDiv.innerHTML = `
+                        <div style="display: inline-block; background: ${isCurrentUser ? '#007bff' : '#e9ecef'}; 
+                             color: ${isCurrentUser ? 'white' : 'black'}; 
+                             padding: 8px 12px; border-radius: 15px; max-width: 70%;">
+                            <div><strong>${msg.senderName}</strong></div>
+                            <div>${msg.text}</div>
+                            <small>${new Date(msg.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</small>
+                        </div>`;
+                    container.appendChild(msgDiv);
+                });
+                
+                // Rolagem para baixo
+                container.scrollTop = container.scrollHeight;
             });
         }
 
         // ========== ENVIAR MENSAGEM ==========
         async function sendMessage() {
-            const messageInput = document.getElementById('message-input');
-            if (!currentUser || !currentConversation || !messageInput || !messageInput.value.trim()) {
-                return;
-            }
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
             
-            const text = messageInput.value.trim();
-            const messageId = push(ref(chatDb, 'messages')).key;
-            const timestamp = Date.now();
-            
-            console.log('📤 Enviando mensagem:', text);
+            if (!text || !currentUser || !currentConversation) return;
             
             try {
+                const messageId = push(ref(chatDb, 'messages')).key;
+                const timestamp = Date.now();
+                
+                // Enviar para Realtime Database (chat)
                 await set(ref(chatDb, `messages/${currentConversation}/${messageId}`), {
                     id: messageId,
                     senderId: currentUser.uid,
                     senderName: currentUser.nome,
-                    senderLogin: currentUser.login,
                     text: text,
-                    timestamp: timestamp,
-                    read: false
+                    timestamp: timestamp
                 });
                 
-                const otherUserId = getOtherUserIdFromConversation(currentConversation);
+                // Atualizar última mensagem na conversa
+                const conversationUpdate = {
+                    lastMessage: text,
+                    lastTimestamp: timestamp
+                };
+                
+                const parts = currentConversation.split('_');
+                const otherUserId = parts.find(id => id !== currentUser.uid);
+                
                 if (otherUserId) {
-                    const conversationUpdate = {
-                        lastMessage: text,
-                        lastTimestamp: timestamp
-                    };
-                    
                     await update(ref(chatDb, `userConversations/${currentUser.uid}/${currentConversation}`), conversationUpdate);
                     await update(ref(chatDb, `userConversations/${otherUserId}/${currentConversation}`), conversationUpdate);
                 }
                 
-                messageInput.value = '';
-                scrollToBottom();
+                input.value = '';
                 
             } catch (error) {
-                console.error('❌ Erro ao enviar mensagem:', error);
+                console.error('Erro ao enviar mensagem:', error);
                 showStatus('Erro ao enviar mensagem', 'error');
             }
         }
 
-        // ========== HANDLER PARA BOTÃO VOLTAR ==========
-        async function handleBackButton() {
-            if (currentUser) {
-                try {
-                    // Atualizar status para offline no Firestore (logins)
-                    await updateUserStatusInFirestore(currentUser.uid, false);
-                    
-                    // Remover do RTDB também (chat)
-                    if (chatDb && currentUser.uid) {
-                        const userRef = ref(chatDb, `users/${currentUser.uid}`);
-                        await update(userRef, { isOnline: false, lastSeen: Date.now() });
-                    }
-                    
-                    // Parar listeners
-                    if (unsubscribeLogins) {
-                        unsubscribeLogins();
-                    }
-                    
-                    console.log('👋 Usuário desconectado:', currentUser.login);
-                } catch (error) {
-                    console.error('Erro ao desconectar:', error);
-                }
-            }
-            window.location.href = 'index.html';
-        }
-
-        // ========== HANDLER PARA QUANDO A PÁGINA É FECHADA ==========
-        window.addEventListener('beforeunload', async function() {
-            if (currentUser) {
-                try {
-                    await updateUserStatusInFirestore(currentUser.uid, false);
-                    
-                    // Remover do RTDB também
-                    if (chatDb && currentUser.uid) {
-                        const userRef = ref(chatDb, `users/${currentUser.uid}`);
-                        await update(userRef, { isOnline: false, lastSeen: Date.now() });
-                    }
-                    
-                    console.log('👋 Usuário desconectado (página fechada):', currentUser.login);
-                } catch (error) {
-                    console.error('Erro ao desconectar na saída:', error);
-                }
-            }
-        });
-
         // ========== FUNÇÕES AUXILIARES ==========
-        function getOtherUserId(participants) {
-            if (!participants) return null;
-            const participantIds = Object.keys(participants);
-            return participantIds.find(id => id !== currentUser.uid);
-        }
-
-        function getOtherUserIdFromConversation(conversationId) {
-            const parts = conversationId.split('_');
-            return parts.find(part => part !== currentUser.uid);
-        }
-
-        function renderMessages(messages) {
-            const messagesContainer = document.getElementById('messages-container');
-            if (!messagesContainer) return;
-            
-            messagesContainer.innerHTML = '';
-            
-            messages.forEach(msg => {
-                const div = document.createElement('div');
-                const isSent = msg.senderId === currentUser.uid;
-                const time = formatTime(msg.timestamp);
+        function setupEventListeners() {
+            // Login
+            document.getElementById('login-btn').addEventListener('click', async () => {
+                const select = document.getElementById('user-select');
+                if (!select.value) {
+                    showStatus('Selecione um usuário', 'error');
+                    return;
+                }
                 
-                div.className = `message ${isSent ? 'sent' : 'received'}`;
-                div.innerHTML = `
-                    <div class="message-header">
-                        <span class="message-sender">${msg.senderName}</span>
-                        <span class="message-time">${time}</span>
-                    </div>
-                    <div class="message-text">${msg.text}</div>
-                `;
-                
-                messagesContainer.appendChild(div);
+                const userData = JSON.parse(select.value);
+                await loginUser(userData);
             });
             
-            scrollToBottom();
-        }
-
-        function formatTime(timestamp) {
-            const date = new Date(timestamp);
-            return date.toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
+            // Logout
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            
+            // Enviar mensagem
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
             });
-        }
-
-        function scrollToBottom() {
-            const messagesContainer = document.getElementById('messages-container');
-            if (messagesContainer) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
         }
 
         function showStatus(message, type) {
-            if (!loginStatus) return;
-            
-            loginStatus.textContent = message;
-            loginStatus.className = 'login-status';
-            
-            switch(type) {
-                case 'error':
-                    loginStatus.style.color = '#f44336';
-                    loginStatus.style.backgroundColor = '#ffebee';
-                    break;
-                case 'success':
-                    loginStatus.style.color = '#4caf50';
-                    loginStatus.style.backgroundColor = '#e8f5e8';
-                    break;
-                default:
-                    loginStatus.style.color = '#2196f3';
-                    loginStatus.style.backgroundColor = '#e3f2fd';
-            }
-            
-            loginStatus.style.display = 'block';
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.style.color = type === 'error' ? 'red' : 
+                                  type === 'success' ? 'green' : 'blue';
+            statusDiv.style.padding = '10px';
             
             if (type !== 'error') {
                 setTimeout(() => {
-                    loginStatus.style.display = 'none';
+                    statusDiv.textContent = '';
+                    statusDiv.style.padding = '0';
                 }, 3000);
             }
         }
 
-        // ========== INICIAR APP ==========
+        // ========== INICIAR ==========
         document.addEventListener('DOMContentLoaded', init);
     </script>
-
-    <style>
-        /* ESTILOS - MANTENHA EXATAMENTE COMO ESTAVA */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #f0f2f5;
-            height: 100vh;
-            color: #333;
-        }
-        
-        .container {
-            width: 100%;
-            height: 100%;
-        }
-        
-        .screen {
-            width: 100%;
-            height: 100%;
-            display: flex;
-        }
-        
-        /* SIDEBAR */
-        .sidebar {
-            width: 350px;
-            background: white;
-            border-right: 1px solid #ddd;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header-left {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .sidebar-header h3 {
-            font-size: 18px;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .app-name {
-            font-size: 12px;
-            color: #667eea;
-            background: #f0f2f5;
-            padding: 3px 10px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-        
-        .btn-logout {
-            background: #f0f2f5;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
-            transition: all 0.3s;
-        }
-        
-        .btn-logout:hover {
-            background: #ffebee;
-            color: #f44336;
-            transform: rotate(-90deg);
-        }
-        
-        /* USUÁRIO ATUAL */
-        .user-info {
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border-bottom: 1px solid #eee;
-            background: white;
-        }
-        
-        .user-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #667eea;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-        
-        .user-details {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .user-name {
-            font-weight: 700;
-            color: #333;
-            font-size: 18px;
-        }
-        
-        .user-info-bottom {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .user-login {
-            font-size: 13px;
-            color: #666;
-            background: #f0f2f5;
-            padding: 3px 10px;
-            border-radius: 10px;
-        }
-        
-        .user-perfil {
-            font-size: 12px;
-            color: white;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 3px 10px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-        
-        .status-online {
-            font-size: 12px;
-            color: #4caf50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .status-online:before {
-            content: '●';
-            font-size: 16px;
-        }
-        
-        /* SELETOR DE USUÁRIO */
-        .user-selector-container {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .section-header {
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #f0f2f5;
-        }
-        
-        .section-header h4 {
-            font-size: 14px;
-            color: #666;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .count-badge {
-            background: #667eea;
-            color: white;
-            font-size: 12px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            min-width: 25px;
-            text-align: center;
-            font-weight: 600;
-        }
-        
-        .user-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .user-select-dropdown {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
-            border-radius: 12px;
-            font-size: 14px;
-            background: #f8f9fa;
-            color: #333;
-        }
-        
-        .user-select-dropdown:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-        }
-        
-        .btn-confirm-user {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-        }
-        
-        .btn-confirm-user:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .btn-confirm-user:not(:disabled):hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .login-status {
-            margin-top: 10px;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            text-align: center;
-            display: none;
-        }
-        
-        /* USUÁRIOS ONLINE */
-        .online-users {
-            padding: 10px 0;
-            max-height: 200px;
-            overflow-y: auto;
-            flex: 1;
-        }
-        
-        .user-online-item {
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .user-online-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .user-online-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #4caf50;
-        }
-        
-        .user-online-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .user-online-details {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 2px;
-        }
-        
-        .user-online-login {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .user-online-perfil {
-            font-size: 11px;
-            color: white;
-            background: #667eea;
-            padding: 1px 6px;
-            border-radius: 8px;
-        }
-        
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #4caf50;
-            box-shadow: 0 0 5px #4caf50;
-            margin-left: auto;
-        }
-        
-        /* CONVERSAS */
-        .conversations-list {
-            flex: 2;
-            overflow-y: auto;
-            padding: 10px 0;
-        }
-        
-        .conversation-item {
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            cursor: pointer;
-            transition: all 0.3s;
-            border-left: 3px solid transparent;
-        }
-        
-        .conversation-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .conversation-item.active {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-left: 3px solid #667eea;
-        }
-        
-        .conversation-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #e1e5e9;
-        }
-        
-        .conversation-details {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .conversation-name {
-            font-weight: 600;
-            color: #333;
-            font-size: 15px;
-            margin-bottom: 4px;
-        }
-        
-        .conversation-last-message {
-            font-size: 13px;
-            color: #666;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .conversation-time {
-            font-size: 11px;
-            color: #999;
-            white-space: nowrap;
-        }
-        
-        /* LOADING STATES */
-        .loading-conversations, .loading-online {
-            padding: 40px 20px;
-            text-align: center;
-            color: #666;
-        }
-        
-        .loading-conversations i, .loading-online i {
-            font-size: 24px;
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        
-        .loading-conversations p, .loading-online p {
-            font-size: 14px;
-            color: #888;
-        }
-        
-        .no-conversations, .no-users {
-            padding: 40px 20px;
-            text-align: center;
-            color: #999;
-        }
-        
-        .no-conversations i, .no-users i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-        
-        /* ÁREA PRINCIPAL */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        
-        .chat-header {
-            background: white;
-            padding: 20px 30px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .chat-info-default, .chat-info-active {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .default-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-        }
-        
-        .default-content h2 {
-            color: #333;
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-        
-        .default-content p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .active-user {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .active-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #667eea;
-        }
-        
-        .active-user-info h2 {
-            color: #333;
-            font-size: 20px;
-            margin-bottom: 5px;
-        }
-        
-        .active-user-details {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .user-perfil-small {
-            font-size: 12px;
-            color: white;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2px 8px;
-            border-radius: 8px;
-        }
-        
-        .user-status {
-            font-size: 12px;
-            color: #4caf50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        /* ÁREA DE MENSAGENS */
-        .messages-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 30px;
-            background: #f8f9fa;
-        }
-        
-        .welcome-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            text-align: center;
-            color: #666;
-        }
-        
-        .welcome-icon {
-            font-size: 80px;
-            color: #667eea;
-            margin-bottom: 30px;
-            opacity: 0.7;
-        }
-        
-        .welcome-content h3 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 15px;
-        }
-        
-        .welcome-content p {
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 30px;
-        }
-        
-        .welcome-features {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-        }
-        
-        .feature {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .feature i {
-            font-size: 24px;
-            color: #667eea;
-        }
-        
-        .feature span {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        /* MENSAGENS */
-        .message {
-            max-width: 70%;
-            padding: 15px;
-            border-radius: 18px;
-            margin-bottom: 15px;
-            position: relative;
-            animation: fadeIn 0.3s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .message.sent {
-            align-self: flex-end;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 5px;
-        }
-        
-        .message.received {
-            align-self: flex-start;
-            background: white;
-            color: #333;
-            border-bottom-left-radius: 5px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        
-        .message-sender {
-            font-weight: 600;
-            font-size: 13px;
-        }
-        
-        .message-time {
-            opacity: 0.8;
-            font-size: 12px;
-        }
-        
-        .message.received .message-time {
-            color: #888;
-        }
-        
-        .message-text {
-            line-height: 1.5;
-            font-size: 15px;
-        }
-        
-        /* INPUT DE MENSAGEM */
-        .message-input-area {
-            background: white;
-            padding: 20px 30px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            border-top: 1px solid #ddd;
-        }
-        
-        #message-input {
-            flex: 1;
-            padding: 16px 20px;
-            border: 2px solid #e1e5e9;
-            border-radius: 25px;
-            font-size: 16px;
-            background: #f8f9fa;
-        }
-        
-        #message-input:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-        }
-        
-        .btn-send {
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            border: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-        
-        .btn-send:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .hidden {
-            display: none !important;
-        }
-        
-        /* SCROLLBAR */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a1a1a1;
-        }
-        
-        /* RESPONSIVIDADE */
-        @media (max-width: 768px) {
-            .screen {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: 40vh;
-            }
-            
-            .main-content {
-                height: 60vh;
-            }
-            
-            .message {
-                max-width: 85%;
-            }
-        }
-    </style>
 </body>
 </html>
