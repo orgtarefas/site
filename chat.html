@@ -40,7 +40,7 @@
                     <span id="current-user-name">Carregando...</span>
                     <div class="user-status" id="current-user-status"></div>
                 </div>
-                <button id="logout-btn" class="btn-icon" title="Sair" onclick="window.location.href='index.html'">
+                <button id="logout-btn" class="btn-icon" title="Voltar">
                     <i class="fas fa-arrow-left"></i>
                 </button>
             </div>
@@ -91,13 +91,16 @@
                     </div>
                 </div>
 
-                <!-- Input de Mensagem -->
-                <div id="message-input-area" class="message-input-area hidden">
+                <!-- Input de Mensagem (INICIALMENTE VISÍVEL PARA TESTE) -->
+                <div id="message-input-area" class="message-input-area">
                     <div class="input-container">
-                        <input type="text" id="message-input" placeholder="Digite sua mensagem..." autocomplete="off">
-                        <button id="send-btn" class="btn-send" title="Enviar">
+                        <input type="text" id="message-input" placeholder="Digite sua mensagem e pressione Enter..." autocomplete="off">
+                        <button id="send-btn" class="btn-send" title="Enviar mensagem">
                             <i class="fas fa-paper-plane"></i>
                         </button>
+                    </div>
+                    <div class="input-hint">
+                        <small>Pressione Enter para enviar</small>
                     </div>
                 </div>
             </main>
