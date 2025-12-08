@@ -65,6 +65,10 @@ async function init() {
         // Fazer auto-login automaticamente
         await autoLogin();
         
+        // Configurar event listeners
+        setupEventListeners();
+        setupResponsive();
+        
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
         showNotification('Erro ao conectar com o servidor', 'error');
@@ -361,7 +365,7 @@ function renderConversations(conversations) {
 }
 
 // ========== INICIAR CONVERSA ==========
-window.startConversation = async function(otherUserId) {
+async function startConversation(otherUserId) {
     if (!currentUser || !otherUserId) return;
     
     const conversationId = [currentUser.uid, otherUserId].sort().join('_');
@@ -408,11 +412,16 @@ window.startConversation = async function(otherUserId) {
             document.getElementById('sidebar').classList.remove('active');
         }
         
+        // Focar no input de mensagem
+        setTimeout(() => {
+            document.getElementById('message-input').focus();
+        }, 300);
+        
     } catch (error) {
         console.error('❌ Erro ao iniciar conversa:', error);
         showNotification('Erro ao iniciar conversa', 'error');
     }
-};
+}
 
 // ========== ABRIR CONVERSA ==========
 async function openConversation(conversationId, otherUserId) {
@@ -435,6 +444,11 @@ async function openConversation(conversationId, otherUserId) {
         if (window.innerWidth < 768) {
             document.getElementById('sidebar').classList.remove('active');
         }
+        
+        // Focar no input de mensagem
+        setTimeout(() => {
+            document.getElementById('message-input').focus();
+        }, 300);
         
     } catch (error) {
         console.error('❌ Erro ao abrir conversa:', error);
@@ -514,11 +528,16 @@ async function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     
-    if (!text || !currentUser || !currentConversation) return;
+    if (!text || !currentUser || !currentConversation) {
+        console.log('❌ Não pode enviar:', { text, currentUser, currentConversation });
+        return;
+    }
     
     try {
         const messageId = push(ref(chatDb, 'messages')).key;
         const timestamp = Date.now();
+        
+        console.log('📤 Enviando mensagem:', text);
         
         // Enviar mensagem
         await set(ref(chatDb, `messages/${currentConversation}/${messageId}`), {
@@ -545,6 +564,8 @@ async function sendMessage() {
         // Limpar input
         input.value = '';
         input.focus();
+        
+        console.log('✅ Mensagem enviada com sucesso!');
         
     } catch (error) {
         console.error('❌ Erro ao enviar mensagem:', error);
@@ -637,28 +658,55 @@ function scrollToBottom() {
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
+    console.log('🔧 Configurando event listeners...');
+    
     // Enviar mensagem
-    document.getElementById('send-btn').addEventListener('click', sendMessage);
-    document.getElementById('message-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+        console.log('✅ Listener do botão enviar configurado');
+    } else {
+        console.log('❌ Botão enviar não encontrado');
+    }
+    
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        console.log('✅ Listener do input configurado');
+    }
     
     // Menu toggle
-    document.getElementById('menu-toggle').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('active');
-    });
+    const menuToggle = document.getElementById('menu-toggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+    }
     
     // Logout quando a página for fechada
     window.addEventListener('beforeunload', logout);
     
     // Logout ao clicar no botão voltar
-    document.getElementById('logout-btn').addEventListener('click', async (e) => {
-        e.preventDefault();
-        await logout();
-        window.location.href = 'index.html';
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await logout();
+            window.location.href = 'index.html';
+        });
+    }
+    
+    // Debug: Log quando listeners são configurados
+    console.log('📝 Event listeners configurados:', {
+        sendBtn: !!sendBtn,
+        messageInput: !!messageInput,
+        menuToggle: !!menuToggle,
+        logoutBtn: !!logoutBtn
     });
 }
 
@@ -691,6 +739,11 @@ function setupResponsive() {
 function showNotification(message, type = 'info') {
     const notification = document.getElementById('notification');
     
+    if (!notification) {
+        console.log('❌ Elemento de notificação não encontrado');
+        return;
+    }
+    
     // Limpar notificação anterior
     notification.textContent = '';
     notification.className = 'notification';
@@ -715,9 +768,12 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// ========== EXPORTAR FUNÇÕES PARA HTML ==========
+// Exportar startConversation para ser chamada do HTML
+window.startConversation = startConversation;
+
 // ========== INICIAR APLICAÇÃO ==========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📱 DOM carregado, iniciando app...');
     init();
-    setupEventListeners();
-    setupResponsive();
 });
