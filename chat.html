@@ -487,19 +487,25 @@
             
             console.log('📡 Configurando listeners em tempo real...');
             
-            // 1. Ouvir usuários online
+            // 1. Ouvir usuários online - CORRIGIDO
             usersRef = chatDb.ref('users');
             usersRef.on('value', (snapshot) => {
                 const usersData = snapshot.val();
+                console.log('📊 Dados de usuários recebidos:', usersData);
                 onlineUsersCache = usersData || {};
                 renderOnlineUsers(usersData);
+            }, (error) => {
+                console.error('❌ Erro ao ouvir usuários:', error);
             });
             
             // 2. Ouvir conversas do usuário
             conversationsRef = chatDb.ref(`userConversations/${currentUser.uid}`);
             conversationsRef.on('value', (snapshot) => {
                 const conversationsData = snapshot.val();
+                console.log('💬 Conversas recebidas:', conversationsData);
                 renderConversations(conversationsData);
+            }, (error) => {
+                console.error('❌ Erro ao ouvir conversas:', error);
             });
         }
 
@@ -508,45 +514,40 @@
             const onlineUsersList = document.getElementById('online-users-list');
             if (!onlineUsersList) return;
             
-            if (!usersData) {
-                onlineUsersList.innerHTML = '<div class="no-users">Nenhum usuário online</div>';
+            console.log('👥 Renderizando usuários online...', usersData);
+            
+            if (!usersData || Object.keys(usersData).length === 0) {
+                onlineUsersList.innerHTML = `
+                    <div class="no-users">
+                        <i class="fas fa-user-slash"></i>
+                        <p>Nenhum usuário online no momento</p>
+                        <small>Tente recarregar a página</small>
+                    </div>`;
                 return;
             }
             
             let html = '';
-            const onlineUsers = [];
+            let onlineCount = 0;
             
-            // Filtrar usuários online e diferentes do atual
+            // Percorrer todos os usuários
             Object.keys(usersData).forEach(uid => {
                 const user = usersData[uid];
-                if (user.isOnline && uid !== currentUser.uid) {
-                    onlineUsers.push({
-                        uid: uid,
-                        login: user.login,
-                        nome: user.nome,
-                        perfil: user.perfil,
-                        avatarUrl: user.avatarUrl
-                    });
-                }
-            });
-            
-            // Atualizar contador
-            const onlineCount = document.getElementById('online-count');
-            if (onlineCount) {
-                onlineCount.textContent = onlineUsers.length;
-            }
-            
-            if (onlineUsers.length === 0) {
-                html = '<div class="no-users">Nenhum colega online no momento</div>';
-            } else {
-                onlineUsers.forEach(user => {
-                    const realUser = allUsers.find(u => u.uid === user.uid);
-                    const displayName = realUser ? realUser.login : user.nome;
-                    const perfil = realUser ? realUser.perfil : user.perfil;
+                console.log(`👤 Usuário ${uid}:`, user);
+                
+                // Verificar se o usuário está online e não é o usuário atual
+                if (user && user.isOnline === true && uid !== currentUser.uid) {
+                    onlineCount++;
+                    
+                    // Buscar informações reais do usuário
+                    const realUser = allRealUsers.find(u => u.uid === uid);
+                    const displayName = realUser ? realUser.nome : (user.nome || user.login || 'Usuário');
+                    const perfil = realUser ? realUser.perfil : (user.perfil || 'Online');
+                    const avatarUrl = user.avatarUrl || 
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
                     
                     html += `
-                        <div class="user-online-item" data-user="${user.uid}">
-                            <img src="${user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`}" 
+                        <div class="user-online-item" data-user="${uid}">
+                            <img src="${avatarUrl}" 
                                  class="user-online-avatar" alt="${displayName}">
                             <div>
                                 <div class="user-online-name">${displayName}</div>
@@ -554,7 +555,24 @@
                             </div>
                             <div class="status-indicator online"></div>
                         </div>`;
-                });
+                }
+            });
+            
+            console.log(`✅ ${onlineCount} usuário(s) online`);
+            
+            // Atualizar contador
+            const onlineCountElement = document.getElementById('online-count');
+            if (onlineCountElement) {
+                onlineCountElement.textContent = onlineCount;
+            }
+            
+            if (onlineCount === 0) {
+                html = `
+                    <div class="no-users">
+                        <i class="fas fa-user-clock"></i>
+                        <p>Aguardando colegas se conectarem</p>
+                        <small>Você é o único online no momento</small>
+                    </div>`;
             }
             
             onlineUsersList.innerHTML = html;
@@ -566,6 +584,42 @@
                     startNewConversation(userId);
                 });
             });
+        }
+
+        // ========== CONFIGURAR USUÁRIO NO CHAT ==========
+        async function setupChatUser(userData) {
+            console.log('⚙️ Configurando usuário no RTDB:', userData);
+            
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome || userData.login)}&background=667eea&color=fff`;
+            
+            const userRef = chatDb.ref(`users/${userData.uid}`);
+            
+            try {
+                // Usar set() para garantir estrutura correta
+                await userRef.set({
+                    uid: userData.uid,
+                    login: userData.login,
+                    nome: userData.nome || userData.login,
+                    perfil: userData.perfil || 'Usuário',
+                    avatarUrl: avatarUrl,
+                    isOnline: true,  // Garantir que é booleano
+                    lastSeen: Date.now()
+                });
+                
+                console.log('✅ Usuário configurado no RTDB:', userData.uid);
+                
+                // Configurar desconexão automática
+                userRef.child('isOnline').onDisconnect().set(false);
+                userRef.child('lastSeen').onDisconnect().set(Date.now());
+                
+                // Verificar se foi salvo corretamente
+                const verifySnapshot = await userRef.once('value');
+                console.log('✅ Verificação:', verifySnapshot.val());
+                
+            } catch (error) {
+                console.error('❌ Erro ao configurar usuário no RTDB:', error);
+                throw error; // Propagar o erro
+            }
         }
 
         // ========== RENDERIZAR CONVERSAS ==========
