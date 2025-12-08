@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat OrgTarefas</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -71,6 +67,11 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <script>
         // ========== CONFIGURAÇÃO FIREBASE ==========
         const firebaseConfig = {
@@ -92,33 +93,80 @@
             appId: "1:380919096800:web:7b54e7e341c9266c207785"
         };
 
-        // ========== INICIALIZAR APPS ==========
-        let db, chatDb;
-        
-        try {
-            console.log('🚀 Inicializando Firebase...');
-            const mainApp = firebase.initializeApp(firebaseConfig, 'mainApp');
-            const chatApp = firebase.initializeApp(chatFirebaseConfig, 'chatApp');
-            
-            db = firebase.firestore(mainApp);
-            chatDb = firebase.database();
-            
-            console.log('✅ Firebase inicializado com sucesso');
-        } catch (error) {
-            console.error('❌ Erro ao inicializar Firebase:', error);
-            showStatus('Erro ao conectar: ' + error.message, 'error');
+        // ========== VARIÁVEIS GLOBAIS ==========
+        let db, chatDb, currentUser = null;
+
+        // ========== INICIALIZAR FIREBASE ==========
+        function initializeFirebase() {
+            try {
+                console.log('🚀 Inicializando Firebase...');
+                
+                // Inicializar primeiro app (Firestore - sistema principal)
+                const mainApp = firebase.initializeApp(firebaseConfig);
+                console.log('✅ Firebase App (Firestore) inicializado');
+                
+                // Inicializar segundo app (Realtime Database - chat)
+                // NOTA: Não podemos dar o mesmo nome 'chatApp' duas vezes
+                const chatApp = firebase.initializeApp(chatFirebaseConfig, 'chatApp');
+                console.log('✅ Firebase App (Chat) inicializado');
+                
+                // Obter referências
+                db = firebase.firestore(mainApp);
+                chatDb = firebase.database(chatApp);
+                
+                console.log('✅ Firestore e Realtime Database configurados');
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar Firebase:', error);
+                showStatus('Erro ao conectar com o servidor: ' + error.message, 'error');
+                return false;
+            }
         }
 
         // ========== ELEMENTOS DOM ==========
-        const userSelect = document.getElementById('user-select');
-        const confirmUserBtn = document.getElementById('confirm-user-btn');
-        const loginStatus = document.getElementById('login-status');
+        let userSelect, confirmUserBtn, loginStatus;
 
         // ========== INICIALIZAÇÃO ==========
         async function init() {
             console.log('🚀 Inicializando chat...');
+            
+            // 1. Inicializar Firebase
+            if (!initializeFirebase()) {
+                return;
+            }
+            
+            // 2. Configurar elementos DOM
+            setupDOM();
+            
+            // 3. Configurar event listeners
             setupEventListeners();
+            
+            // 4. Carregar usuários
             await loadUsersFromFirestore();
+        }
+
+        // ========== CONFIGURAR ELEMENTOS DOM ==========
+        function setupDOM() {
+            userSelect = document.getElementById('user-select');
+            confirmUserBtn = document.getElementById('confirm-user-btn');
+            loginStatus = document.getElementById('login-status');
+        }
+
+        // ========== EVENT LISTENERS ==========
+        function setupEventListeners() {
+            // Seletor de usuário
+            if (userSelect) {
+                userSelect.addEventListener('change', (e) => {
+                    if (confirmUserBtn) {
+                        confirmUserBtn.disabled = !e.target.value;
+                    }
+                });
+            }
+            
+            if (confirmUserBtn) {
+                confirmUserBtn.addEventListener('click', handleUserSelection);
+            }
         }
 
         // ========== CARREGAR USUÁRIOS DO FIRESTORE ==========
@@ -127,7 +175,10 @@
                 console.log('🔍 Buscando usuários reais...');
                 showStatus('Buscando usuários...', 'info');
                 
-                // Método 1: Buscar TODOS os documentos da coleção
+                if (!db) {
+                    throw new Error('Firestore não inicializado');
+                }
+                
                 const querySnapshot = await db.collection('LOGINS_ORGTAREFAS').get();
                 console.log(`📄 Total de documentos: ${querySnapshot.size}`);
                 
@@ -137,19 +188,14 @@
                     const docId = doc.id;
                     const dados = doc.data();
                     
-                    console.log(`\n📋 Documento: ${docId}`);
-                    console.log('📊 Dados:', dados);
-                    
                     // Verificar TODOS os campos do documento
                     Object.keys(dados).forEach(campo => {
                         const valor = dados[campo];
                         
                         if (typeof valor === 'object' && valor !== null) {
-                            console.log(`  🔍 Campo: ${campo}`, valor);
-                            
                             // Se tem login e displayName, é um usuário
                             if (valor.login && valor.displayName) {
-                                console.log(`  ✅ ENCONTROU USUÁRIO: ${valor.login}`);
+                                console.log(`✅ ENCONTROU USUÁRIO: ${valor.login}`);
                                 
                                 const usuario = {
                                     uid: `${docId}_${campo}`,
@@ -164,13 +210,12 @@
                                 };
                                 
                                 usuariosReais.push(usuario);
-                                console.log(`  👤 Adicionado: ${usuario.nome}`);
                             }
                         }
                     });
                 });
                 
-                console.log(`\n🎯 Total de usuários reais encontrados: ${usuariosReais.length}`);
+                console.log(`🎯 Total de usuários reais encontrados: ${usuariosReais.length}`);
                 
                 if (usuariosReais.length > 0) {
                     // Ordenar por nome
@@ -181,58 +226,40 @@
                         const option = document.createElement('option');
                         option.value = JSON.stringify(usuario);
                         option.textContent = `${usuario.nome} (${usuario.login}) - ${usuario.perfil}`;
-                        userSelect.appendChild(option);
+                        if (userSelect) {
+                            userSelect.appendChild(option);
+                        }
                     });
                     
                     showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
                 } else {
-                    // Método 2: Se não encontrou na estrutura interna, tentar no nível do documento
-                    console.log('🔍 Tentando método alternativo...');
-                    
-                    querySnapshot.forEach(doc => {
-                        const dados = doc.data();
-                        
-                        // Se o documento tem login direto
-                        if (dados.login && dados.displayName) {
-                            console.log(`✅ Documento tem usuário direto: ${dados.login}`);
-                            
-                            const usuario = {
-                                uid: doc.id,
-                                docId: doc.id,
-                                campo: 'main',
-                                login: dados.login,
-                                nome: dados.displayName,
-                                perfil: dados.perfil || 'Usuário',
-                                email: dados.email || '',
-                                status: dados.status || 'Ativo',
-                                senha: dados.senha || ''
-                            };
-                            
-                            usuariosReais.push(usuario);
-                        }
-                    });
-                    
-                    if (usuariosReais.length > 0) {
-                        usuariosReais.forEach(usuario => {
-                            const option = document.createElement('option');
-                            option.value = JSON.stringify(usuario);
-                            option.textContent = `${usuario.nome} (${usuario.login})`;
-                            userSelect.appendChild(option);
-                        });
-                        
-                        showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
-                    } else {
-                        showStatus('Nenhum usuário encontrado. Verifique a estrutura dos dados.', 'error');
-                        console.log('❌ Estrutura dos documentos encontrados:');
-                        querySnapshot.forEach(doc => {
-                            console.log(`📋 ${doc.id}:`, doc.data());
-                        });
-                    }
+                    showStatus('Nenhum usuário encontrado na coleção LOGINS_ORGTAREFAS', 'error');
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
                 showStatus('Erro: ' + error.message, 'error');
+            }
+        }
+
+        // ========== SELEÇÃO DE USUÁRIO ==========
+        async function handleUserSelection() {
+            if (!userSelect || !userSelect.value) return;
+            
+            try {
+                const userData = JSON.parse(userSelect.value);
+                console.log('👤 Usuário selecionado:', userData);
+                showStatus('Conectando ao chat...', 'info');
+                
+                currentUser = userData;
+                showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
+                
+                // Aqui você pode continuar com a lógica do chat
+                // Ex: setupChatUser(userData);
+                
+            } catch (error) {
+                console.error('Erro ao selecionar usuário:', error);
+                showStatus('Erro ao selecionar usuário', 'error');
             }
         }
 
@@ -265,29 +292,6 @@
                     loginStatus.style.display = 'none';
                 }, 5000);
             }
-        }
-
-        function setupEventListeners() {
-            userSelect.addEventListener('change', (e) => {
-                confirmUserBtn.disabled = !e.target.value;
-            });
-            
-            confirmUserBtn.addEventListener('click', () => {
-                if (!userSelect.value) return;
-                
-                try {
-                    const userData = JSON.parse(userSelect.value);
-                    console.log('👤 Usuário selecionado:', userData);
-                    showStatus(`Bem-vindo, ${userData.nome}!`, 'success');
-                    
-                    // Aqui você pode continuar com a lógica do chat
-                    // Ex: setupChatUser(userData);
-                    
-                } catch (error) {
-                    console.error('Erro ao processar usuário:', error);
-                    showStatus('Erro ao selecionar usuário', 'error');
-                }
-            });
         }
 
         // ========== INICIAR APP ==========
@@ -495,6 +499,74 @@
         .default-content p {
             color: #666;
             font-size: 14px;
+        }
+        
+        .user-info {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #eee;
+            background: white;
+        }
+        
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .user-details {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .user-name {
+            font-weight: 700;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .user-info-bottom {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .user-login {
+            font-size: 13px;
+            color: #666;
+            background: #f0f2f5;
+            padding: 3px 10px;
+            border-radius: 10px;
+        }
+        
+        .user-perfil {
+            font-size: 12px;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .status-online {
+            font-size: 12px;
+            color: #4caf50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-online:before {
+            content: '●';
+            font-size: 16px;
         }
     </style>
 </body>
