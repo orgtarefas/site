@@ -602,10 +602,8 @@
             if (!onlineUsersList) return;
             
             console.log('👥 Renderizando usuários online...');
-            console.log('📊 Dados do RTDB:', usersData);
-            console.log('📋 Usuários carregados:', allUsers.map(u => `${u.login} (${u.uid})`));
             
-            if (!usersData) {
+            if (!usersData || Object.keys(usersData).length === 0) {
                 onlineUsersList.innerHTML = '<div class="loading">Carregando...</div>';
                 return;
             }
@@ -613,86 +611,77 @@
             let html = '';
             let onlineCount = 0;
             
-            // Primeiro, mostrar usuários do Firestore que estão online
-            console.log('🔍 Procurando usuários online do Firestore...');
+            // Lista de usuários para mostrar (exceto o atual)
+            const usersToShow = [];
             
-            // Verificar cada usuário do Firestore
-            allUsers.forEach(user => {
-                // Verificar se está no RTDB
-                const rtdbUser = usersData[user.uid];
-                const isOnlineInRTDB = rtdbUser && rtdbUser.isOnline === true;
-                const isOnlineInFirestore = user.isOnline === true;
-                
-                console.log(`🔍 ${user.login}: RTDB=${isOnlineInRTDB}, Firestore=${isOnlineInFirestore}`);
-                
-                // Considerar online se estiver online no Firestore OU no RTDB
-                if (isOnlineInFirestore || isOnlineInRTDB) {
-                    onlineCount++;
-                    
-                    const displayName = user.nome;
-                    const perfil = user.perfil;
-                    const avatarUrl = rtdbUser?.avatarUrl || 
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
-                    
-                    console.log(`✅ ${displayName} está online!`);
-                    
-                    html += `
-                        <div class="user-online-item" data-user="${user.uid}" 
-                             data-login="${user.login}"
-                             title="Clique para conversar com ${displayName}">
-                            <img src="${avatarUrl}" 
-                                 class="user-online-avatar" alt="${displayName}">
-                            <div class="user-online-info">
-                                <div class="user-online-name">${displayName}</div>
-                                <div class="user-online-details">
-                                    <span class="user-online-perfil">${perfil}</span>
-                                    <span class="user-online-source">
-                                        ${isOnlineInFirestore ? '🔄 Firestore' : '💾 RTDB'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="status-indicator online" title="Online"></div>
-                        </div>`;
-                }
-            });
-            
-            // Também verificar usuários no RTDB que podem não estar no Firestore
+            // Coletar usuários online
             Object.keys(usersData).forEach(uid => {
-                const rtdbUser = usersData[uid];
+                const user = usersData[uid];
                 
-                // Se já foi processado acima, pular
-                if (allUsers.find(u => u.uid === uid)) return;
+                // Ignorar usuário atual
+                if (uid === currentUser.uid) return;
                 
                 // Verificar se está online
-                if (rtdbUser && rtdbUser.isOnline === true && uid !== currentUser.uid) {
-                    onlineCount++;
-                    
-                    const displayName = rtdbUser.nome || rtdbUser.login || 'Usuário';
-                    const perfil = rtdbUser.perfil || 'Online';
-                    const avatarUrl = rtdbUser.avatarUrl || 
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
-                    
-                    console.log(`✅ ${displayName} (do RTDB) está online!`);
-                    
-                    html += `
-                        <div class="user-online-item" data-user="${uid}" 
-                             data-login="${rtdbUser.login}"
-                             title="Clique para conversar com ${displayName}">
-                            <img src="${avatarUrl}" 
-                                 class="user-online-avatar" alt="${displayName}">
-                            <div class="user-online-info">
-                                <div class="user-online-name">${displayName}</div>
-                                <div class="user-online-details">
-                                    <span class="user-online-perfil">${perfil}</span>
-                                    <span class="user-online-source">💾 RTDB</span>
-                                </div>
-                            </div>
-                            <div class="status-indicator online" title="Online"></div>
-                        </div>`;
+                if (user && user.isOnline === true) {
+                    usersToShow.push({
+                        uid: uid,
+                        data: user,
+                        source: 'RTDB'
+                    });
                 }
             });
             
-            console.log(`✅ Total de usuários online encontrados: ${onlineCount}`);
+            // Também verificar usuários do Firestore que podem estar online
+            allUsers.forEach(fsUser => {
+                // Ignorar usuário atual
+                if (fsUser.uid === currentUser.uid) return;
+                
+                // Se não está na lista do RTDB mas está online no Firestore
+                if (fsUser.isOnline === true && !usersData[fsUser.uid]) {
+                    usersToShow.push({
+                        uid: fsUser.uid,
+                        data: {
+                            login: fsUser.login,
+                            nome: fsUser.nome,
+                            perfil: fsUser.perfil,
+                            isOnline: true,
+                            fromFirestore: true
+                        },
+                        source: 'Firestore'
+                    });
+                }
+            });
+            
+            // Ordenar por nome
+            usersToShow.sort((a, b) => a.data.nome.localeCompare(b.data.nome));
+            
+            // Renderizar
+            usersToShow.forEach(user => {
+                onlineCount++;
+                
+                const displayName = user.data.nome || user.data.login;
+                const perfil = user.data.perfil || 'Usuário';
+                const avatarUrl = user.data.avatarUrl || 
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
+                
+                html += `
+                    <div class="user-online-item" data-user="${user.uid}" 
+                         data-login="${user.data.login}"
+                         title="${displayName} - ${perfil}">
+                        <img src="${avatarUrl}" 
+                             class="user-online-avatar" alt="${displayName}">
+                        <div class="user-online-info">
+                            <div class="user-online-name">${displayName}</div>
+                            <div class="user-online-details">
+                                <span class="user-online-perfil">${perfil}</span>
+                                <span class="user-online-source">${user.source}</span>
+                            </div>
+                        </div>
+                        <div class="status-indicator online" title="Online"></div>
+                    </div>`;
+            });
+            
+            console.log(`✅ Usuários online encontrados: ${onlineCount}`);
             
             // Atualizar contador
             const onlineCountElement = document.getElementById('online-count');
@@ -706,11 +695,10 @@
                     <div class="no-users">
                         <i class="fas fa-user-clock"></i>
                         <p>Nenhum colega online</p>
-                        <small>Você está sozinho no momento</small>
-                        <div class="debug-info" style="font-size: 12px; color: #666; margin-top: 10px;">
-                            Total de usuários: ${allUsers.length}<br>
-                            Usuário atual: ${currentUser?.login}
-                        </div>
+                        <small>Os outros usuários podem não estar logados no chat</small>
+                        <button class="btn-refresh" onclick="forceShowAllUsers()">
+                            <i class="fas fa-eye"></i> Mostrar todos os usuários
+                        </button>
                     </div>`;
             }
             
@@ -720,11 +708,45 @@
             document.querySelectorAll('.user-online-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const userId = item.dataset.user;
-                    const userLogin = item.dataset.login;
-                    console.log('👆 Clique em usuário online:', userLogin, userId);
                     startNewConversation(userId);
                 });
             });
+        }
+        
+        // ========== FORÇAR MOSTRAR TODOS OS USUÁRIOS ==========
+        async function forceShowAllUsers() {
+            console.log('👁️ Mostrando todos os usuários...');
+            
+            const onlineUsersList = document.getElementById('online-users-list');
+            if (!onlineUsersList) return;
+            
+            let html = '';
+            
+            // Mostrar todos os usuários (mesmo offline)
+            allUsers.forEach(user => {
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
+                const isOnline = user.isOnline === true;
+                
+                html += `
+                    <div class="user-online-item ${isOnline ? '' : 'offline'}" 
+                         data-user="${user.uid}"
+                         data-login="${user.login}"
+                         title="${user.nome} - ${isOnline ? 'Online' : 'Offline'}">
+                        <img src="${avatarUrl}" 
+                             class="user-online-avatar" alt="${user.nome}">
+                        <div class="user-online-info">
+                            <div class="user-online-name">${user.nome}</div>
+                            <div class="user-online-details">
+                                <span class="user-online-perfil">${user.perfil}</span>
+                                <span class="user-online-status ${isOnline ? 'online' : 'offline'}">
+                                    ● ${isOnline ? 'Online' : 'Offline'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            
+            onlineUsersList.innerHTML = html;
         }
         
         // ========== ATUALIZAR USUÁRIOS ONLINE ==========
