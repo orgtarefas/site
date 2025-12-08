@@ -1,16 +1,16 @@
 // ========== CONFIGURAÇÃO FIREBASE ==========
 
-// Projeto de Login (Firestore)
-const loginFirebaseConfig = {
-    apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
-    authDomain: "logins-c3407.firebaseapp.com",
-    projectId: "logins-c3407",
-    storageBucket: "logins-c3407.firebasestorage.app",
-    messagingSenderId: "809861058230",
-    appId: "1:809861058230:web:e6e41bf1db9b3cfd887e77"
+// Usando a mesma configuração do sistema principal
+const firebaseConfig = {
+    apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+    authDomain: "orgtarefas-85358.firebaseapp.com",
+    projectId: "orgtarefas-85358",
+    storageBucket: "orgtarefas-85358.firebasestorage.app",
+    messagingSenderId: "1023569488575",
+    appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
 };
 
-// Projeto do Chat (Realtime Database)
+// Configuração do Chat (Realtime Database)
 const chatFirebaseConfig = {
     apiKey: "AIzaSyAYROPCh-558mNXPrO7onAXFvfBe13q5Js",
     authDomain: "orgtarefas-chat.firebaseapp.com",
@@ -22,36 +22,49 @@ const chatFirebaseConfig = {
 };
 
 // ========== INICIALIZAR APPS ==========
-const loginApp = firebase.initializeApp(loginFirebaseConfig, 'loginApp');
+const mainApp = firebase.initializeApp(firebaseConfig, 'mainApp');
 const chatApp = firebase.initializeApp(chatFirebaseConfig);
 
 // ========== REFERÊNCIAS ==========
-const loginDb = firebase.firestore(loginApp);
+const db = firebase.firestore(mainApp);
 const chatDb = firebase.database();
 
 // ========== ELEMENTOS DOM ==========
-// Login
-const loginScreen = document.getElementById('login-screen');
-const chatScreen = document.getElementById('chat-screen');
-const usuarioInput = document.getElementById('usuario');
-const senhaInput = document.getElementById('senha');
-const loginBtn = document.getElementById('login-btn');
+// Seletor de Usuário (removida a tela de login)
+const userSelect = document.getElementById('user-select');
+const confirmUserBtn = document.getElementById('confirm-user-btn');
 const loginStatus = document.getElementById('login-status');
-const logoutBtn = document.getElementById('logout-btn');
+const backBtn = document.getElementById('back-btn');
 
-// Chat
+// Área do usuário logado
+const loggedUserArea = document.getElementById('logged-user-area');
 const currentUserName = document.getElementById('current-user-name');
 const currentUserLogin = document.getElementById('current-user-login');
 const userAvatar = document.getElementById('user-avatar');
+const onlineStatus = document.getElementById('online-status');
+
+// Seções da sidebar
+const userSelectorContainer = document.querySelector('.user-selector-container');
+const searchSection = document.getElementById('search-section');
+const conversationsHeader = document.getElementById('conversations-header');
 const conversationsList = document.getElementById('conversations-list');
+const onlineUsersHeader = document.getElementById('online-users-header');
 const onlineUsersList = document.getElementById('online-users-list');
+
+// Chat principal
+const chatInfoDefault = document.getElementById('chat-info-default');
+const chatInfoActive = document.getElementById('chat-info-active');
+const activeUserName = document.getElementById('active-user-name');
+const activeUserAvatar = document.getElementById('active-user-avatar');
+const activeUserPerfil = document.getElementById('active-user-perfil');
+const activeUserStatus = document.getElementById('active-user-status');
+
+// Mensagens
 const messagesContainer = document.getElementById('messages-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const messageInputArea = document.getElementById('message-input-area');
-const chatInfo = document.getElementById('chat-info');
-const welcomeMessage = document.getElementById('welcome-message');
-const onlineStatus = document.getElementById('online-status');
+const welcomeScreen = document.getElementById('welcome-screen');
 
 // ========== VARIÁVEIS GLOBAIS ==========
 let currentUser = null;
@@ -63,101 +76,128 @@ let allRealUsers = [];
 let onlineUsersCache = {};
 
 // ========== INICIALIZAÇÃO ==========
-function init() {
+async function init() {
     console.log('🚀 Inicializando chat...');
     setupEventListeners();
-    showLoginScreen();
+    await loadUsersFromFirestore();
 }
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
-    // Login
-    loginBtn.addEventListener('click', handleLogin);
-    usuarioInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    senhaInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    
-    // Logout
-    logoutBtn.addEventListener('click', handleLogout);
-    
-    // Mensagens
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-}
-
-// ========== FUNÇÕES DE LOGIN ==========
-async function handleLogin() {
-    const login = usuarioInput.value.trim();
-    const senha = senhaInput.value;
-    
-    if (!login || !senha) {
-        showStatus('Preencha usuário e senha', 'error');
-        return;
-    }
-    
-    try {
-        showStatus('🔍 Verificando credenciais...', 'info');
-        console.log('Tentando login com:', login);
-        
-        // BUSCAR EM TODOS OS DOCUMENTOS DA COLEÇÃO
-        const querySnapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
-        console.log('Total de documentos:', querySnapshot.size);
-        
-        let usuarioEncontrado = null;
-        
-        querySnapshot.forEach(doc => {
-            const dados = doc.data();
-            console.log('Analisando documento:', doc.id, dados);
-            
-            // PROCURAR EM TODOS OS CAMPOS DO DOCUMENTO
-            for (const [campo, valor] of Object.entries(dados)) {
-                // Verificar se é um campo do tipo map (objeto)
-                if (typeof valor === 'object' && valor !== null && valor.login) {
-                    console.log('Campo encontrado:', campo, valor);
-                    
-                    if (valor.login === login) {
-                        console.log('✅ Login encontrado no campo:', campo);
-                        
-                        // Verificar senha
-                        if (valor.senha === senha) {
-                            console.log('✅ Senha correta!');
-                            
-                            usuarioEncontrado = {
-                                uid: `${doc.id}_${campo}`, // ID único: docId_campo
-                                docId: doc.id,
-                                campo: campo,
-                                login: valor.login,
-                                nome: valor.displayName || valor.login,
-                                perfil: valor.perfil || 'Usuário',
-                                email: valor.email || '',
-                                status: valor.status || 'Ativo'
-                            };
-                            
-                            console.log('👤 Usuário montado:', usuarioEncontrado);
-                            return; // Para a busca
-                        } else {
-                            showStatus('❌ Senha incorreta', 'error');
-                            return;
-                        }
-                    }
-                }
+    // Seletor de usuário
+    if (userSelect) {
+        userSelect.addEventListener('change', (e) => {
+            if (confirmUserBtn) {
+                confirmUserBtn.disabled = !e.target.value;
             }
         });
+    }
+    
+    if (confirmUserBtn) {
+        confirmUserBtn.addEventListener('click', handleUserSelection);
+    }
+    
+    // Botão voltar
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    }
+    
+    // Mensagens
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+}
+
+// ========== CARREGAR USUÁRIOS DO FIRESTORE ==========
+async function loadUsersFromFirestore() {
+    try {
+        console.log('🔍 Buscando usuários reais...');
+        showStatus('Buscando usuários...', 'info');
         
-        if (!usuarioEncontrado) {
-            showStatus('❌ Usuário não encontrado', 'error');
-            return;
+        const querySnapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+        console.log(`📄 Total de documentos: ${querySnapshot.size}`);
+        
+        let usuariosReais = [];
+        
+        querySnapshot.forEach(doc => {
+            const docId = doc.id;
+            const dados = doc.data();
+            
+            // Verificar TODOS os campos do documento
+            Object.keys(dados).forEach(campo => {
+                const valor = dados[campo];
+                
+                if (typeof valor === 'object' && valor !== null) {
+                    // Se tem login e displayName, é um usuário
+                    if (valor.login && valor.displayName) {
+                        console.log(`✅ ENCONTROU USUÁRIO: ${valor.login}`);
+                        
+                        const usuario = {
+                            uid: `${docId}_${campo}`,
+                            docId: docId,
+                            campo: campo,
+                            login: valor.login,
+                            nome: valor.displayName,
+                            perfil: valor.perfil || 'Usuário',
+                            email: valor.email || '',
+                            status: valor.status || 'Ativo',
+                            senha: valor.senha || ''
+                        };
+                        
+                        usuariosReais.push(usuario);
+                    }
+                }
+            });
+        });
+        
+        console.log(`🎯 Total de usuários reais encontrados: ${usuariosReais.length}`);
+        
+        if (usuariosReais.length > 0) {
+            // Ordenar por nome
+            usuariosReais.sort((a, b) => a.nome.localeCompare(b.nome));
+            
+            // Adicionar ao select
+            usuariosReais.forEach(usuario => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(usuario);
+                option.textContent = `${usuario.nome} (${usuario.login}) - ${usuario.perfil}`;
+                if (userSelect) {
+                    userSelect.appendChild(option);
+                }
+            });
+            
+            showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
+        } else {
+            showStatus('Nenhum usuário encontrado na coleção LOGINS_ORGTAREFAS', 'error');
         }
         
-        currentUser = usuarioEncontrado;
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+        showStatus('Erro: ' + error.message, 'error');
+    }
+}
+
+// ========== SELEÇÃO DE USUÁRIO ==========
+async function handleUserSelection() {
+    if (!userSelect || !userSelect.value) return;
+    
+    try {
+        const userData = JSON.parse(userSelect.value);
+        console.log('👤 Usuário selecionado:', userData);
+        showStatus('Conectando ao chat...', 'info');
+        
+        currentUser = userData;
         
         // 1. Carregar TODOS os usuários reais
         await loadAllRealUsers();
@@ -165,17 +205,17 @@ async function handleLogin() {
         // 2. Configurar usuário no chat
         await setupChatUser(currentUser);
         
-        // 3. Mostrar chat
-        showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
-        clearLoginForm();
-        showChatScreen();
+        // 3. Atualizar interface
+        updateUserInterface();
         
         // 4. Configurar listeners em tempo real
         setupRealtimeListeners();
         
+        showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
+        
     } catch (error) {
-        console.error('❌ Erro no login:', error);
-        showStatus('❌ Erro: ' + error.message, 'error');
+        console.error('❌ Erro ao selecionar usuário:', error);
+        showStatus('Erro: ' + error.message, 'error');
     }
 }
 
@@ -183,7 +223,7 @@ async function handleLogin() {
 async function loadAllRealUsers() {
     try {
         console.log('🔍 Carregando TODOS os usuários...');
-        const snapshot = await loginDb.collection('LOGINS_ORGTAREFAS').get();
+        const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
         allRealUsers = [];
         
         snapshot.forEach(doc => {
@@ -223,13 +263,13 @@ async function loadAllRealUsers() {
 async function setupChatUser(userData) {
     console.log('⚙️ Configurando usuário no chat:', userData);
     
-    // Atualizar interface
-    currentUserName.textContent = userData.nome;
-    currentUserLogin.textContent = userData.login;
+    // Atualizar interface do usuário logado
+    if (currentUserName) currentUserName.textContent = userData.nome;
+    if (currentUserLogin) currentUserLogin.textContent = userData.login;
     
     // Gerar avatar
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome)}&background=667eea&color=fff`;
-    userAvatar.src = avatarUrl;
+    if (userAvatar) userAvatar.src = avatarUrl;
     
     // Salvar no RTDB do chat
     const userRef = chatDb.ref(`users/${userData.uid}`);
@@ -258,6 +298,26 @@ async function setupChatUser(userData) {
     return userData;
 }
 
+// ========== ATUALIZAR INTERFACE DO USUÁRIO ==========
+function updateUserInterface() {
+    if (!currentUser) return;
+    
+    // Mostrar área do usuário logado
+    if (userSelectorContainer) userSelectorContainer.classList.add('hidden');
+    if (loggedUserArea) loggedUserArea.classList.remove('hidden');
+    if (searchSection) searchSection.classList.remove('hidden');
+    if (conversationsHeader) conversationsHeader.classList.remove('hidden');
+    if (conversationsList) conversationsList.classList.remove('hidden');
+    if (onlineUsersHeader) onlineUsersHeader.classList.remove('hidden');
+    if (onlineUsersList) onlineUsersList.classList.remove('hidden');
+    
+    // Atualizar status online
+    if (onlineStatus) {
+        onlineStatus.textContent = 'online';
+        onlineStatus.style.color = '#4caf50';
+    }
+}
+
 // ========== LISTENERS EM TEMPO REAL ==========
 function setupRealtimeListeners() {
     if (!currentUser) return;
@@ -278,13 +338,12 @@ function setupRealtimeListeners() {
         onlineUsersCache = usersData || {};
         renderOnlineUsers(usersData);
     });
-    
-    // 3. Atualizar status online
-    updateOnlineStatus();
 }
 
 // ========== RENDERIZAR CONVERSAS ==========
 function renderConversations(conversationsData) {
+    if (!conversationsList) return;
+    
     console.log('💬 Renderizando conversas...', conversationsData);
     
     if (!conversationsData || Object.keys(conversationsData).length === 0) {
@@ -343,6 +402,8 @@ function renderConversations(conversationsData) {
 
 // ========== RENDERIZAR USUÁRIOS ONLINE ==========
 function renderOnlineUsers(usersData) {
+    if (!onlineUsersList) return;
+    
     console.log('👥 Renderizando usuários online...', usersData);
     
     if (!usersData) {
@@ -470,19 +531,31 @@ function openConversation(conversationId, otherUserId) {
     });
     document.querySelector(`[data-conversation="${conversationId}"]`)?.classList.add('active');
     
-    // Atualizar cabeçalho com informações REAIS
-    chatInfo.innerHTML = `
-        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
-             style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px;">
-        <div>
-            <h2>${otherUser.nome}</h2>
-            <small>${otherUser.perfil} • ${otherUser.login}</small>
-        </div>`;
+    // Atualizar cabeçalho
+    if (chatInfoDefault) chatInfoDefault.classList.add('hidden');
+    if (chatInfoActive) chatInfoActive.classList.remove('hidden');
+    
+    if (activeUserName) activeUserName.textContent = otherUser.nome;
+    if (activeUserPerfil) activeUserPerfil.textContent = otherUser.perfil;
+    
+    // Verificar se está online
+    const isOnline = onlineUsersCache[otherUserId]?.isOnline;
+    if (activeUserStatus) {
+        activeUserStatus.textContent = isOnline ? '● online' : '● offline';
+        activeUserStatus.style.color = isOnline ? '#4caf50' : '#999';
+    }
+    
+    // Gerar avatar
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff`;
+    if (activeUserAvatar) activeUserAvatar.src = avatarUrl;
     
     // Mostrar área de input
-    messageInputArea.style.display = 'flex';
-    welcomeMessage.style.display = 'none';
-    messageInput.focus();
+    if (messageInputArea) {
+        messageInputArea.classList.remove('hidden');
+        if (welcomeScreen) welcomeScreen.style.display = 'none';
+    }
+    
+    if (messageInput) messageInput.focus();
     
     // Carregar mensagens
     loadMessages(conversationId);
@@ -511,12 +584,14 @@ function loadMessages(conversationId) {
             renderMessages(messages);
             console.log(`📊 ${messages.length} mensagens carregadas`);
         } else {
-            messagesContainer.innerHTML = `
-                <div class="no-messages">
-                    <i class="fas fa-comment-slash"></i>
-                    <p>Nenhuma mensagem ainda</p>
-                    <small>Envie a primeira mensagem!</small>
-                </div>`;
+            if (messagesContainer) {
+                messagesContainer.innerHTML = `
+                    <div class="no-messages">
+                        <i class="fas fa-comment-slash"></i>
+                        <p>Nenhuma mensagem ainda</p>
+                        <small>Envie a primeira mensagem!</small>
+                    </div>`;
+            }
             console.log('📭 Nenhuma mensagem nesta conversa');
         }
     });
@@ -524,7 +599,7 @@ function loadMessages(conversationId) {
 
 // ========== ENVIAR MENSAGEM ==========
 async function sendMessage() {
-    if (!currentUser || !currentConversation || !messageInput.value.trim()) {
+    if (!currentUser || !currentConversation || !messageInput || !messageInput.value.trim()) {
         return;
     }
     
@@ -556,11 +631,7 @@ async function sendMessage() {
         // 3. Atualizar conversa para AMBOS os usuários
         const conversationUpdate = {
             lastMessage: text,
-            lastTimestamp: timestamp,
-            participants: {
-                [currentUser.uid]: true,
-                [otherUserId]: true
-            }
+            lastTimestamp: timestamp
         };
         
         await chatDb.ref(`userConversations/${currentUser.uid}/${currentConversation}`).update(conversationUpdate);
@@ -586,20 +657,13 @@ function getOtherUserId(participants) {
 }
 
 function getOtherUserIdFromConversation(conversationId) {
-    // Extrair o ID do outro usuário do ID da conversa
-    // Formato: uid1_uid2 ou uid2_uid1
     const parts = conversationId.split('_');
     return parts.find(part => part !== currentUser.uid);
 }
 
-function updateOnlineStatus() {
-    if (onlineStatus) {
-        onlineStatus.textContent = 'online';
-        onlineStatus.style.color = '#4caf50';
-    }
-}
-
 function renderMessages(messages) {
+    if (!messagesContainer) return;
+    
     messagesContainer.innerHTML = '';
     
     messages.forEach(msg => {
@@ -623,6 +687,8 @@ function renderMessages(messages) {
 }
 
 function showStatus(message, type) {
+    if (!loginStatus) return;
+    
     loginStatus.textContent = message;
     loginStatus.style.color = type === 'error' ? '#f44336' : 
                               type === 'success' ? '#4caf50' : '#2196f3';
@@ -678,21 +744,7 @@ function showError(message) {
     }
 }
 
-function clearLoginForm() {
-    usuarioInput.value = '';
-    senhaInput.value = '';
-}
-
-function showLoginScreen() {
-    loginScreen.classList.remove('hidden');
-    chatScreen.classList.add('hidden');
-}
-
-function showChatScreen() {
-    loginScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
-}
-
+// ========== DESCONEXÃO ==========
 async function handleLogout() {
     if (currentUser) {
         try {
@@ -715,10 +767,8 @@ async function handleLogout() {
             allRealUsers = [];
             onlineUsersCache = {};
             
-            // Mostrar tela de login
-            showLoginScreen();
-            
-            console.log('✅ Logout concluído');
+            // Recarregar a página
+            window.location.reload();
             
         } catch (error) {
             console.error('❌ Erro no logout:', error);
