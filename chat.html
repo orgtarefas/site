@@ -349,6 +349,7 @@
             
             // Configurar usuário no chat RTDB
             await setupChatUser(currentUser);
+            await fixOnlineStatus(); 
             
             // Carregar todos os usuários para conversar
             await loadAllUsers();
@@ -383,35 +384,7 @@
             }
         }
 
-        // ========== CONFIGURAR USUÁRIO NO CHAT ==========
-        async function setupChatUser(userData) {
-            console.log('⚙️ Configurando usuário no RTDB:', userData);
-            
-            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.login)}&background=667eea&color=fff`;
-            
-            const userRef = chatDb.ref(`users/${userData.uid}`);
-            
-            try {
-                await userRef.set({
-                    uid: userData.uid,
-                    login: userData.login,
-                    nome: userData.nome,
-                    perfil: userData.perfil,
-                    avatarUrl: avatarUrl,
-                    isOnline: true,
-                    lastSeen: Date.now()
-                });
-                
-                console.log('✅ Usuário configurado no RTDB');
-                
-                // Configurar desconexão automática
-                userRef.child('isOnline').onDisconnect().set(false);
-                userRef.child('lastSeen').onDisconnect().set(Date.now());
-                
-            } catch (error) {
-                console.error('❌ Erro ao configurar usuário no RTDB:', error);
-            }
-        }
+
 
         // ========== CARREGAR TODOS OS USUÁRIOS ==========
         async function loadAllUsers() {
@@ -474,7 +447,7 @@
                     const snapshot = await userRef.once('value');
                     
                     if (!snapshot.exists()) {
-                        // Usuário não existe, adicionar
+                        // Usuário não existe, adicionar com status CORRETO do Firestore
                         const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
                         
                         await userRef.set({
@@ -483,22 +456,25 @@
                             nome: user.nome,
                             perfil: user.perfil,
                             avatarUrl: avatarUrl,
-                            isOnline: user.isOnline || false, // Usar status do Firestore
+                            isOnline: user.isOnline || false, // Usar status REAL do Firestore
                             lastSeen: Date.now(),
-                            fromFirestore: true // Marcar que veio do Firestore
+                            fromFirestore: true,
+                            firestoreOnline: user.isOnline // Salvar também separadamente
                         });
                         
                         console.log(`✅ ${user.login} adicionado ao RTDB (online: ${user.isOnline})`);
                     } else {
-                        // Atualizar status do Firestore
+                        // Atualizar com status do Firestore
                         const existingData = snapshot.val();
-                        if (existingData.isOnline !== user.isOnline) {
-                            await userRef.update({
-                                isOnline: user.isOnline,
-                                lastSeen: Date.now()
-                            });
-                            console.log(`📝 ${user.login} atualizado: online=${user.isOnline}`);
-                        }
+                        
+                        // SEMPRE atualizar com o status do Firestore
+                        await userRef.update({
+                            isOnline: user.isOnline, // Forçar atualização com status do Firestore
+                            lastSeen: user.isOnline ? Date.now() : existingData.lastSeen,
+                            firestoreOnline: user.isOnline
+                        });
+                        
+                        console.log(`📝 ${user.login} atualizado: online=${user.isOnline} (Firestore: ${user.isOnline})`);
                     }
                 }
                 
@@ -765,35 +741,33 @@
         async function setupChatUser(userData) {
             console.log('⚙️ Configurando usuário no RTDB:', userData);
             
-            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome || userData.login)}&background=667eea&color=fff`;
+            // Forçar o usuário atual como ONLINE
+            userData.isOnline = true; // <-- FORÇAR TRUE para usuário atual
+            
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome)}&background=667eea&color=fff`;
             
             const userRef = chatDb.ref(`users/${userData.uid}`);
             
             try {
-                // Usar set() para garantir estrutura correta
                 await userRef.set({
                     uid: userData.uid,
                     login: userData.login,
-                    nome: userData.nome || userData.login,
-                    perfil: userData.perfil || 'Usuário',
+                    nome: userData.nome,
+                    perfil: userData.perfil,
                     avatarUrl: avatarUrl,
-                    isOnline: true,  // Garantir que é booleano
-                    lastSeen: Date.now()
+                    isOnline: true, // SEMPRE true para usuário atual
+                    lastSeen: Date.now(),
+                    isCurrentUser: true // Marcar como usuário atual
                 });
                 
-                console.log('✅ Usuário configurado no RTDB:', userData.uid);
+                console.log('✅ Usuário atual configurado como ONLINE no RTDB');
                 
                 // Configurar desconexão automática
                 userRef.child('isOnline').onDisconnect().set(false);
                 userRef.child('lastSeen').onDisconnect().set(Date.now());
                 
-                // Verificar se foi salvo corretamente
-                const verifySnapshot = await userRef.once('value');
-                console.log('✅ Verificação:', verifySnapshot.val());
-                
             } catch (error) {
                 console.error('❌ Erro ao configurar usuário no RTDB:', error);
-                throw error; // Propagar o erro
             }
         }
 
