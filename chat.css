@@ -643,3 +643,84 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
+
+/* ========== INPUT DE MENSAGEM (GARANTIR QUE ESTEJA VISÍVEL) ========== */
+.message-input-area {
+    background: white;
+    padding: 15px 20px;
+    border-top: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    z-index: 10;
+}
+
+.input-container {
+    flex: 1;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#message-input {
+    flex: 1;
+    padding: 14px 18px;
+    border: 2px solid #e1e5e9;
+    border-radius: 25px;
+    font-size: 16px;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    resize: none;
+    max-height: 120px;
+    min-height: 50px;
+    font-family: inherit;
+}
+
+#message-input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-send {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.btn-send:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-send:active {
+    transform: translateY(0);
+}
+
+.input-hint {
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* ========== DEIXAR O INPUT SEMPRE VISÍVEL ========== */
+.message-input-area.hidden {
+    display: none !important;
+}
+
+.message-input-area:not(.hidden) {
+    display: flex !important;
+}
