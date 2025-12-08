@@ -256,6 +256,28 @@
             }
         }
 
+        // ========== ATUALIZAR STATUS ONLINE NO FIRESTORE ==========
+        async function updateOnlineStatusInFirestore(userId, isOnline) {
+            try {
+                // Encontrar o usuário
+                const user = allUsers.find(u => u.uid === userId) || 
+                            (await getAllUsersFromFirestore()).find(u => u.uid === userId);
+                
+                if (user) {
+                    const docRef = db.collection('LOGINS_ORGTAREFAS').doc(user.docId);
+                    
+                    // Atualizar o campo isOnline dentro do userX_uid
+                    const updateData = {};
+                    updateData[`${user.campo}.isOnline`] = isOnline;
+                    
+                    await docRef.update(updateData);
+                    console.log(`✅ Status ${isOnline ? 'online' : 'offline'} atualizado no Firestore para ${user.login}`);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status no Firestore:', error);
+            }
+        }
+        
         // ========== TENTAR AUTO-LOGIN ==========
         async function tryAutoLogin() {
             try {
@@ -264,27 +286,13 @@
                     const usuarioLogado = JSON.parse(usuarioLogadoStr);
                     console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
                     
-                    // Buscar usuário no Firestore
-                    const querySnapshot = await db.collection('usuarios')
-                        .where('usuario', '==', usuarioLogado.usuario)
-                        .get();
+                    // Buscar em TODOS os usuários do Firestore
+                    const allFirestoreUsers = await getAllUsersFromFirestore();
+                    const foundUser = allFirestoreUsers.find(u => u.login === usuarioLogado.usuario);
                     
-                    if (!querySnapshot.empty) {
-                        const doc = querySnapshot.docs[0];
-                        const userData = doc.data();
-                        
-                        console.log('✅ Auto-login bem-sucedido para:', userData.usuario);
-                        
-                        const usuarioChat = {
-                            uid: doc.id,
-                            docId: doc.id,
-                            login: userData.usuario,
-                            nome: userData.usuario,
-                            perfil: userData.nivel || 'usuario'
-                        };
-                        
-                        // Fazer login automático
-                        await performLogin(usuarioChat);
+                    if (foundUser) {
+                        console.log('✅ Auto-login bem-sucedido para:', foundUser.login);
+                        currentUser = foundUser;
                         return true;
                     }
                 }
