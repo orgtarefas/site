@@ -1421,3 +1421,45 @@ small {
 .transition {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Adicione ao final do seu CSS */
+.no-users, .no-conversations {
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.no-users i, .no-conversations i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #999;
+}
+
+.loading-online, .loading-conversations {
+    padding: 30px;
+    text-align: center;
+    color: #667eea;
+}
+
+.loading-online i, .loading-conversations i {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+/* Mensagens de erro */
+.error-message {
+    background: #ffebee;
+    color: #d32f2f;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.error-message i {
+    font-size: 18px;
+}
