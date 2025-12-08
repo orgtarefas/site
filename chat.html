@@ -34,6 +34,7 @@
                         </button>
                     </div>
                     <div id="login-status" class="login-status"></div>
+                    <div id="debug-info" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px; color: #666; display: none;"></div>
                 </div>
                 
                 <!-- Área do Usuário Logado (hidden por padrão) -->
@@ -124,7 +125,7 @@
         }
 
         // ========== ELEMENTOS DOM ==========
-        let userSelect, confirmUserBtn, loginStatus;
+        let userSelect, confirmUserBtn, loginStatus, debugInfo;
 
         // ========== INICIALIZAÇÃO ==========
         async function init() {
@@ -150,6 +151,7 @@
             userSelect = document.getElementById('user-select');
             confirmUserBtn = document.getElementById('confirm-user-btn');
             loginStatus = document.getElementById('login-status');
+            debugInfo = document.getElementById('debug-info');
         }
 
         // ========== EVENT LISTENERS ==========
@@ -168,48 +170,127 @@
             }
         }
 
-        // ========== CARREGAR USUÁRIOS DO FIRESTORE (coleção USUARIOS) ==========
+        // ========== CARREGAR USUÁRIOS DO FIRESTORE ==========
         async function loadUsersFromFirestore() {
             try {
                 console.log('🔍 Buscando usuários da coleção "usuarios"...');
                 showStatus('Buscando usuários...', 'info');
+                showDebugInfo('Analisando estrutura dos documentos...');
                 
                 if (!db) {
                     throw new Error('Firestore não inicializado');
                 }
                 
-                // BUSCAR DA COLEÇÃO "usuarios" (igual ao login.js)
+                // BUSCAR DA COLEÇÃO "usuarios"
                 const querySnapshot = await db.collection('usuarios').get();
                 console.log(`📄 Total de documentos em "usuarios": ${querySnapshot.size}`);
                 
                 let usuariosReais = [];
+                let debugText = `Encontrados ${querySnapshot.size} documento(s):<br><br>`;
                 
-                querySnapshot.forEach(doc => {
+                querySnapshot.forEach((doc, index) => {
                     const docId = doc.id;
                     const dados = doc.data();
                     
-                    console.log(`📋 Documento ${docId}:`, dados);
+                    console.log(`📋 Documento ${index + 1} (ID: ${docId}):`, dados);
+                    debugText += `📄 Documento ${index + 1} (${docId}):<br>`;
+                    debugText += JSON.stringify(dados, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;') + '<br><br>';
                     
-                    // Verificar se é um usuário válido (estrutura do login.js)
-                    if (dados.usuario && dados.nome) {
-                        console.log(`✅ USUÁRIO VÁLIDO: ${dados.usuario}`);
+                    // ESTRATÉGIA 1: Verificar estrutura direta (campo "usuario")
+                    if (dados.usuario) {
+                        console.log(`✅ ESTRUTURA 1 - Campo "usuario": ${dados.usuario}`);
                         
                         const usuario = {
-                            uid: docId, // Usar o ID do documento como UID
+                            uid: docId,
                             docId: docId,
-                            login: dados.usuario, // "usuario" no banco
-                            nome: dados.nome,
-                            perfil: dados.nivel || 'usuario', // "nivel" no banco
+                            login: dados.usuario,
+                            nome: dados.nome || dados.displayName || dados.usuario,
+                            perfil: dados.nivel || dados.perfil || dados.role || 'usuario',
                             email: dados.email || '',
                             senha: dados.senha || ''
                         };
                         
                         usuariosReais.push(usuario);
+                        debugText += `✅ ESTRUTURA 1 - Usuário adicionado: ${usuario.nome}<br><br>`;
+                    }
+                    // ESTRATÉGIA 2: Verificar estrutura com "login" (mais antiga)
+                    else if (dados.login) {
+                        console.log(`✅ ESTRUTURA 2 - Campo "login": ${dados.login}`);
+                        
+                        const usuario = {
+                            uid: docId,
+                            docId: docId,
+                            login: dados.login,
+                            nome: dados.nome || dados.displayName || dados.login,
+                            perfil: dados.perfil || dados.nivel || 'usuario',
+                            email: dados.email || '',
+                            senha: dados.senha || ''
+                        };
+                        
+                        usuariosReais.push(usuario);
+                        debugText += `✅ ESTRUTURA 2 - Usuário adicionado: ${usuario.nome}<br><br>`;
+                    }
+                    // ESTRATÉGIA 3: Verificar se tem campos que indicam ser usuário
+                    else if (dados.email || dados.nome || dados.displayName) {
+                        console.log(`⚠️ ESTRUTURA 3 - Possível usuário sem campo de login`);
+                        
+                        // Tentar extrair login do email ou nome
+                        const login = dados.email ? dados.email.split('@')[0] : 
+                                     dados.nome ? dados.nome.toLowerCase().replace(/\s+/g, '.') :
+                                     dados.displayName ? dados.displayName.toLowerCase().replace(/\s+/g, '.') : 
+                                     `user_${docId}`;
+                        
+                        const usuario = {
+                            uid: docId,
+                            docId: docId,
+                            login: login,
+                            nome: dados.nome || dados.displayName || login,
+                            perfil: dados.perfil || dados.nivel || dados.role || 'usuario',
+                            email: dados.email || '',
+                            senha: dados.senha || ''
+                        };
+                        
+                        usuariosReais.push(usuario);
+                        debugText += `✅ ESTRUTURA 3 - Usuário inferido: ${usuario.nome}<br><br>`;
+                    }
+                    // ESTRATÉGIA 4: Verificar campos aninhados (objetos dentro do documento)
+                    else {
+                        // Procurar por objetos que possam conter dados de usuário
+                        Object.keys(dados).forEach(campo => {
+                            const valor = dados[campo];
+                            if (typeof valor === 'object' && valor !== null) {
+                                console.log(`🔍 Campo aninhado "${campo}":`, valor);
+                                debugText += `🔍 Campo aninhado "${campo}": ${JSON.stringify(valor)}<br>`;
+                                
+                                if (valor.usuario || valor.login) {
+                                    const userObj = valor;
+                                    const usuario = {
+                                        uid: `${docId}_${campo}`,
+                                        docId: docId,
+                                        campo: campo,
+                                        login: userObj.usuario || userObj.login,
+                                        nome: userObj.nome || userObj.displayName || (userObj.usuario || userObj.login),
+                                        perfil: userObj.perfil || userObj.nivel || 'usuario',
+                                        email: userObj.email || '',
+                                        senha: userObj.senha || ''
+                                    };
+                                    
+                                    usuariosReais.push(usuario);
+                                    debugText += `✅ Usuário aninhado adicionado: ${usuario.nome}<br><br>`;
+                                }
+                            }
+                        });
                     }
                 });
                 
                 console.log(`🎯 Total de usuários encontrados: ${usuariosReais.length}`);
                 console.log('👥 Usuários:', usuariosReais);
+                
+                // Mostrar debug info
+                if (debugInfo) {
+                    debugInfo.innerHTML = debugText;
+                    debugInfo.style.display = 'block';
+                }
                 
                 if (usuariosReais.length > 0) {
                     // Ordenar por nome
@@ -227,31 +308,28 @@
                     
                     showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
                     
-                    // Se tivermos um usuário logado no localStorage, selecioná-lo automaticamente
+                    // Tentar detectar usuário logado do localStorage
                     try {
                         const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
                         if (usuarioLogadoStr) {
                             const usuarioLogado = JSON.parse(usuarioLogadoStr);
-                            console.log('👤 Usuário logado no sistema:', usuarioLogado);
+                            console.log('👤 Usuário logado detectado:', usuarioLogado);
                             
-                            // Tentar encontrar este usuário na lista
-                            const usuarioEncontrado = usuariosReais.find(
-                                u => u.login === usuarioLogado.usuario
-                            );
-                            
-                            if (usuarioEncontrado) {
-                                // Selecionar automaticamente
-                                const usuarioJson = JSON.stringify(usuarioEncontrado);
-                                
-                                // Encontrar a opção correspondente
-                                for (let i = 0; i < userSelect.options.length; i++) {
-                                    if (userSelect.options[i].value === usuarioJson) {
-                                        userSelect.selectedIndex = i;
-                                        if (confirmUserBtn) {
-                                            confirmUserBtn.disabled = false;
+                            // Procurar usuário correspondente
+                            for (let i = 0; i < userSelect.options.length; i++) {
+                                if (userSelect.options[i].value) {
+                                    try {
+                                        const usuarioOpt = JSON.parse(userSelect.options[i].value);
+                                        if (usuarioOpt.login === usuarioLogado.usuario) {
+                                            userSelect.selectedIndex = i;
+                                            if (confirmUserBtn) {
+                                                confirmUserBtn.disabled = false;
+                                            }
+                                            showStatus(`Usuário ${usuarioLogado.nome} detectado`, 'success');
+                                            break;
                                         }
-                                        showStatus(`Usuário ${usuarioLogado.nome} detectado`, 'success');
-                                        break;
+                                    } catch (e) {
+                                        // Ignorar erro de parse
                                     }
                                 }
                             }
@@ -261,68 +339,22 @@
                     }
                     
                 } else {
-                    showStatus('Nenhum usuário encontrado na coleção "usuarios"', 'error');
-                    console.log('🔍 Tentando buscar de LOGINS_ORGTAREFAS como fallback...');
+                    showStatus('Nenhum usuário encontrado com estrutura reconhecida', 'error');
                     
-                    // Tentar como fallback buscar de LOGINS_ORGTAREFAS
-                    await loadUsersFromLOGINS_ORGTAREFAS();
+                    // Mostrar mensagem de ajuda
+                    if (debugInfo) {
+                        debugInfo.innerHTML += '<br><strong>💡 DICA:</strong> A estrutura esperada é um documento com campos:<br>' +
+                                             '- "usuario" ou "login" (nome de usuário)<br>' +
+                                             '- "nome" ou "displayName" (nome completo)<br>' +
+                                             '- "perfil", "nivel" ou "role" (tipo de usuário)<br>' +
+                                             '- "email" (opcional)<br>' +
+                                             '- "senha" (opcional)';
+                    }
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
                 showStatus('Erro: ' + error.message, 'error');
-                
-                // Tentar fallback
-                await loadUsersFromLOGINS_ORGTAREFAS();
-            }
-        }
-
-        // ========== FALLBACK: CARREGAR DE LOGINS_ORGTAREFAS ==========
-        async function loadUsersFromLOGINS_ORGTAREFAS() {
-            try {
-                console.log('🔍 Tentando coleção LOGINS_ORGTAREFAS...');
-                const querySnapshot = await db.collection('LOGINS_ORGTAREFAS').get();
-                console.log(`📄 Documentos em LOGINS_ORGTAREFAS: ${querySnapshot.size}`);
-                
-                let usuariosReais = [];
-                
-                querySnapshot.forEach(doc => {
-                    const dados = doc.data();
-                    console.log(`📋 LOGINS_ORGTAREFAS ${doc.id}:`, dados);
-                    
-                    // Verificar estrutura antiga
-                    Object.keys(dados).forEach(campo => {
-                        const valor = dados[campo];
-                        if (typeof valor === 'object' && valor !== null) {
-                            if (valor.login && valor.displayName) {
-                                const usuario = {
-                                    uid: `${doc.id}_${campo}`,
-                                    docId: doc.id,
-                                    campo: campo,
-                                    login: valor.login,
-                                    nome: valor.displayName,
-                                    perfil: valor.perfil || 'Usuário'
-                                };
-                                usuariosReais.push(usuario);
-                            }
-                        }
-                    });
-                });
-                
-                if (usuariosReais.length > 0) {
-                    usuariosReais.forEach(usuario => {
-                        const option = document.createElement('option');
-                        option.value = JSON.stringify(usuario);
-                        option.textContent = `${usuario.nome} (${usuario.login})`;
-                        if (userSelect) {
-                            userSelect.appendChild(option);
-                        }
-                    });
-                    showStatus(`${usuariosReais.length} usuário(s) de LOGINS_ORGTAREFAS`, 'success');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro no fallback:', error);
             }
         }
 
@@ -369,13 +401,12 @@
             }
             
             loginStatus.style.display = 'block';
-            
-            // Limpar após 5 segundos se for sucesso/info
-            if (type !== 'error') {
-                setTimeout(() => {
-                    loginStatus.style.display = 'none';
-                }, 5000);
-            }
+        }
+
+        function showDebugInfo(message) {
+            if (!debugInfo) return;
+            debugInfo.innerHTML += message + '<br>';
+            debugInfo.style.display = 'block';
         }
 
         // ========== INICIAR APP ==========
