@@ -50,7 +50,7 @@ let unsubscribeMessages = null;
 
 // ========== INICIALIZAÇÃO ==========
 async function init() {
-    console.log('🚀 Inicializando Chat...');
+    console.log('🚀 Inicializando Chat (auto-login)...');
     
     try {
         // Inicializar os dois projetos Firebase
@@ -62,105 +62,90 @@ async function init() {
         
         console.log('✅ Firebase inicializado com sucesso!');
         
-        // Verificar auto-login
-        await tryAutoLogin();
-        
-        // Carregar lista de usuários
-        await loadUsers();
-        
-        // Configurar event listeners
-        setupEventListeners();
-        
-        // Configurar responsividade
-        setupResponsive();
+        // Fazer auto-login automaticamente
+        await autoLogin();
         
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
-        showStatus('Erro ao conectar com o servidor', 'error');
+        showNotification('Erro ao conectar com o servidor', 'error');
+        // Se der erro, redireciona para index após 3 segundos
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 3000);
     }
 }
 
-// ========== TENTAR AUTO-LOGIN ==========
-async function tryAutoLogin() {
-    const savedUser = localStorage.getItem('chatUser');
-    if (!savedUser) return false;
+// ========== AUTO-LOGIN AUTOMÁTICO ==========
+async function autoLogin() {
+    console.log('🔐 Tentando auto-login...');
     
     try {
-        const userData = JSON.parse(savedUser);
-        console.log('👤 Tentando auto-login para:', userData.login);
+        // Buscar usuário logado do localStorage (do login.html)
+        const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
         
-        // Verificar se o usuário ainda existe no Firestore
-        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-        const docSnap = await getDoc(loginsRef);
-        
-        if (docSnap.exists()) {
-            const loginsData = docSnap.data();
-            
-            if (loginsData[userData.uid]) {
-                console.log('✅ Auto-login bem-sucedido!');
-                await loginUser(userData);
-                return true;
-            }
+        if (!usuarioLogadoStr) {
+            console.log('⚠️ Nenhum usuário logado encontrado');
+            showNotification('Usuário não logado. Redirecionando...', 'error');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+            return;
         }
         
-        console.log('⚠️ Usuário não encontrado, limpando localStorage');
-        localStorage.removeItem('chatUser');
+        const usuarioLogado = JSON.parse(usuarioLogadoStr);
+        console.log('👤 Usuário encontrado:', usuarioLogado.usuario);
         
-    } catch (error) {
-        console.error('❌ Erro no auto-login:', error);
-    }
-    
-    return false;
-}
-
-// ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
-async function loadUsers() {
-    try {
-        showStatus('Carregando usuários...', 'info');
-        
+        // Buscar usuário no Firestore (logins)
         const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
         const docSnap = await getDoc(loginsRef);
         
         if (!docSnap.exists()) {
-            showStatus('Nenhum usuário encontrado', 'error');
+            console.log('❌ Documento de logins não encontrado');
+            showNotification('Erro no sistema de logins', 'error');
             return;
         }
         
         const loginsData = docSnap.data();
-        const userSelect = document.getElementById('user-select');
+        let userFound = null;
+        let userUid = null;
         
-        userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
-        
-        // Ordenar usuários por nome
-        const usersArray = Object.entries(loginsData)
-            .map(([uid, data]) => ({
-                uid,
-                ...data,
-                nome: data.displayName || data.login
-            }))
-            .sort((a, b) => a.nome.localeCompare(b.nome));
-        
-        usersArray.forEach(user => {
-            if (user.login) {
-                const userObj = {
-                    uid: user.uid,
-                    login: user.login,
-                    nome: user.nome,
-                    perfil: user.perfil || 'usuario'
-                };
-                
-                const option = document.createElement('option');
-                option.value = JSON.stringify(userObj);
-                option.textContent = `${user.nome} (${user.login})`;
-                userSelect.appendChild(option);
+        // Procurar usuário pelo login
+        for (const [uid, userData] of Object.entries(loginsData)) {
+            if (userData && userData.login === usuarioLogado.usuario) {
+                userFound = userData;
+                userUid = uid;
+                break;
             }
-        });
+        }
         
-        showStatus('Selecione seu usuário', 'info');
+        if (!userFound) {
+            console.log('❌ Usuário não encontrado no sistema');
+            showNotification('Usuário não autorizado', 'error');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+            return;
+        }
+        
+        // Criar objeto do usuário para o chat
+        const userData = {
+            uid: userUid,
+            login: userFound.login,
+            nome: userFound.displayName || userFound.login,
+            perfil: userFound.perfil || 'usuario'
+        };
+        
+        console.log('✅ Auto-login bem-sucedido:', userData.nome);
+        
+        // Fazer login automático
+        await loginUser(userData);
         
     } catch (error) {
-        console.error('❌ Erro ao carregar usuários:', error);
-        showStatus('Erro ao carregar usuários', 'error');
+        console.error('❌ Erro no auto-login:', error);
+        showNotification('Erro no login automático', 'error');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
     }
 }
 
@@ -168,9 +153,6 @@ async function loadUsers() {
 async function loginUser(userData) {
     try {
         currentUser = userData;
-        
-        // Salvar no localStorage para auto-login
-        localStorage.setItem('chatUser', JSON.stringify(userData));
         
         // Atualizar status online no Firestore (logins)
         const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
@@ -199,7 +181,7 @@ async function loginUser(userData) {
         // Configurar listeners do chat
         setupChatListeners();
         
-        showStatus(`✅ Bem-vindo, ${userData.nome}!`, 'success');
+        showNotification(`✅ Olá, ${userData.nome}!`, 'success');
         
         // Fechar sidebar em mobile
         if (window.innerWidth < 768) {
@@ -208,24 +190,23 @@ async function loginUser(userData) {
         
     } catch (error) {
         console.error('❌ Erro no login:', error);
-        showStatus('Erro ao fazer login', 'error');
+        showNotification('Erro ao conectar ao chat', 'error');
     }
 }
 
 // ========== ATUALIZAR INTERFACE APÓS LOGIN ==========
 function updateUIAfterLogin() {
-    // Alternar telas
-    document.getElementById('login-screen').classList.remove('active');
-    document.getElementById('chat-screen').classList.add('active');
-    
     // Atualizar informações do usuário
     document.getElementById('current-user-name').textContent = currentUser.nome;
-    
-    // Mostrar status online
     document.getElementById('current-user-status').classList.add('online');
+    
+    // Remover estados de loading
+    document.querySelectorAll('.loading-state').forEach(el => {
+        el.style.display = 'none';
+    });
 }
 
-// ========== LOGOUT ==========
+// ========== LOGOUT (ao voltar) ==========
 async function logout() {
     if (!currentUser) return;
     
@@ -248,47 +229,11 @@ async function logout() {
         if (unsubscribeConversations) unsubscribeConversations();
         if (unsubscribeMessages) unsubscribeMessages();
         
-        // Limpar dados locais
-        localStorage.removeItem('chatUser');
-        currentUser = null;
-        currentConversation = null;
-        
-        // Resetar interface
-        resetUIAfterLogout();
-        
-        showStatus('👋 Desconectado com sucesso', 'info');
+        console.log('👋 Usuário desconectado:', currentUser.login);
         
     } catch (error) {
         console.error('❌ Erro no logout:', error);
-        showStatus('Erro ao desconectar', 'error');
     }
-}
-
-// ========== RESETAR INTERFACE APÓS LOGOUT ==========
-function resetUIAfterLogout() {
-    // Alternar telas
-    document.getElementById('login-screen').classList.add('active');
-    document.getElementById('chat-screen').classList.remove('active');
-    
-    // Limpar listas
-    document.getElementById('online-users').innerHTML = '';
-    document.getElementById('conversations').innerHTML = '';
-    document.getElementById('messages-container').innerHTML = `
-        <div class="welcome-message">
-            <div class="welcome-icon">
-                <i class="fas fa-comments"></i>
-            </div>
-            <h3>Bem-vindo ao Chat</h3>
-            <p>Selecione um colega online para iniciar uma conversa</p>
-        </div>`;
-    
-    // Resetar cabeçalho
-    document.getElementById('no-conversation').classList.add('active');
-    document.getElementById('active-conversation').classList.remove('active');
-    document.getElementById('message-input-area').style.display = 'none';
-    
-    // Resetar seleção
-    document.getElementById('user-select').selectedIndex = 0;
 }
 
 // ========== CONFIGURAR LISTENERS DO CHAT ==========
@@ -429,9 +374,9 @@ window.startConversation = async function(otherUserId) {
         
         // Atualizar interface
         document.getElementById('other-user-name').textContent = otherUser.nome;
-        document.getElementById('no-conversation').classList.remove('active');
-        document.getElementById('active-conversation').classList.add('active');
-        document.getElementById('message-input-area').style.display = 'flex';
+        document.getElementById('no-conversation').classList.add('hidden');
+        document.getElementById('active-conversation').classList.remove('hidden');
+        document.getElementById('message-input-area').classList.remove('hidden');
         
         // Criar/verificar conversa
         const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${conversationId}`);
@@ -465,7 +410,7 @@ window.startConversation = async function(otherUserId) {
         
     } catch (error) {
         console.error('❌ Erro ao iniciar conversa:', error);
-        showStatus('Erro ao iniciar conversa', 'error');
+        showNotification('Erro ao iniciar conversa', 'error');
     }
 };
 
@@ -479,9 +424,9 @@ async function openConversation(conversationId, otherUserId) {
         
         // Atualizar interface
         document.getElementById('other-user-name').textContent = otherUser.nome;
-        document.getElementById('no-conversation').classList.remove('active');
-        document.getElementById('active-conversation').classList.add('active');
-        document.getElementById('message-input-area').style.display = 'flex';
+        document.getElementById('no-conversation').classList.add('hidden');
+        document.getElementById('active-conversation').classList.remove('hidden');
+        document.getElementById('message-input-area').classList.remove('hidden');
         
         // Carregar mensagens
         loadMessages(conversationId);
@@ -603,7 +548,7 @@ async function sendMessage() {
         
     } catch (error) {
         console.error('❌ Erro ao enviar mensagem:', error);
-        showStatus('Erro ao enviar mensagem', 'error');
+        showNotification('Erro ao enviar mensagem', 'error');
     }
 }
 
@@ -692,21 +637,6 @@ function scrollToBottom() {
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
-    // Login
-    document.getElementById('login-btn').addEventListener('click', async () => {
-        const select = document.getElementById('user-select');
-        if (!select.value) {
-            showStatus('Selecione um usuário', 'error');
-            return;
-        }
-        
-        const userData = JSON.parse(select.value);
-        await loginUser(userData);
-    });
-    
-    // Logout
-    document.getElementById('logout-btn').addEventListener('click', logout);
-    
     // Enviar mensagem
     document.getElementById('send-btn').addEventListener('click', sendMessage);
     document.getElementById('message-input').addEventListener('keypress', (e) => {
@@ -721,11 +651,14 @@ function setupEventListeners() {
         document.getElementById('sidebar').classList.toggle('active');
     });
     
-    // Enter para login
-    document.getElementById('user-select').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            document.getElementById('login-btn').click();
-        }
+    // Logout quando a página for fechada
+    window.addEventListener('beforeunload', logout);
+    
+    // Logout ao clicar no botão voltar
+    document.getElementById('logout-btn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        await logout();
+        window.location.href = 'index.html';
     });
 }
 
@@ -754,33 +687,37 @@ function setupResponsive() {
     });
 }
 
-// ========== MOSTRAR STATUS ==========
-function showStatus(message, type = 'info') {
-    const statusDiv = document.getElementById('status');
+// ========== MOSTRAR NOTIFICAÇÃO ==========
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
     
-    // Limpar status anterior
-    statusDiv.textContent = '';
-    statusDiv.className = 'status-message';
+    // Limpar notificação anterior
+    notification.textContent = '';
+    notification.className = 'notification';
     
     // Definir tipo
     const typeClasses = {
         error: 'error',
         success: 'success',
-        info: 'info',
-        warning: 'warning'
+        info: 'info'
     };
     
-    statusDiv.classList.add(typeClasses[type] || 'info');
-    statusDiv.textContent = message;
-    statusDiv.style.display = 'block';
+    notification.classList.add(typeClasses[type] || 'info');
     
-    // Auto-esconder se não for erro
-    if (type !== 'error') {
-        setTimeout(() => {
-            statusDiv.style.display = 'none';
-        }, 3000);
-    }
+    // Adicionar ícone
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    notification.textContent = `${icon} ${message}`;
+    notification.classList.remove('hidden');
+    
+    // Auto-esconder
+    setTimeout(() => {
+        notification.classList.add('hidden');
+    }, 3000);
 }
 
 // ========== INICIAR APLICAÇÃO ==========
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    setupEventListeners();
+    setupResponsive();
+});
