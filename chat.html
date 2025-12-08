@@ -227,6 +227,9 @@
             
             if (!initializeFirebase()) return;
             
+            // Diagnóstico
+            await diagnoseFirestoreStructure();
+            
             setupDOM();
             setupEventListeners();
             
@@ -286,17 +289,25 @@
         async function tryAutoLogin() {
             try {
                 const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
-                if (!usuarioLogadoStr) return false;
+                if (!usuarioLogadoStr) {
+                    console.log('ℹ️ Nenhum usuário logado no localStorage');
+                    return false;
+                }
                 
                 const usuarioLogado = JSON.parse(usuarioLogadoStr);
                 console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
                 
                 // Buscar usuário na coleção de logins
                 const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                console.log('🔍 Buscando documento para auto-login:', 'logins/LOGINS_ORGTAREFAS');
+                
                 const docSnap = await getDoc(loginsRef);
+                
+                console.log('📄 Auto-login - Documento encontrado?', docSnap.exists());
                 
                 if (docSnap.exists()) {
                     const loginsData = docSnap.data();
+                    console.log('📊 Total de usuários no documento:', Object.keys(loginsData).length);
                     
                     // Procurar o usuário pelo login
                     for (const [uid, userData] of Object.entries(loginsData)) {
@@ -317,6 +328,11 @@
                             return true;
                         }
                     }
+                    
+                    console.log('❌ Usuário não encontrado na lista de logins:', usuarioLogado.usuario);
+                    console.log('Usuários disponíveis:', Object.values(loginsData).map(u => u?.login).filter(Boolean));
+                } else {
+                    console.log('❌ Documento de logins não encontrado no Firestore');
                 }
                 return false;
                 
@@ -326,6 +342,39 @@
             }
         }
 
+        // Adicione esta função temporária para diagnóstico
+        async function diagnoseFirestoreStructure() {
+            try {
+                console.log('🔍 Diagnosticando estrutura do Firestore...');
+                
+                // Tentar listar todos os documentos na coleção 'logins'
+                const loginsCollection = collection(db, 'logins');
+                const querySnapshot = await getDocs(loginsCollection);
+                
+                console.log(`📂 Documentos na coleção 'logins': ${querySnapshot.size}`);
+                
+                querySnapshot.forEach((doc) => {
+                    console.log(`📄 Documento ID: ${doc.id}`);
+                    const data = doc.data();
+                    console.log(`   Tipo de dados: ${typeof data}`);
+                    console.log(`   Contém propriedades: ${Object.keys(data).length}`);
+                    console.log(`   Primeiras propriedades: ${Object.keys(data).slice(0, 3).join(', ')}`);
+                    
+                    // Verificar se tem usuários
+                    let userCount = 0;
+                    for (const [key, value] of Object.entries(data)) {
+                        if (value && typeof value === 'object' && value.login) {
+                            userCount++;
+                        }
+                    }
+                    console.log(`   Usuários encontrados: ${userCount}`);
+                });
+                
+            } catch (error) {
+                console.error('❌ Erro no diagnóstico:', error);
+            }
+        }
+        
         // ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
         async function loadUsersForSelection() {
             try {
@@ -333,22 +382,40 @@
                 
                 // Buscar na coleção correta de logins
                 const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                console.log('🔍 Buscando documento:', 'logins/LOGINS_ORGTAREFAS');
+                
                 const docSnap = await getDoc(loginsRef);
+                
+                console.log('📄 Resultado da busca:', docSnap.exists() ? 'Documento encontrado' : 'Documento NÃO encontrado');
                 
                 if (!docSnap.exists()) {
                     showStatus('Nenhum usuário encontrado', 'error');
+                    
+                    // Vamos tentar listar todas as coleções para diagnóstico
+                    console.log('⚠️ Tentando listar coleções disponíveis...');
+                    try {
+                        const collectionsRef = collection(db, 'logins');
+                        const collectionsSnapshot = await getDocs(collectionsRef);
+                        console.log('Coleções em "logins":', collectionsSnapshot.docs.map(doc => doc.id));
+                    } catch (collectionsError) {
+                        console.error('Erro ao listar coleções:', collectionsError);
+                    }
+                    
                     return;
                 }
                 
                 const loginsData = docSnap.data();
                 console.log(`📄 Usuários encontrados: ${Object.keys(loginsData).length}`);
+                console.log('Dados do documento:', loginsData);
                 
                 if (userSelect) {
                     userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
                 }
                 
+                let userCount = 0;
                 for (const [uid, userData] of Object.entries(loginsData)) {
                     if (userData && userData.login) {
+                        userCount++;
                         const usuario = {
                             uid: uid,
                             login: userData.login,
@@ -366,7 +433,13 @@
                     }
                 }
                 
-                showStatus('Selecione seu usuário', 'info');
+                console.log(`👤 ${userCount} usuários carregados para seleção`);
+                
+                if (userCount === 0) {
+                    showStatus('Nenhum usuário disponível', 'warning');
+                } else {
+                    showStatus('Selecione seu usuário', 'info');
+                }
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
