@@ -34,7 +34,6 @@
                         </button>
                     </div>
                     <div id="login-status" class="login-status"></div>
-                    <div id="debug-info" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px; color: #666; display: none;"></div>
                 </div>
                 
                 <!-- Área do Usuário Logado (hidden por padrão) -->
@@ -102,15 +101,12 @@
             try {
                 console.log('🚀 Inicializando Firebase...');
                 
-                // Inicializar primeiro app (Firestore - sistema principal)
                 const mainApp = firebase.initializeApp(firebaseConfig);
                 console.log('✅ Firebase App (Firestore) inicializado');
                 
-                // Inicializar segundo app (Realtime Database - chat)
                 const chatApp = firebase.initializeApp(chatFirebaseConfig, 'chatApp');
                 console.log('✅ Firebase App (Chat) inicializado');
                 
-                // Obter referências
                 db = firebase.firestore(mainApp);
                 chatDb = firebase.database(chatApp);
                 
@@ -125,25 +121,26 @@
         }
 
         // ========== ELEMENTOS DOM ==========
-        let userSelect, confirmUserBtn, loginStatus, debugInfo;
+        let userSelect, confirmUserBtn, loginStatus;
 
         // ========== INICIALIZAÇÃO ==========
         async function init() {
             console.log('🚀 Inicializando chat...');
             
-            // 1. Inicializar Firebase
             if (!initializeFirebase()) {
                 return;
             }
             
-            // 2. Configurar elementos DOM
             setupDOM();
-            
-            // 3. Configurar event listeners
             setupEventListeners();
             
-            // 4. Carregar usuários da coleção CORRETA
-            await loadUsersFromFirestore();
+            // Verificar auto-login primeiro
+            const autoLogged = await tryAutoLogin();
+            
+            // Carregar lista de usuários (se não fez auto-login)
+            if (!autoLogged) {
+                await loadUsersFromFirestore();
+            }
         }
 
         // ========== CONFIGURAR ELEMENTOS DOM ==========
@@ -151,12 +148,10 @@
             userSelect = document.getElementById('user-select');
             confirmUserBtn = document.getElementById('confirm-user-btn');
             loginStatus = document.getElementById('login-status');
-            debugInfo = document.getElementById('debug-info');
         }
 
         // ========== EVENT LISTENERS ==========
         function setupEventListeners() {
-            // Seletor de usuário
             if (userSelect) {
                 userSelect.addEventListener('change', (e) => {
                     if (confirmUserBtn) {
@@ -170,186 +165,120 @@
             }
         }
 
+        // ========== TENTAR AUTO-LOGIN ==========
+        async function tryAutoLogin() {
+            try {
+                const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
+                if (usuarioLogadoStr) {
+                    const usuarioLogado = JSON.parse(usuarioLogadoStr);
+                    console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
+                    
+                    // Buscar usuário no Firestore
+                    const querySnapshot = await db.collection('usuarios')
+                        .where('usuario', '==', usuarioLogado.usuario)
+                        .get();
+                    
+                    if (!querySnapshot.empty) {
+                        const doc = querySnapshot.docs[0];
+                        const userData = doc.data();
+                        
+                        console.log('✅ Usuário encontrado para auto-login:', userData);
+                        
+                        // Criar objeto de usuário para o chat
+                        const usuarioChat = {
+                            uid: doc.id,
+                            docId: doc.id,
+                            login: userData.usuario,
+                            nome: userData.usuario, // Usar o próprio usuário como nome (já que não tem campo "nome")
+                            perfil: userData.nivel || 'usuario',
+                            email: '', // Não tem email na estrutura
+                            status: userData.ativo ? 'Ativo' : 'Inativo'
+                        };
+                        
+                        // Fazer auto-login
+                        await performAutoLogin(usuarioChat);
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro no auto-login:', error);
+            }
+            return false;
+        }
+
+        // ========== REALIZAR AUTO-LOGIN ==========
+        async function performAutoLogin(userData) {
+            console.log('🔑 Realizando auto-login para:', userData.login);
+            
+            currentUser = userData;
+            
+            // Mostrar mensagem
+            showStatus(`Bem-vindo de volta, ${userData.login}!`, 'success');
+            
+            // Configurar usuário no chat
+            await setupChatUser(currentUser);
+            
+            // Atualizar interface
+            updateUserInterface();
+            
+            // Configurar listeners em tempo real
+            setupRealtimeListeners();
+            
+            // Não mostrar seletor de usuário
+            const userSelectorContainer = document.querySelector('.user-selector-container');
+            if (userSelectorContainer) {
+                userSelectorContainer.style.display = 'none';
+            }
+        }
+
         // ========== CARREGAR USUÁRIOS DO FIRESTORE ==========
         async function loadUsersFromFirestore() {
             try {
-                console.log('🔍 Buscando usuários da coleção "usuarios"...');
+                console.log('🔍 Buscando todos os usuários...');
                 showStatus('Buscando usuários...', 'info');
-                showDebugInfo('Analisando estrutura dos documentos...');
                 
-                if (!db) {
-                    throw new Error('Firestore não inicializado');
-                }
-                
-                // BUSCAR DA COLEÇÃO "usuarios"
                 const querySnapshot = await db.collection('usuarios').get();
-                console.log(`📄 Total de documentos em "usuarios": ${querySnapshot.size}`);
+                console.log(`📄 Total de documentos: ${querySnapshot.size}`);
                 
                 let usuariosReais = [];
-                let debugText = `Encontrados ${querySnapshot.size} documento(s):<br><br>`;
                 
-                querySnapshot.forEach((doc, index) => {
-                    const docId = doc.id;
+                querySnapshot.forEach(doc => {
                     const dados = doc.data();
                     
-                    console.log(`📋 Documento ${index + 1} (ID: ${docId}):`, dados);
-                    debugText += `📄 Documento ${index + 1} (${docId}):<br>`;
-                    debugText += JSON.stringify(dados, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;') + '<br><br>';
-                    
-                    // ESTRATÉGIA 1: Verificar estrutura direta (campo "usuario")
+                    // Verificar se tem campo "usuario" (estrutura do seu banco)
                     if (dados.usuario) {
-                        console.log(`✅ ESTRUTURA 1 - Campo "usuario": ${dados.usuario}`);
+                        console.log(`✅ Usuário encontrado: ${dados.usuario}`);
                         
                         const usuario = {
-                            uid: docId,
-                            docId: docId,
+                            uid: doc.id,
+                            docId: doc.id,
                             login: dados.usuario,
-                            nome: dados.nome || dados.displayName || dados.usuario,
-                            perfil: dados.nivel || dados.perfil || dados.role || 'usuario',
-                            email: dados.email || '',
-                            senha: dados.senha || ''
+                            nome: dados.usuario, // Usar o login como nome
+                            perfil: dados.nivel || 'usuario',
+                            email: '', // Não tem email
+                            status: dados.ativo ? 'Ativo' : 'Inativo'
                         };
                         
                         usuariosReais.push(usuario);
-                        debugText += `✅ ESTRUTURA 1 - Usuário adicionado: ${usuario.nome}<br><br>`;
-                    }
-                    // ESTRATÉGIA 2: Verificar estrutura com "login" (mais antiga)
-                    else if (dados.login) {
-                        console.log(`✅ ESTRUTURA 2 - Campo "login": ${dados.login}`);
-                        
-                        const usuario = {
-                            uid: docId,
-                            docId: docId,
-                            login: dados.login,
-                            nome: dados.nome || dados.displayName || dados.login,
-                            perfil: dados.perfil || dados.nivel || 'usuario',
-                            email: dados.email || '',
-                            senha: dados.senha || ''
-                        };
-                        
-                        usuariosReais.push(usuario);
-                        debugText += `✅ ESTRUTURA 2 - Usuário adicionado: ${usuario.nome}<br><br>`;
-                    }
-                    // ESTRATÉGIA 3: Verificar se tem campos que indicam ser usuário
-                    else if (dados.email || dados.nome || dados.displayName) {
-                        console.log(`⚠️ ESTRUTURA 3 - Possível usuário sem campo de login`);
-                        
-                        // Tentar extrair login do email ou nome
-                        const login = dados.email ? dados.email.split('@')[0] : 
-                                     dados.nome ? dados.nome.toLowerCase().replace(/\s+/g, '.') :
-                                     dados.displayName ? dados.displayName.toLowerCase().replace(/\s+/g, '.') : 
-                                     `user_${docId}`;
-                        
-                        const usuario = {
-                            uid: docId,
-                            docId: docId,
-                            login: login,
-                            nome: dados.nome || dados.displayName || login,
-                            perfil: dados.perfil || dados.nivel || dados.role || 'usuario',
-                            email: dados.email || '',
-                            senha: dados.senha || ''
-                        };
-                        
-                        usuariosReais.push(usuario);
-                        debugText += `✅ ESTRUTURA 3 - Usuário inferido: ${usuario.nome}<br><br>`;
-                    }
-                    // ESTRATÉGIA 4: Verificar campos aninhados (objetos dentro do documento)
-                    else {
-                        // Procurar por objetos que possam conter dados de usuário
-                        Object.keys(dados).forEach(campo => {
-                            const valor = dados[campo];
-                            if (typeof valor === 'object' && valor !== null) {
-                                console.log(`🔍 Campo aninhado "${campo}":`, valor);
-                                debugText += `🔍 Campo aninhado "${campo}": ${JSON.stringify(valor)}<br>`;
-                                
-                                if (valor.usuario || valor.login) {
-                                    const userObj = valor;
-                                    const usuario = {
-                                        uid: `${docId}_${campo}`,
-                                        docId: docId,
-                                        campo: campo,
-                                        login: userObj.usuario || userObj.login,
-                                        nome: userObj.nome || userObj.displayName || (userObj.usuario || userObj.login),
-                                        perfil: userObj.perfil || userObj.nivel || 'usuario',
-                                        email: userObj.email || '',
-                                        senha: userObj.senha || ''
-                                    };
-                                    
-                                    usuariosReais.push(usuario);
-                                    debugText += `✅ Usuário aninhado adicionado: ${usuario.nome}<br><br>`;
-                                }
-                            }
-                        });
                     }
                 });
                 
                 console.log(`🎯 Total de usuários encontrados: ${usuariosReais.length}`);
-                console.log('👥 Usuários:', usuariosReais);
-                
-                // Mostrar debug info
-                if (debugInfo) {
-                    debugInfo.innerHTML = debugText;
-                    debugInfo.style.display = 'block';
-                }
                 
                 if (usuariosReais.length > 0) {
-                    // Ordenar por nome
-                    usuariosReais.sort((a, b) => a.nome.localeCompare(b.nome));
-                    
                     // Adicionar ao select
                     usuariosReais.forEach(usuario => {
                         const option = document.createElement('option');
                         option.value = JSON.stringify(usuario);
-                        option.textContent = `${usuario.nome} (${usuario.login}) - ${usuario.perfil}`;
+                        option.textContent = `${usuario.login} - ${usuario.perfil}`;
                         if (userSelect) {
                             userSelect.appendChild(option);
                         }
                     });
                     
-                    showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
-                    
-                    // Tentar detectar usuário logado do localStorage
-                    try {
-                        const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
-                        if (usuarioLogadoStr) {
-                            const usuarioLogado = JSON.parse(usuarioLogadoStr);
-                            console.log('👤 Usuário logado detectado:', usuarioLogado);
-                            
-                            // Procurar usuário correspondente
-                            for (let i = 0; i < userSelect.options.length; i++) {
-                                if (userSelect.options[i].value) {
-                                    try {
-                                        const usuarioOpt = JSON.parse(userSelect.options[i].value);
-                                        if (usuarioOpt.login === usuarioLogado.usuario) {
-                                            userSelect.selectedIndex = i;
-                                            if (confirmUserBtn) {
-                                                confirmUserBtn.disabled = false;
-                                            }
-                                            showStatus(`Usuário ${usuarioLogado.nome} detectado`, 'success');
-                                            break;
-                                        }
-                                    } catch (e) {
-                                        // Ignorar erro de parse
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Não foi possível detectar usuário logado:', e);
-                    }
-                    
+                    showStatus(`${usuariosReais.length} usuário(s) disponível(is)`, 'success');
                 } else {
-                    showStatus('Nenhum usuário encontrado com estrutura reconhecida', 'error');
-                    
-                    // Mostrar mensagem de ajuda
-                    if (debugInfo) {
-                        debugInfo.innerHTML += '<br><strong>💡 DICA:</strong> A estrutura esperada é um documento com campos:<br>' +
-                                             '- "usuario" ou "login" (nome de usuário)<br>' +
-                                             '- "nome" ou "displayName" (nome completo)<br>' +
-                                             '- "perfil", "nivel" ou "role" (tipo de usuário)<br>' +
-                                             '- "email" (opcional)<br>' +
-                                             '- "senha" (opcional)';
-                    }
+                    showStatus('Nenhum usuário encontrado', 'error');
                 }
                 
             } catch (error) {
@@ -368,15 +297,120 @@
                 showStatus('Conectando ao chat...', 'info');
                 
                 currentUser = userData;
-                showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
                 
-                // Aqui você pode continuar com a lógica do chat
-                // Ex: setupChatUser(userData);
+                // Configurar usuário no chat
+                await setupChatUser(currentUser);
+                
+                // Atualizar interface
+                updateUserInterface();
+                
+                // Configurar listeners em tempo real
+                setupRealtimeListeners();
+                
+                showStatus(`✅ Bem-vindo, ${currentUser.login}!`, 'success');
                 
             } catch (error) {
                 console.error('Erro ao selecionar usuário:', error);
                 showStatus('Erro ao selecionar usuário', 'error');
             }
+        }
+
+        // ========== CONFIGURAR USUÁRIO NO CHAT ==========
+        async function setupChatUser(userData) {
+            console.log('⚙️ Configurando usuário no chat:', userData);
+            
+            // Gerar avatar
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.login)}&background=667eea&color=fff`;
+            
+            // Salvar no RTDB do chat
+            const userRef = chatDb.ref(`users/${userData.uid}`);
+            
+            try {
+                await userRef.set({
+                    uid: userData.uid,
+                    login: userData.login,
+                    nome: userData.nome,
+                    perfil: userData.perfil,
+                    avatarUrl: avatarUrl,
+                    isOnline: true,
+                    lastSeen: Date.now()
+                });
+                
+                console.log('✅ Usuário salvo no RTDB');
+                
+                // Configurar desconexão automática
+                userRef.child('isOnline').onDisconnect().set(false);
+                userRef.child('lastSeen').onDisconnect().set(Date.now());
+                
+            } catch (error) {
+                console.error('❌ Erro ao salvar usuário no RTDB:', error);
+            }
+        }
+
+        // ========== ATUALIZAR INTERFACE DO USUÁRIO ==========
+        function updateUserInterface() {
+            if (!currentUser) return;
+            
+            // Atualizar elementos
+            const userName = document.getElementById('current-user-name');
+            const userLogin = document.getElementById('current-user-login');
+            const userPerfil = document.getElementById('current-user-perfil');
+            const userAvatar = document.getElementById('user-avatar');
+            const loggedUserArea = document.getElementById('logged-user-area');
+            
+            if (userName) userName.textContent = currentUser.login;
+            if (userLogin) userLogin.textContent = currentUser.login;
+            if (userPerfil) userPerfil.textContent = currentUser.perfil;
+            
+            // Gerar avatar
+            if (userAvatar) {
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.login)}&background=667eea&color=fff`;
+                userAvatar.src = avatarUrl;
+            }
+            
+            // Mostrar área do usuário logado
+            if (loggedUserArea) {
+                loggedUserArea.classList.remove('hidden');
+            }
+            
+            // Esconder seletor
+            const userSelectorContainer = document.querySelector('.user-selector-container');
+            if (userSelectorContainer) {
+                userSelectorContainer.style.display = 'none';
+            }
+            
+            // Atualizar cabeçalho do chat
+            updateChatHeader();
+        }
+
+        // ========== ATUALIZAR CABEÇALHO DO CHAT ==========
+        function updateChatHeader() {
+            const chatHeader = document.querySelector('.chat-header');
+            if (chatHeader && currentUser) {
+                chatHeader.innerHTML = `
+                    <div class="chat-info-default">
+                        <div class="default-icon">
+                            <i class="fas fa-comment-dots"></i>
+                        </div>
+                        <div class="default-content">
+                            <h2>Olá, ${currentUser.login}!</h2>
+                            <p>Selecione uma conversa para começar</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ========== LISTENERS EM TEMPO REAL ==========
+        function setupRealtimeListeners() {
+            if (!currentUser) return;
+            
+            console.log('📡 Configurando listeners em tempo real...');
+            
+            // Aqui você pode adicionar os listeners para:
+            // 1. Conversas do usuário
+            // 2. Usuários online
+            // 3. Mensagens
         }
 
         // ========== FUNÇÕES AUXILIARES ==========
@@ -401,12 +435,13 @@
             }
             
             loginStatus.style.display = 'block';
-        }
-
-        function showDebugInfo(message) {
-            if (!debugInfo) return;
-            debugInfo.innerHTML += message + '<br>';
-            debugInfo.style.display = 'block';
+            
+            // Limpar após alguns segundos
+            if (type !== 'error') {
+                setTimeout(() => {
+                    loginStatus.style.display = 'none';
+                }, 3000);
+            }
         }
 
         // ========== INICIAR APP ==========
