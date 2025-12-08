@@ -142,7 +142,7 @@
         </div>
     </div>
 
-    <!-- Firebase SDK MODULAR (MESMA VERSÃO DO LOGIN) -->
+    <!-- Firebase SDK MODULAR -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { 
@@ -150,11 +150,7 @@
             doc, 
             getDoc, 
             updateDoc,
-            onSnapshot,
-            collection,
-            getDocs,
-            query,
-            where
+            onSnapshot
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
         import { 
             getDatabase, 
@@ -165,19 +161,22 @@
             onValue, 
             orderByChild, 
             limitToLast,
-            onDisconnect
+            onDisconnect,
+            query as rtdbQuery
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
         // ========== CONFIGURAÇÃO FIREBASE ==========
-        const firebaseConfig = {
-            apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-            authDomain: "orgtarefas-85358.firebaseapp.com",
-            projectId: "orgtarefas-85358",
-            storageBucket: "orgtarefas-85358.firebasestorage.app",
-            messagingSenderId: "1023569488575",
-            appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+        // PROJETO DE LOGINS (Firestore)
+        const loginsFirebaseConfig = {
+            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
+            authDomain: "logins-c3407.firebaseapp.com",
+            projectId: "logins-c3407",
+            storageBucket: "logins-c3407.firebasestorage.app",
+            messagingSenderId: "809861558230",
+            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
 
+        // PROJETO DO CHAT (Realtime Database)
         const chatFirebaseConfig = {
             apiKey: "AIzaSyAYROPCh-558mNXPrO7onAXFvfBe13q5Js",
             authDomain: "orgtarefas-chat.firebaseapp.com",
@@ -189,10 +188,9 @@
         };
 
         // ========== VARIÁVEIS GLOBAIS ==========
-        let db, chatDb, currentUser = null;
+        let loginsDb, chatDb, currentUser = null;
         let currentConversation = null;
         let conversationsRef = null;
-        let usersRef = null;
         let messagesRef = null;
         let allUsers = [];
         let unsubscribeLogins = null;
@@ -202,13 +200,16 @@
             try {
                 console.log('🚀 Inicializando Firebase...');
                 
-                const mainApp = initializeApp(firebaseConfig);
+                // Inicializar app de logins (Firestore)
+                const loginsApp = initializeApp(loginsFirebaseConfig, 'loginsApp');
+                loginsDb = getFirestore(loginsApp);
+                console.log('✅ Firebase Logins inicializado');
+                
+                // Inicializar app do chat (Realtime Database)
                 const chatApp = initializeApp(chatFirebaseConfig, 'chatApp');
-                
-                db = getFirestore(mainApp);
                 chatDb = getDatabase(chatApp);
+                console.log('✅ Firebase Chat inicializado');
                 
-                console.log('✅ Firebase inicializado');
                 return true;
                 
             } catch (error) {
@@ -226,9 +227,6 @@
             console.log('🚀 Inicializando chat...');
             
             if (!initializeFirebase()) return;
-            
-            // Diagnóstico
-            await diagnoseFirestoreStructure();
             
             setupDOM();
             setupEventListeners();
@@ -297,28 +295,29 @@
                 const usuarioLogado = JSON.parse(usuarioLogadoStr);
                 console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
                 
-                // Buscar usuário na coleção de logins
-                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
-                console.log('🔍 Buscando documento para auto-login:', 'logins/LOGINS_ORGTAREFAS');
+                // Buscar usuário no documento LOGINS_ORGTAREFAS (Firestore do projeto logins)
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                console.log('🔍 Buscando documento: logins/LOGINS_ORGTAREFAS');
                 
                 const docSnap = await getDoc(loginsRef);
                 
-                console.log('📄 Auto-login - Documento encontrado?', docSnap.exists());
+                console.log('📄 Documento encontrado?', docSnap.exists());
                 
                 if (docSnap.exists()) {
                     const loginsData = docSnap.data();
-                    console.log('📊 Total de usuários no documento:', Object.keys(loginsData).length);
+                    console.log('📊 Usuários no documento:', Object.keys(loginsData).length);
                     
                     // Procurar o usuário pelo login
                     for (const [uid, userData] of Object.entries(loginsData)) {
                         if (userData && userData.login === usuarioLogado.usuario) {
-                            console.log('✅ Auto-login bem-sucedido para:', userData.login);
+                            console.log('✅ Usuário encontrado:', userData.login);
+                            console.log('📋 Dados do usuário:', userData);
                             
                             const usuarioChat = {
                                 uid: uid,
                                 docId: uid,
                                 login: userData.login,
-                                nome: userData.login,
+                                nome: userData.displayName || userData.login,
                                 perfil: userData.perfil || 'usuario',
                                 isOnline: userData.isOnline || false
                             };
@@ -329,10 +328,10 @@
                         }
                     }
                     
-                    console.log('❌ Usuário não encontrado na lista de logins:', usuarioLogado.usuario);
+                    console.log('❌ Usuário não encontrado na lista de logins');
                     console.log('Usuários disponíveis:', Object.values(loginsData).map(u => u?.login).filter(Boolean));
                 } else {
-                    console.log('❌ Documento de logins não encontrado no Firestore');
+                    console.log('❌ Documento de logins não encontrado');
                 }
                 return false;
                 
@@ -342,71 +341,25 @@
             }
         }
 
-        // Adicione esta função temporária para diagnóstico
-        async function diagnoseFirestoreStructure() {
-            try {
-                console.log('🔍 Diagnosticando estrutura do Firestore...');
-                
-                // Tentar listar todos os documentos na coleção 'logins'
-                const loginsCollection = collection(db, 'logins');
-                const querySnapshot = await getDocs(loginsCollection);
-                
-                console.log(`📂 Documentos na coleção 'logins': ${querySnapshot.size}`);
-                
-                querySnapshot.forEach((doc) => {
-                    console.log(`📄 Documento ID: ${doc.id}`);
-                    const data = doc.data();
-                    console.log(`   Tipo de dados: ${typeof data}`);
-                    console.log(`   Contém propriedades: ${Object.keys(data).length}`);
-                    console.log(`   Primeiras propriedades: ${Object.keys(data).slice(0, 3).join(', ')}`);
-                    
-                    // Verificar se tem usuários
-                    let userCount = 0;
-                    for (const [key, value] of Object.entries(data)) {
-                        if (value && typeof value === 'object' && value.login) {
-                            userCount++;
-                        }
-                    }
-                    console.log(`   Usuários encontrados: ${userCount}`);
-                });
-                
-            } catch (error) {
-                console.error('❌ Erro no diagnóstico:', error);
-            }
-        }
-        
         // ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
         async function loadUsersForSelection() {
             try {
                 showStatus('Carregando usuários...', 'info');
                 
-                // Buscar na coleção correta de logins
-                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
-                console.log('🔍 Buscando documento:', 'logins/LOGINS_ORGTAREFAS');
+                // Buscar na coleção de logins (Firestore do projeto logins)
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                console.log('🔍 Buscando documento para seleção: logins/LOGINS_ORGTAREFAS');
                 
                 const docSnap = await getDoc(loginsRef);
                 
-                console.log('📄 Resultado da busca:', docSnap.exists() ? 'Documento encontrado' : 'Documento NÃO encontrado');
-                
                 if (!docSnap.exists()) {
                     showStatus('Nenhum usuário encontrado', 'error');
-                    
-                    // Vamos tentar listar todas as coleções para diagnóstico
-                    console.log('⚠️ Tentando listar coleções disponíveis...');
-                    try {
-                        const collectionsRef = collection(db, 'logins');
-                        const collectionsSnapshot = await getDocs(collectionsRef);
-                        console.log('Coleções em "logins":', collectionsSnapshot.docs.map(doc => doc.id));
-                    } catch (collectionsError) {
-                        console.error('Erro ao listar coleções:', collectionsError);
-                    }
-                    
+                    console.log('❌ Documento não encontrado');
                     return;
                 }
                 
                 const loginsData = docSnap.data();
-                console.log(`📄 Usuários encontrados: ${Object.keys(loginsData).length}`);
-                console.log('Dados do documento:', loginsData);
+                console.log(`📄 ${Object.keys(loginsData).length} usuários encontrados`);
                 
                 if (userSelect) {
                     userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
@@ -419,7 +372,7 @@
                         const usuario = {
                             uid: uid,
                             login: userData.login,
-                            nome: userData.login,
+                            nome: userData.displayName || userData.login,
                             perfil: userData.perfil || 'usuario',
                             isOnline: userData.isOnline || false
                         };
@@ -427,7 +380,7 @@
                         if (userSelect) {
                             const option = document.createElement('option');
                             option.value = JSON.stringify(usuario);
-                            option.textContent = `${usuario.login} (${usuario.perfil})`;
+                            option.textContent = `${usuario.nome} (${usuario.login}) - ${usuario.perfil}`;
                             userSelect.appendChild(option);
                         }
                     }
@@ -447,16 +400,16 @@
             }
         }
 
-        // ========== ATUALIZAR STATUS NO FIRESTORE ==========
+        // ========== ATUALIZAR STATUS NO FIRESTORE (PROJETO LOGINS) ==========
         async function updateUserStatusInFirestore(userUid, isOnline) {
             try {
-                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
                 
                 const updateData = {};
                 updateData[`${userUid}.isOnline`] = isOnline;
                 
                 await updateDoc(loginsRef, updateData);
-                console.log(`✅ Status atualizado no Firestore: ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
+                console.log(`✅ Status atualizado no Firestore (logins): ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
                 return true;
                 
             } catch (error) {
@@ -471,13 +424,13 @@
             
             currentUser = userData;
             
-            // Atualizar status no Firestore
+            // Atualizar status no Firestore (projeto logins)
             await updateUserStatusInFirestore(currentUser.uid, true);
             
             // Atualizar interface
             updateUserInterface();
             
-            // Configurar usuário no chat RTDB
+            // Configurar usuário no chat RTDB (projeto chat)
             await setupChatUser(currentUser);
             
             // Carregar todos os usuários para conversar
@@ -486,7 +439,7 @@
             // Configurar listeners em tempo real
             setupRealtimeListeners();
             
-            showStatus(`✅ Bem-vindo, ${currentUser.login}!`, 'success');
+            showStatus(`✅ Bem-vindo, ${currentUser.nome}!`, 'success');
             
             // Esconder seletor
             const userSelectorContainer = document.getElementById('user-selector-container');
@@ -512,11 +465,11 @@
             }
         }
 
-        // ========== CONFIGURAR USUÁRIO NO CHAT ==========
+        // ========== CONFIGURAR USUÁRIO NO CHAT (RTDB) ==========
         async function setupChatUser(userData) {
-            console.log('⚙️ Configurando usuário no RTDB:', userData);
+            console.log('⚙️ Configurando usuário no RTDB (chat):', userData);
             
-            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.login)}&background=667eea&color=fff`;
+            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome)}&background=667eea&color=fff`;
             
             const userRef = ref(chatDb, `users/${userData.uid}`);
             
@@ -531,9 +484,9 @@
                     lastSeen: Date.now()
                 });
                 
-                console.log('✅ Usuário configurado no RTDB');
+                console.log('✅ Usuário configurado no RTDB (chat)');
                 
-                // Configurar desconexão automática
+                // Configurar desconexão automática no RTDB
                 onDisconnect(ref(chatDb, `users/${userData.uid}/isOnline`)).set(false);
                 onDisconnect(ref(chatDb, `users/${userData.uid}/lastSeen`)).set(Date.now());
                 
@@ -545,10 +498,10 @@
         // ========== CARREGAR TODOS OS USUÁRIOS ==========
         async function loadAllUsers() {
             try {
-                console.log('🔍 Carregando todos os usuários...');
+                console.log('🔍 Carregando todos os usuários do Firestore (logins)...');
                 
-                // Buscar na coleção correta
-                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                // Buscar na coleção de logins (Firestore)
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
                 const docSnap = await getDoc(loginsRef);
                 
                 if (!docSnap.exists()) {
@@ -566,7 +519,7 @@
                             uid: uid,
                             docId: uid,
                             login: userData.login,
-                            nome: userData.login,
+                            nome: userData.displayName || userData.login,
                             perfil: userData.perfil || 'usuario',
                             isOnline: userData.isOnline || false
                         };
@@ -595,12 +548,12 @@
             const userAvatar = document.getElementById('user-avatar');
             const loggedUserArea = document.getElementById('logged-user-area');
             
-            if (userName) userName.textContent = currentUser.login;
+            if (userName) userName.textContent = currentUser.nome;
             if (userLogin) userLogin.textContent = currentUser.login;
             if (userPerfil) userPerfil.textContent = currentUser.perfil;
             
             if (userAvatar) {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.login)}&background=667eea&color=fff`;
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.nome)}&background=667eea&color=fff`;
                 userAvatar.src = avatarUrl;
             }
             
@@ -623,7 +576,7 @@
             // Atualizar cabeçalho do chat
             const chatHeader = document.querySelector('.chat-header');
             if (chatHeader) {
-                chatHeader.querySelector('.default-content h2').textContent = `Olá, ${currentUser.login}!`;
+                chatHeader.querySelector('.default-content h2').textContent = `Olá, ${currentUser.nome}!`;
                 chatHeader.querySelector('.default-content p').textContent = 'Selecione um colega online para conversar';
             }
         }
@@ -634,8 +587,8 @@
             
             console.log('📡 Configurando listeners em tempo real...');
             
-            // 1. Ouvir usuários online do Firestore (coleção de logins)
-            const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+            // 1. Ouvir usuários online do Firestore (projeto logins)
+            const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
             
             // Listener para mudanças nos logins
             unsubscribeLogins = onSnapshot(loginsRef, (doc) => {
@@ -643,27 +596,27 @@
                     const loginsData = doc.data();
                     const onlineUsers = [];
                     
-                    // Filtrar usuários online
+                    // Filtrar usuários online (exceto o usuário atual)
                     for (const [uid, userData] of Object.entries(loginsData)) {
                         if (userData && userData.isOnline === true && uid !== currentUser.uid) {
                             onlineUsers.push({
                                 uid: uid,
                                 login: userData.login,
-                                nome: userData.login,
+                                nome: userData.displayName || userData.login,
                                 perfil: userData.perfil || 'usuario',
                                 isOnline: true
                             });
                         }
                     }
                     
-                    console.log(`👥 Usuários online encontrados: ${onlineUsers.length}`);
+                    console.log(`👥 ${onlineUsers.length} usuários online encontrados`);
                     renderOnlineUsers(onlineUsers);
                 }
             }, (error) => {
                 console.error('❌ Erro ao escutar logins:', error);
             });
             
-            // 2. Ouvir conversas do usuário no RTDB
+            // 2. Ouvir conversas do usuário no RTDB (projeto chat)
             conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
             onValue(conversationsRef, (snapshot) => {
                 const conversationsData = snapshot.val();
@@ -690,15 +643,18 @@
             let html = '';
             
             onlineUsers.forEach(user => {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.login)}&background=667eea&color=fff`;
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
                 
                 html += `
                     <div class="user-online-item" data-user="${user.uid}">
                         <img src="${avatarUrl}" 
-                             class="user-online-avatar" alt="${user.login}">
+                             class="user-online-avatar" alt="${user.nome}">
                         <div>
-                            <div class="user-online-name">${user.login}</div>
-                            <div class="user-online-perfil">${user.perfil}</div>
+                            <div class="user-online-name">${user.nome}</div>
+                            <div class="user-online-details">
+                                <span class="user-online-login">${user.login}</span>
+                                <span class="user-online-perfil">${user.perfil}</span>
+                            </div>
                         </div>
                         <div class="status-indicator online"></div>
                     </div>`;
@@ -752,10 +708,10 @@
                         <div class="conversation-item ${isActive ? 'active' : ''}" 
                              data-conversation="${conversationId}"
                              data-user="${otherUserId}">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.login)}&background=667eea&color=fff" 
-                                 class="conversation-avatar" alt="${otherUser.login}">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff" 
+                                 class="conversation-avatar" alt="${otherUser.nome}">
                             <div class="conversation-details">
-                                <div class="conversation-name">${otherUser.login}</div>
+                                <div class="conversation-name">${otherUser.nome}</div>
                                 <div class="conversation-last-message">${conversationData.lastMessage || ''}</div>
                             </div>
                             <div class="conversation-time">${time}</div>
@@ -791,7 +747,7 @@
             try {
                 const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${conversationId}`);
                 
-                // Verificar se já existe
+                // Verificar se já existe usando once()
                 onValue(conversationRef, (snapshot) => {
                     if (!snapshot.exists()) {
                         const conversationData = {
@@ -837,11 +793,11 @@
             
             if (chatInfoDefault) chatInfoDefault.classList.add('hidden');
             if (chatInfoActive) chatInfoActive.classList.remove('hidden');
-            if (activeUserName) activeUserName.textContent = otherUser.login;
+            if (activeUserName) activeUserName.textContent = otherUser.nome;
             if (activeUserPerfil) activeUserPerfil.textContent = otherUser.perfil;
             
             if (activeUserAvatar) {
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.login)}&background=667eea&color=fff`;
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.nome)}&background=667eea&color=fff`;
                 activeUserAvatar.src = avatarUrl;
             }
             
@@ -857,13 +813,13 @@
 
         // ========== CARREGAR MENSAGENS ==========
         function loadMessages(conversationId) {
+            // Limpar listener anterior se existir
             if (messagesRef) {
-                // Limpar listener anterior se existir
-                // Nota: Para limpar listeners no RTDB modular, precisaríamos guardar a função unsubscribe
+                // Em uma implementação mais robusta, você guardaria a função unsubscribe
             }
             
             messagesRef = ref(chatDb, `messages/${conversationId}`);
-            onValue(query(messagesRef, orderByChild('timestamp'), limitToLast(50)), (snapshot) => {
+            onValue(rtdbQuery(messagesRef, orderByChild('timestamp'), limitToLast(50)), (snapshot) => {
                 const messagesData = snapshot.val();
                 const messagesContainer = document.getElementById('messages-container');
                 
@@ -935,10 +891,10 @@
         async function handleBackButton() {
             if (currentUser) {
                 try {
-                    // Atualizar status para offline no Firestore
+                    // Atualizar status para offline no Firestore (logins)
                     await updateUserStatusInFirestore(currentUser.uid, false);
                     
-                    // Remover do RTDB também
+                    // Remover do RTDB também (chat)
                     if (chatDb && currentUser.uid) {
                         const userRef = ref(chatDb, `users/${currentUser.uid}`);
                         await update(userRef, { isOnline: false, lastSeen: Date.now() });
@@ -1063,8 +1019,8 @@
         document.addEventListener('DOMContentLoaded', init);
     </script>
 
-    <!-- O CSS permanece igual -->
     <style>
+        /* ESTILOS - MANTENHA EXATAMENTE COMO ESTAVA */
         * {
             margin: 0;
             padding: 0;
@@ -1343,9 +1299,24 @@
             color: #333;
         }
         
-        .user-online-perfil {
+        .user-online-details {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+        
+        .user-online-login {
             font-size: 12px;
             color: #666;
+        }
+        
+        .user-online-perfil {
+            font-size: 11px;
+            color: white;
+            background: #667eea;
+            padding: 1px 6px;
+            border-radius: 8px;
         }
         
         .status-indicator {
