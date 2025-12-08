@@ -302,6 +302,67 @@
             return false;
         }
 
+        // ========== STATUS ONLINE ==========
+        async function fixOnlineStatus() {
+            try {
+                console.log('🔧 Corrigindo status online...');
+                
+                // 1. Buscar todos os usuários do Firestore
+                const firestoreUsers = await getAllUsersFromFirestore();
+                
+                // 2. Buscar todos os usuários do RTDB
+                const rtdbSnapshot = await chatDb.ref('users').once('value');
+                const rtdbUsers = rtdbSnapshot.val() || {};
+                
+                // 3. Para cada usuário online no Firestore, garantir que está online no RTDB
+                for (const fsUser of firestoreUsers) {
+                    if (fsUser.isOnline === true) {
+                        const rtdbRef = chatDb.ref(`users/${fsUser.uid}`);
+                        const snapshot = await rtdbRef.once('value');
+                        
+                        if (snapshot.exists()) {
+                            const rtdbUser = snapshot.val();
+                            
+                            // Se está offline no RTDB mas online no Firestore, corrigir
+                            if (rtdbUser.isOnline === false) {
+                                console.log(`🔄 Corrigindo ${fsUser.login}: Firestore=true, RTDB=false -> true`);
+                                
+                                await rtdbRef.update({
+                                    isOnline: true,
+                                    lastSeen: Date.now(),
+                                    correctedAt: Date.now(),
+                                    firestoreStatus: true
+                                });
+                            }
+                        } else {
+                            // Usuário não existe no RTDB, criar
+                            console.log(`➕ Criando ${fsUser.login} no RTDB (online: true)`);
+                            
+                            const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fsUser.nome)}&background=667eea&color=fff`;
+                            
+                            await rtdbRef.set({
+                                uid: fsUser.uid,
+                                login: fsUser.login,
+                                nome: fsUser.nome,
+                                perfil: fsUser.perfil,
+                                avatarUrl: avatarUrl,
+                                isOnline: true,
+                                lastSeen: Date.now(),
+                                createdFromFirestore: true
+                            });
+                        }
+                    }
+                }
+                
+                console.log('✅ Status online corrigido');
+                
+            } catch (error) {
+                console.error('❌ Erro ao corrigir status online:', error);
+            }
+        }
+
+        
+
         // ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
         async function loadUsersForSelection() {
             try {
@@ -434,56 +495,6 @@
             }
         }
 
-        // ========== SINCRONIZAR TODOS OS USUÁRIOS COM RTDB ==========
-        async function syncAllUsersToRTDB() {
-            try {
-                console.log('🔄 Sincronizando todos os usuários com RTDB...');
-                
-                // Primeiro, carregar TODOS os usuários do Firestore (incluindo o atual)
-                const allFirestoreUsers = await getAllUsersFromFirestore();
-                
-                for (const user of allFirestoreUsers) {
-                    const userRef = chatDb.ref(`users/${user.uid}`);
-                    const snapshot = await userRef.once('value');
-                    
-                    if (!snapshot.exists()) {
-                        // Usuário não existe, adicionar com status CORRETO do Firestore
-                        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
-                        
-                        await userRef.set({
-                            uid: user.uid,
-                            login: user.login,
-                            nome: user.nome,
-                            perfil: user.perfil,
-                            avatarUrl: avatarUrl,
-                            isOnline: user.isOnline || false, // Usar status REAL do Firestore
-                            lastSeen: Date.now(),
-                            fromFirestore: true,
-                            firestoreOnline: user.isOnline // Salvar também separadamente
-                        });
-                        
-                        console.log(`✅ ${user.login} adicionado ao RTDB (online: ${user.isOnline})`);
-                    } else {
-                        // Atualizar com status do Firestore
-                        const existingData = snapshot.val();
-                        
-                        // SEMPRE atualizar com o status do Firestore
-                        await userRef.update({
-                            isOnline: user.isOnline, // Forçar atualização com status do Firestore
-                            lastSeen: user.isOnline ? Date.now() : existingData.lastSeen,
-                            firestoreOnline: user.isOnline
-                        });
-                        
-                        console.log(`📝 ${user.login} atualizado: online=${user.isOnline} (Firestore: ${user.isOnline})`);
-                    }
-                }
-                
-                console.log('✅ Sincronização completa');
-                
-            } catch (error) {
-                console.error('❌ Erro ao sincronizar usuários:', error);
-            }
-        }
         
         // ========== CARREGAR TODOS OS USUÁRIOS DO FIRESTORE ==========
         async function getAllUsersFromFirestore() {
@@ -505,7 +516,7 @@
                                 login: valor.login,
                                 nome: valor.displayName || valor.login,
                                 perfil: valor.perfil || 'Usuário',
-                                isOnline: valor.isOnline || false, // IMPORTANTE: Pegar do Firestore
+                                isOnline: valor.isOnline || false,
                                 email: valor.email || '',
                                 status: valor.status || 'Ativo'
                             };
@@ -749,6 +760,57 @@
             onlineUsersList.innerHTML = html;
         }
         
+        // ========== SINCRONIZAR TODOS OS USUÁRIOS COM RTDB ==========
+        async function syncAllUsersToRTDB() {
+            try {
+                console.log('🔄 Sincronizando todos os usuários com RTDB...');
+                
+                // Primeiro, carregar TODOS os usuários do Firestore (incluindo o atual)
+                const allFirestoreUsers = await getAllUsersFromFirestore();
+                
+                for (const user of allFirestoreUsers) {
+                    const userRef = chatDb.ref(`users/${user.uid}`);
+                    const snapshot = await userRef.once('value');
+                    
+                    if (!snapshot.exists()) {
+                        // Usuário não existe, adicionar com status CORRETO do Firestore
+                        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
+                        
+                        await userRef.set({
+                            uid: user.uid,
+                            login: user.login,
+                            nome: user.nome,
+                            perfil: user.perfil,
+                            avatarUrl: avatarUrl,
+                            isOnline: user.isOnline || false,
+                            lastSeen: Date.now(),
+                            fromFirestore: true,
+                            firestoreOnline: user.isOnline
+                        });
+                        
+                        console.log(`✅ ${user.login} adicionado ao RTDB (online: ${user.isOnline})`);
+                    } else {
+                        // Atualizar com status do Firestore
+                        const existingData = snapshot.val();
+                        
+                        // SEMPRE atualizar com o status do Firestore
+                        await userRef.update({
+                            isOnline: user.isOnline,
+                            lastSeen: user.isOnline ? Date.now() : existingData.lastSeen,
+                            firestoreOnline: user.isOnline
+                        });
+                        
+                        console.log(`📝 ${user.login} atualizado: online=${user.isOnline} (Firestore: ${user.isOnline})`);
+                    }
+                }
+                
+                console.log('✅ Sincronização completa');
+                
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar usuários:', error);
+            }
+        }
+        
         // ========== ATUALIZAR USUÁRIOS ONLINE ==========
         function refreshOnlineUsers() {
             console.log('🔄 Atualizando lista de usuários online...');
@@ -764,7 +826,7 @@
             console.log('⚙️ Configurando usuário no RTDB:', userData);
             
             // Forçar o usuário atual como ONLINE
-            userData.isOnline = true; // <-- FORÇAR TRUE para usuário atual
+            userData.isOnline = true;
             
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.nome)}&background=667eea&color=fff`;
             
@@ -779,7 +841,7 @@
                     avatarUrl: avatarUrl,
                     isOnline: true, // SEMPRE true para usuário atual
                     lastSeen: Date.now(),
-                    isCurrentUser: true // Marcar como usuário atual
+                    isCurrentUser: true
                 });
                 
                 console.log('✅ Usuário atual configurado como ONLINE no RTDB');
@@ -792,6 +854,7 @@
                 console.error('❌ Erro ao configurar usuário no RTDB:', error);
             }
         }
+
 
         // ========== RENDERIZAR CONVERSAS ==========
         function renderConversations(conversationsData) {
