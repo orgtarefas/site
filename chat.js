@@ -41,6 +41,7 @@ const chatConfig = {
 // ========== VARIÁVEIS GLOBAIS ==========
 let loginsDb, chatDb, currentUser = null;
 let currentConversation = null;
+let allUsers = {}; // Cache de todos os usuários
 
 // ========== INICIALIZAÇÃO ==========
 async function init() {
@@ -96,7 +97,7 @@ async function autoLogin() {
         let userFound = null;
         let userUid = null;
         
-        // Encontrar usuário
+        // Encontrar usuário pelo login
         for (const [uid, userData] of Object.entries(loginsData)) {
             if (userData && userData.login === usuarioLogado.usuario) {
                 userFound = userData;
@@ -119,6 +120,9 @@ async function autoLogin() {
         };
         
         console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
+        
+        // Carregar todos os usuários no cache
+        await loadAllUsers();
         
         // Atualizar interface
         document.getElementById('current-user-name').textContent = currentUser.nome;
@@ -156,6 +160,39 @@ async function autoLogin() {
     }
 }
 
+// ========== CARREGAR TODOS OS USUÁRIOS (CACHE) ==========
+async function loadAllUsers() {
+    try {
+        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+        const docSnap = await getDoc(loginsRef);
+        
+        if (docSnap.exists()) {
+            allUsers = docSnap.data();
+            console.log(`📊 ${Object.keys(allUsers).length} usuários carregados no cache`);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+    }
+}
+
+// ========== OBTER INFORMAÇÕES DO USUÁRIO ==========
+function getUserInfo(userId) {
+    if (!allUsers[userId]) {
+        return {
+            nome: `Usuário ${userId.substring(0, 8)}`,
+            login: userId,
+            perfil: 'desconhecido'
+        };
+    }
+    
+    const userData = allUsers[userId];
+    return {
+        nome: userData.displayName || userData.login,
+        login: userData.login,
+        perfil: userData.perfil || 'usuario'
+    };
+}
+
 // ========== CARREGAR USUÁRIOS ONLINE ==========
 function loadOnlineUsers() {
     const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
@@ -167,11 +204,12 @@ function loadOnlineUsers() {
             
             for (const [uid, userData] of Object.entries(loginsData)) {
                 if (userData && userData.isOnline && uid !== currentUser.uid) {
+                    const userInfo = getUserInfo(uid);
                     onlineUsers.push({
                         uid: uid,
-                        nome: userData.displayName || userData.login,
-                        login: userData.login,
-                        perfil: userData.perfil || 'usuario'
+                        nome: userInfo.nome,
+                        login: userInfo.login,
+                        perfil: userInfo.perfil
                     });
                 }
             }
@@ -198,7 +236,7 @@ function renderOnlineUsers(users) {
     users.forEach(user => {
         html += `
             <div class="user-item" onclick="startConversation('${user.uid}')">
-                <div class="user-avatar">${user.nome.charAt(0)}</div>
+                <div class="user-avatar">${user.nome.charAt(0).toUpperCase()}</div>
                 <div class="user-info">
                     <div class="user-name">${user.nome}</div>
                     <div class="user-details">
@@ -236,15 +274,17 @@ function renderConversations(conversations) {
     Object.entries(conversations).forEach(([conversationId, conversationData]) => {
         const otherUserId = getOtherUserId(conversationData.participants);
         
-        // Tentar buscar informações do outro usuário
         if (otherUserId) {
+            const userInfo = getUserInfo(otherUserId);
+            const time = formatTime(conversationData.lastTimestamp || Date.now());
+            
             html += `
                 <div class="conversation-item" onclick="openConversation('${conversationId}', '${otherUserId}')">
-                    <div class="conversation-avatar">U</div>
+                    <div class="conversation-avatar">${userInfo.nome.charAt(0).toUpperCase()}</div>
                     <div class="conversation-info">
                         <div class="conversation-header">
-                            <span class="conversation-name">Usuário ${otherUserId.substring(0, 8)}</span>
-                            <span class="conversation-time">${formatTime(conversationData.lastTimestamp || Date.now())}</span>
+                            <span class="conversation-name">${userInfo.nome}</span>
+                            <span class="conversation-time">${time}</span>
                         </div>
                         <div class="conversation-preview">
                             ${conversationData.lastMessage || 'Nova conversa'}
@@ -265,8 +305,11 @@ window.startConversation = async function(otherUserId) {
     
     console.log('💬 Iniciando conversa com:', otherUserId);
     
+    // Obter informações do usuário
+    const userInfo = getUserInfo(otherUserId);
+    
     // Atualizar interface
-    document.getElementById('other-user-name').textContent = 'Usuário';
+    document.getElementById('other-user-name').textContent = userInfo.nome;
     document.getElementById('no-conversation').classList.add('hidden');
     document.getElementById('active-conversation').classList.remove('hidden');
     
@@ -306,8 +349,11 @@ window.openConversation = function(conversationId, otherUserId) {
     
     console.log('📂 Abrindo conversa:', conversationId);
     
+    // Obter informações do usuário
+    const userInfo = getUserInfo(otherUserId);
+    
     // Atualizar interface
-    document.getElementById('other-user-name').textContent = 'Usuário';
+    document.getElementById('other-user-name').textContent = userInfo.nome;
     document.getElementById('no-conversation').classList.add('hidden');
     document.getElementById('active-conversation').classList.remove('hidden');
     
@@ -356,12 +402,16 @@ function renderMessages(messages) {
         const isCurrentUser = msg.senderId === currentUser.uid;
         const time = formatTime(msg.timestamp);
         
+        // Obter nome do remetente
+        const senderInfo = getUserInfo(msg.senderId);
+        const senderName = senderInfo.nome;
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isCurrentUser ? 'sent' : 'received'}`;
         
         messageDiv.innerHTML = `
             <div class="message-content">
-                ${!isCurrentUser ? `<div class="message-sender">${msg.senderName}</div>` : ''}
+                ${!isCurrentUser ? `<div class="message-sender">${senderName}</div>` : ''}
                 <div class="message-text">${msg.text}</div>
                 <div class="message-time">${time}</div>
             </div>`;
