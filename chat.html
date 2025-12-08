@@ -383,8 +383,7 @@
             
             currentUser = userData;
             
-            // === ADICIONE ESTAS 2 LINHAS ===
-            // Atualizar status no Firestore (coleção de logins)
+            // ATUALIZAR STATUS NO FIRESTORE - MUITO IMPORTANTE!
             await updateUserStatusInFirestore(currentUser.uid, true);
             
             // Atualizar interface
@@ -484,14 +483,12 @@
                             isOnline: userData.isOnline || false
                         };
                         
-                        // Adicionar apenas se for diferente do usuário atual
-                        if (usuario.uid !== currentUser.uid) {
-                            allUsers.push(usuario);
-                        }
+                        // Adicionar todos os usuários (incluindo offline)
+                        allUsers.push(usuario);
                     }
                 }
                 
-                console.log(`📊 Total de usuários para conversar: ${allUsers.length}`);
+                console.log(`📊 Total de usuários no sistema: ${allUsers.length}`);
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
@@ -549,15 +546,37 @@
             
             console.log('📡 Configurando listeners em tempo real...');
             
-            // 1. Ouvir usuários online
-            usersRef = chatDb.ref('users');
-            usersRef.on('value', (snapshot) => {
-                const usersData = snapshot.val();
-                onlineUsersCache = usersData || {};
-                renderOnlineUsers(usersData);
-            });
+            // 1. Ouvir usuários online do Firestore (coleção de logins)
+            const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
             
-            // 2. Ouvir conversas do usuário
+            // Listener para mudanças nos logins
+            db.collection('logins').doc('LOGINS_ORGTAREFAS')
+                .onSnapshot((doc) => {
+                    if (doc.exists()) {
+                        const loginsData = doc.data();
+                        const onlineUsers = [];
+                        
+                        // Filtrar usuários online
+                        for (const [uid, userData] of Object.entries(loginsData)) {
+                            if (userData.isOnline === true && uid !== currentUser.uid) {
+                                onlineUsers.push({
+                                    uid: uid,
+                                    login: userData.login,
+                                    nome: userData.login,
+                                    perfil: userData.perfil || 'usuario',
+                                    isOnline: true
+                                });
+                            }
+                        }
+                        
+                        console.log(`👥 Usuários online encontrados: ${onlineUsers.length}`);
+                        renderOnlineUsers(onlineUsers);
+                    }
+                }, (error) => {
+                    console.error('❌ Erro ao escutar logins:', error);
+                });
+            
+            // 2. Ouvir conversas do usuário no RTDB
             conversationsRef = chatDb.ref(`userConversations/${currentUser.uid}`);
             conversationsRef.on('value', (snapshot) => {
                 const conversationsData = snapshot.val();
@@ -565,32 +584,10 @@
             });
         }
 
-        // ========== RENDERIZAR USUÁRIOS ONLINE ==========
-        function renderOnlineUsers(usersData) {
+          // ========== RENDERIZAR USUÁRIOS ONLINE ==========
+        function renderOnlineUsers(onlineUsers) {
             const onlineUsersList = document.getElementById('online-users-list');
             if (!onlineUsersList) return;
-            
-            if (!usersData) {
-                onlineUsersList.innerHTML = '<div class="no-users">Nenhum usuário online</div>';
-                return;
-            }
-            
-            let html = '';
-            const onlineUsers = [];
-            
-            // Filtrar usuários online e diferentes do atual
-            Object.keys(usersData).forEach(uid => {
-                const user = usersData[uid];
-                if (user.isOnline && uid !== currentUser.uid) {
-                    onlineUsers.push({
-                        uid: uid,
-                        login: user.login,
-                        nome: user.nome,
-                        perfil: user.perfil,
-                        avatarUrl: user.avatarUrl
-                    });
-                }
-            });
             
             // Atualizar contador
             const onlineCount = document.getElementById('online-count');
@@ -599,25 +596,26 @@
             }
             
             if (onlineUsers.length === 0) {
-                html = '<div class="no-users">Nenhum colega online no momento</div>';
-            } else {
-                onlineUsers.forEach(user => {
-                    const realUser = allUsers.find(u => u.uid === user.uid);
-                    const displayName = realUser ? realUser.login : user.nome;
-                    const perfil = realUser ? realUser.perfil : user.perfil;
-                    
-                    html += `
-                        <div class="user-online-item" data-user="${user.uid}">
-                            <img src="${user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`}" 
-                                 class="user-online-avatar" alt="${displayName}">
-                            <div>
-                                <div class="user-online-name">${displayName}</div>
-                                <div class="user-online-perfil">${perfil}</div>
-                            </div>
-                            <div class="status-indicator online"></div>
-                        </div>`;
-                });
+                onlineUsersList.innerHTML = '<div class="no-users">Nenhum colega online no momento</div>';
+                return;
             }
+            
+            let html = '';
+            
+            onlineUsers.forEach(user => {
+                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.login)}&background=667eea&color=fff`;
+                
+                html += `
+                    <div class="user-online-item" data-user="${user.uid}">
+                        <img src="${avatarUrl}" 
+                             class="user-online-avatar" alt="${user.login}">
+                        <div>
+                            <div class="user-online-name">${user.login}</div>
+                            <div class="user-online-perfil">${user.perfil}</div>
+                        </div>
+                        <div class="status-indicator online"></div>
+                    </div>`;
+            });
             
             onlineUsersList.innerHTML = html;
             
