@@ -409,29 +409,44 @@
         async function loadAllUsers() {
             try {
                 console.log('🔍 Carregando todos os usuários...');
-                const snapshot = await db.collection('usuarios').get();
+                const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
                 allUsers = [];
                 
                 snapshot.forEach(doc => {
+                    const docId = doc.id;
                     const dados = doc.data();
                     
-                    if (dados.usuario) {
-                        const usuario = {
-                            uid: doc.id,
-                            docId: doc.id,
-                            login: dados.usuario,
-                            nome: dados.usuario,
-                            perfil: dados.nivel || 'usuario'
-                        };
+                    // Percorrer todos os campos do documento
+                    Object.keys(dados).forEach(campo => {
+                        const valor = dados[campo];
                         
-                        // Adicionar apenas se for diferente do usuário atual
-                        if (usuario.uid !== currentUser.uid) {
-                            allUsers.push(usuario);
+                        // Verificar se é um objeto de usuário
+                        if (typeof valor === 'object' && valor !== null && valor.login) {
+                            console.log(`✅ Encontrado usuário: ${valor.login} no campo ${campo}`);
+                            
+                            const usuario = {
+                                uid: `${docId}_${campo}`, // Usar docId + campo como UID único
+                                docId: docId,
+                                campo: campo, // user1_uid, user2_uid, user3_uid
+                                login: valor.login,
+                                nome: valor.displayName || valor.login,
+                                perfil: valor.perfil || 'Usuário',
+                                isOnline: valor.isOnline || false, // Pegar do Firestore
+                                email: valor.email || '',
+                                status: valor.status || 'Ativo'
+                            };
+                            
+                            // Adicionar apenas se for diferente do usuário atual
+                            if (usuario.login !== currentUser.login) {
+                                allUsers.push(usuario);
+                                console.log(`📝 Adicionado usuário: ${usuario.nome} (${usuario.login})`);
+                            }
                         }
-                    }
+                    });
                 });
                 
-                console.log(`📊 Total de usuários para conversar: ${allUsers.length}`);
+                console.log(`📊 Total de usuários carregados: ${allUsers.length}`);
+                console.log('👥 Lista de usuários:', allUsers.map(u => `${u.login} (${u.nome})`));
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
@@ -443,14 +458,16 @@
             try {
                 console.log('🔄 Sincronizando todos os usuários com RTDB...');
                 
-                for (const user of allUsers) {
-                    // Verificar se o usuário já existe no RTDB
+                // Primeiro, carregar TODOS os usuários do Firestore (incluindo o atual)
+                const allFirestoreUsers = await getAllUsersFromFirestore();
+                
+                for (const user of allFirestoreUsers) {
                     const userRef = chatDb.ref(`users/${user.uid}`);
                     const snapshot = await userRef.once('value');
                     
                     if (!snapshot.exists()) {
                         // Usuário não existe, adicionar
-                        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.login)}&background=667eea&color=fff`;
+                        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome)}&background=667eea&color=fff`;
                         
                         await userRef.set({
                             uid: user.uid,
@@ -458,21 +475,21 @@
                             nome: user.nome,
                             perfil: user.perfil,
                             avatarUrl: avatarUrl,
-                            isOnline: false, // Inicialmente offline
-                            lastSeen: Date.now()
+                            isOnline: user.isOnline || false, // Usar status do Firestore
+                            lastSeen: Date.now(),
+                            fromFirestore: true // Marcar que veio do Firestore
                         });
                         
-                        console.log(`✅ Usuário ${user.login} adicionado ao RTDB`);
+                        console.log(`✅ ${user.login} adicionado ao RTDB (online: ${user.isOnline})`);
                     } else {
-                        // Atualizar dados do usuário existente
+                        // Atualizar status do Firestore
                         const existingData = snapshot.val();
-                        if (!existingData.login || existingData.login !== user.login) {
+                        if (existingData.isOnline !== user.isOnline) {
                             await userRef.update({
-                                login: user.login,
-                                nome: user.nome,
-                                perfil: user.perfil
+                                isOnline: user.isOnline,
+                                lastSeen: Date.now()
                             });
-                            console.log(`📝 Usuário ${user.login} atualizado no RTDB`);
+                            console.log(`📝 ${user.login} atualizado: online=${user.isOnline}`);
                         }
                     }
                 }
@@ -481,6 +498,45 @@
                 
             } catch (error) {
                 console.error('❌ Erro ao sincronizar usuários:', error);
+            }
+        }
+        
+        // ========== CARREGAR TODOS OS USUÁRIOS DO FIRESTORE ==========
+        async function getAllUsersFromFirestore() {
+            try {
+                const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+                const users = [];
+                
+                snapshot.forEach(doc => {
+                    const dados = doc.data();
+                    
+                    Object.keys(dados).forEach(campo => {
+                        const valor = dados[campo];
+                        
+                        if (typeof valor === 'object' && valor !== null && valor.login) {
+                            const usuario = {
+                                uid: `${doc.id}_${campo}`,
+                                docId: doc.id,
+                                campo: campo,
+                                login: valor.login,
+                                nome: valor.displayName || valor.login,
+                                perfil: valor.perfil || 'Usuário',
+                                isOnline: valor.isOnline || false, // IMPORTANTE: Pegar do Firestore
+                                email: valor.email || '',
+                                status: valor.status || 'Ativo'
+                            };
+                            
+                            users.push(usuario);
+                        }
+                    });
+                });
+                
+                console.log(`📄 Total de usuários no Firestore: ${users.length}`);
+                return users;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar usuários do Firestore:', error);
+                return [];
             }
         }
         
@@ -561,7 +617,9 @@
             const onlineUsersList = document.getElementById('online-users-list');
             if (!onlineUsersList) return;
             
-            console.log('👥 Renderizando usuários online...', usersData);
+            console.log('👥 Renderizando usuários online...');
+            console.log('📊 Dados do RTDB:', usersData);
+            console.log('📋 Usuários carregados:', allUsers.map(u => `${u.login} (${u.uid})`));
             
             if (!usersData) {
                 onlineUsersList.innerHTML = '<div class="loading">Carregando...</div>';
@@ -571,44 +629,42 @@
             let html = '';
             let onlineCount = 0;
             
-            // DEBUG: Mostrar todos os usuários
-            console.log('🔍 Todos os usuários no RTDB:');
-            Object.keys(usersData).forEach(uid => {
-                console.log(`  ${uid}:`, usersData[uid]);
-            });
+            // Primeiro, mostrar usuários do Firestore que estão online
+            console.log('🔍 Procurando usuários online do Firestore...');
             
-            // Filtrar usuários online
-            Object.keys(usersData).forEach(uid => {
-                const user = usersData[uid];
+            // Verificar cada usuário do Firestore
+            allUsers.forEach(user => {
+                // Verificar se está no RTDB
+                const rtdbUser = usersData[user.uid];
+                const isOnlineInRTDB = rtdbUser && rtdbUser.isOnline === true;
+                const isOnlineInFirestore = user.isOnline === true;
                 
-                // Verificar se o usuário está online
-                if (user && user.isOnline === true) {
-                    // Encontrar informações completas nos usuários reais
-                    const realUser = allUsers.find(u => u.uid === uid);
-                    
-                    // Se for o usuário atual, pular
-                    if (uid === currentUser.uid) {
-                        return;
-                    }
-                    
+                console.log(`🔍 ${user.login}: RTDB=${isOnlineInRTDB}, Firestore=${isOnlineInFirestore}`);
+                
+                // Considerar online se estiver online no Firestore OU no RTDB
+                if (isOnlineInFirestore || isOnlineInRTDB) {
                     onlineCount++;
                     
-                    const displayName = realUser ? realUser.nome : (user.nome || user.login || 'Usuário');
-                    const perfil = realUser ? realUser.perfil : (user.perfil || 'Online');
-                    const avatarUrl = user.avatarUrl || 
+                    const displayName = user.nome;
+                    const perfil = user.perfil;
+                    const avatarUrl = rtdbUser?.avatarUrl || 
                         `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
                     
-                    console.log(`✅ Usuário online: ${displayName} (${uid}) - ${perfil}`);
+                    console.log(`✅ ${displayName} está online!`);
                     
                     html += `
-                        <div class="user-online-item" data-user="${uid}" title="Clique para conversar">
+                        <div class="user-online-item" data-user="${user.uid}" 
+                             data-login="${user.login}"
+                             title="Clique para conversar com ${displayName}">
                             <img src="${avatarUrl}" 
                                  class="user-online-avatar" alt="${displayName}">
                             <div class="user-online-info">
                                 <div class="user-online-name">${displayName}</div>
                                 <div class="user-online-details">
                                     <span class="user-online-perfil">${perfil}</span>
-                                    <span class="user-online-login">${user.login || ''}</span>
+                                    <span class="user-online-source">
+                                        ${isOnlineInFirestore ? '🔄 Firestore' : '💾 RTDB'}
+                                    </span>
                                 </div>
                             </div>
                             <div class="status-indicator online" title="Online"></div>
@@ -616,7 +672,43 @@
                 }
             });
             
-            console.log(`✅ Total de usuários online: ${onlineCount}`);
+            // Também verificar usuários no RTDB que podem não estar no Firestore
+            Object.keys(usersData).forEach(uid => {
+                const rtdbUser = usersData[uid];
+                
+                // Se já foi processado acima, pular
+                if (allUsers.find(u => u.uid === uid)) return;
+                
+                // Verificar se está online
+                if (rtdbUser && rtdbUser.isOnline === true && uid !== currentUser.uid) {
+                    onlineCount++;
+                    
+                    const displayName = rtdbUser.nome || rtdbUser.login || 'Usuário';
+                    const perfil = rtdbUser.perfil || 'Online';
+                    const avatarUrl = rtdbUser.avatarUrl || 
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff`;
+                    
+                    console.log(`✅ ${displayName} (do RTDB) está online!`);
+                    
+                    html += `
+                        <div class="user-online-item" data-user="${uid}" 
+                             data-login="${rtdbUser.login}"
+                             title="Clique para conversar com ${displayName}">
+                            <img src="${avatarUrl}" 
+                                 class="user-online-avatar" alt="${displayName}">
+                            <div class="user-online-info">
+                                <div class="user-online-name">${displayName}</div>
+                                <div class="user-online-details">
+                                    <span class="user-online-perfil">${perfil}</span>
+                                    <span class="user-online-source">💾 RTDB</span>
+                                </div>
+                            </div>
+                            <div class="status-indicator online" title="Online"></div>
+                        </div>`;
+                }
+            });
+            
+            console.log(`✅ Total de usuários online encontrados: ${onlineCount}`);
             
             // Atualizar contador
             const onlineCountElement = document.getElementById('online-count');
@@ -631,9 +723,10 @@
                         <i class="fas fa-user-clock"></i>
                         <p>Nenhum colega online</p>
                         <small>Você está sozinho no momento</small>
-                        <button class="btn-refresh" onclick="refreshOnlineUsers()">
-                            <i class="fas fa-redo"></i> Atualizar
-                        </button>
+                        <div class="debug-info" style="font-size: 12px; color: #666; margin-top: 10px;">
+                            Total de usuários: ${allUsers.length}<br>
+                            Usuário atual: ${currentUser?.login}
+                        </div>
                     </div>`;
             }
             
@@ -643,7 +736,8 @@
             document.querySelectorAll('.user-online-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const userId = item.dataset.user;
-                    console.log('👆 Clique em usuário online:', userId);
+                    const userLogin = item.dataset.login;
+                    console.log('👆 Clique em usuário online:', userLogin, userId);
                     startNewConversation(userId);
                 });
             });
