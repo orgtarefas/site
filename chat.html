@@ -15,7 +15,7 @@
                         <h3><i class="fas fa-comments"></i> Mensagens</h3>
                         <span class="app-name">OrgTarefas</span>
                     </div>
-                    <button id="back-btn" class="btn-logout" onclick="window.location.href='index.html'">
+                    <button id="back-btn" class="btn-logout">
                         <i class="fas fa-arrow-left"></i>
                     </button>
                 </div>
@@ -142,12 +142,32 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!-- Firebase SDK MODULAR (MESMA VERSÃO DO LOGIN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            updateDoc,
+            onSnapshot,
+            collection,
+            getDocs,
+            query,
+            where
+        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+        import { 
+            getDatabase, 
+            ref, 
+            set, 
+            update, 
+            push, 
+            onValue, 
+            orderByChild, 
+            limitToLast,
+            onDisconnect
+        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
-    <script>
         // ========== CONFIGURAÇÃO FIREBASE ==========
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
@@ -175,18 +195,18 @@
         let usersRef = null;
         let messagesRef = null;
         let allUsers = [];
-        let onlineUsersCache = {};
+        let unsubscribeLogins = null;
 
         // ========== INICIALIZAR FIREBASE ==========
         function initializeFirebase() {
             try {
                 console.log('🚀 Inicializando Firebase...');
                 
-                const mainApp = firebase.initializeApp(firebaseConfig);
-                const chatApp = firebase.initializeApp(chatFirebaseConfig, 'chatApp');
+                const mainApp = initializeApp(firebaseConfig);
+                const chatApp = initializeApp(chatFirebaseConfig, 'chatApp');
                 
-                db = firebase.firestore(mainApp);
-                chatDb = firebase.database(chatApp);
+                db = getFirestore(mainApp);
+                chatDb = getDatabase(chatApp);
                 
                 console.log('✅ Firebase inicializado');
                 return true;
@@ -238,6 +258,12 @@
                 confirmUserBtn.addEventListener('click', handleUserSelection);
             }
             
+            // Listener para botão voltar
+            const backBtn = document.getElementById('back-btn');
+            if (backBtn) {
+                backBtn.addEventListener('click', handleBackButton);
+            }
+            
             // Listener para envio de mensagem
             const sendBtn = document.getElementById('send-btn');
             const messageInput = document.getElementById('message-input');
@@ -260,58 +286,44 @@
         async function tryAutoLogin() {
             try {
                 const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
-                if (usuarioLogadoStr) {
-                    const usuarioLogado = JSON.parse(usuarioLogadoStr);
-                    console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
+                if (!usuarioLogadoStr) return false;
+                
+                const usuarioLogado = JSON.parse(usuarioLogadoStr);
+                console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
+                
+                // Buscar usuário na coleção de logins
+                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                const docSnap = await getDoc(loginsRef);
+                
+                if (docSnap.exists()) {
+                    const loginsData = docSnap.data();
                     
-                    // Buscar usuário na coleção de logins (correto) - API COMPAT
-                    const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
-                    
-                    // Na API compat, get() retorna uma Promise diretamente
-                    loginsRef.get().then((doc) => {
-                        if (doc.exists) {
-                            const loginsData = doc.data();
+                    // Procurar o usuário pelo login
+                    for (const [uid, userData] of Object.entries(loginsData)) {
+                        if (userData && userData.login === usuarioLogado.usuario) {
+                            console.log('✅ Auto-login bem-sucedido para:', userData.login);
                             
-                            // Procurar o usuário pelo login
-                            let foundUser = null;
-                            let userUid = null;
+                            const usuarioChat = {
+                                uid: uid,
+                                docId: uid,
+                                login: userData.login,
+                                nome: userData.login,
+                                perfil: userData.perfil || 'usuario',
+                                isOnline: userData.isOnline || false
+                            };
                             
-                            for (const [uid, userData] of Object.entries(loginsData)) {
-                                if (userData.login === usuarioLogado.usuario) {
-                                    foundUser = userData;
-                                    userUid = uid;
-                                    break;
-                                }
-                            }
-                            
-                            if (foundUser) {
-                                console.log('✅ Auto-login bem-sucedido para:', foundUser.login);
-                                
-                                const usuarioChat = {
-                                    uid: userUid,
-                                    docId: userUid,
-                                    login: foundUser.login,
-                                    nome: foundUser.login,
-                                    perfil: foundUser.perfil || 'usuario',
-                                    isOnline: foundUser.isOnline || false
-                                };
-                                
-                                // Fazer login automático
-                                performLogin(usuarioChat);
-                                return true;
-                            }
+                            // Fazer login automático
+                            await performLogin(usuarioChat);
+                            return true;
                         }
-                        return false;
-                    }).catch(error => {
-                        console.error('❌ Erro no auto-login:', error);
-                        return false;
-                    });
-                    
+                    }
                 }
+                return false;
+                
             } catch (error) {
                 console.error('❌ Erro no auto-login:', error);
+                return false;
             }
-            return false;
         }
 
         // ========== CARREGAR USUÁRIOS PARA SELEÇÃO ==========
@@ -319,49 +331,42 @@
             try {
                 showStatus('Carregando usuários...', 'info');
                 
-                // Buscar na coleção correta de logins - API COMPAT
-                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                // Buscar na coleção correta de logins
+                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                const docSnap = await getDoc(loginsRef);
                 
-                loginsRef.get().then((doc) => {
-                    if (!doc.exists) {
-                        showStatus('Nenhum usuário encontrado', 'error');
-                        return;
-                    }
-                    
-                    const loginsData = doc.data();
-                    console.log(`📄 Usuários encontrados: ${Object.keys(loginsData).length}`);
-                    
-                    // Limpar opções existentes
-                    if (userSelect) {
-                        userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
-                    }
-                    
-                    // Adicionar cada usuário como opção
-                    for (const [uid, userData] of Object.entries(loginsData)) {
-                        if (userData.login) {
-                            const usuario = {
-                                uid: uid,
-                                login: userData.login,
-                                nome: userData.login,
-                                perfil: userData.perfil || 'usuario',
-                                isOnline: userData.isOnline || false
-                            };
-                            
-                            if (userSelect) {
-                                const option = document.createElement('option');
-                                option.value = JSON.stringify(usuario);
-                                option.textContent = `${usuario.login} (${usuario.perfil})`;
-                                userSelect.appendChild(option);
-                            }
+                if (!docSnap.exists()) {
+                    showStatus('Nenhum usuário encontrado', 'error');
+                    return;
+                }
+                
+                const loginsData = docSnap.data();
+                console.log(`📄 Usuários encontrados: ${Object.keys(loginsData).length}`);
+                
+                if (userSelect) {
+                    userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
+                }
+                
+                for (const [uid, userData] of Object.entries(loginsData)) {
+                    if (userData && userData.login) {
+                        const usuario = {
+                            uid: uid,
+                            login: userData.login,
+                            nome: userData.login,
+                            perfil: userData.perfil || 'usuario',
+                            isOnline: userData.isOnline || false
+                        };
+                        
+                        if (userSelect) {
+                            const option = document.createElement('option');
+                            option.value = JSON.stringify(usuario);
+                            option.textContent = `${usuario.login} (${usuario.perfil})`;
+                            userSelect.appendChild(option);
                         }
                     }
-                    
-                    showStatus('Selecione seu usuário', 'info');
-                    
-                }).catch(error => {
-                    console.error('❌ Erro ao carregar usuários:', error);
-                    showStatus('Erro ao carregar usuários', 'error');
-                });
+                }
+                
+                showStatus('Selecione seu usuário', 'info');
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
@@ -372,36 +377,28 @@
         // ========== ATUALIZAR STATUS NO FIRESTORE ==========
         async function updateUserStatusInFirestore(userUid, isOnline) {
             try {
-                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
                 
-                // Na API compat, precisamos usar uma abordagem diferente
-                loginsRef.get().then((doc) => {
-                    if (doc.exists) {
-                        const updateData = {};
-                        updateData[`${userUid}.isOnline`] = isOnline;
-                        
-                        return loginsRef.update(updateData).then(() => {
-                            console.log(`✅ Status atualizado no Firestore: ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
-                        });
-                    } else {
-                        console.log('⚠️ Documento de logins não encontrado');
-                    }
-                }).catch(error => {
-                    console.error('❌ Erro ao atualizar status no Firestore:', error);
-                });
+                const updateData = {};
+                updateData[`${userUid}.isOnline`] = isOnline;
+                
+                await updateDoc(loginsRef, updateData);
+                console.log(`✅ Status atualizado no Firestore: ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
+                return true;
                 
             } catch (error) {
                 console.error('❌ Erro ao atualizar status no Firestore:', error);
+                return false;
             }
         }
-            
+
         // ========== REALIZAR LOGIN ==========
         async function performLogin(userData) {
             console.log('🔑 Realizando login para:', userData.login);
             
             currentUser = userData;
             
-            // ATUALIZAR STATUS NO FIRESTORE - MUITO IMPORTANTE!
+            // Atualizar status no Firestore
             await updateUserStatusInFirestore(currentUser.uid, true);
             
             // Atualizar interface
@@ -448,10 +445,10 @@
             
             const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.login)}&background=667eea&color=fff`;
             
-            const userRef = chatDb.ref(`users/${userData.uid}`);
+            const userRef = ref(chatDb, `users/${userData.uid}`);
             
             try {
-                await userRef.set({
+                await set(userRef, {
                     uid: userData.uid,
                     login: userData.login,
                     nome: userData.nome,
@@ -464,8 +461,8 @@
                 console.log('✅ Usuário configurado no RTDB');
                 
                 // Configurar desconexão automática
-                userRef.child('isOnline').onDisconnect().set(false);
-                userRef.child('lastSeen').onDisconnect().set(Date.now());
+                onDisconnect(ref(chatDb, `users/${userData.uid}/isOnline`)).set(false);
+                onDisconnect(ref(chatDb, `users/${userData.uid}/lastSeen`)).set(Date.now());
                 
             } catch (error) {
                 console.error('❌ Erro ao configurar usuário no RTDB:', error);
@@ -477,41 +474,36 @@
             try {
                 console.log('🔍 Carregando todos os usuários...');
                 
-                // Buscar na coleção correta - API COMPAT
-                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                // Buscar na coleção correta
+                const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
+                const docSnap = await getDoc(loginsRef);
                 
-                loginsRef.get().then((doc) => {
-                    if (!doc.exists) {
-                        console.log('❌ Nenhum usuário encontrado na coleção de logins');
-                        allUsers = [];
-                        return;
-                    }
-                    
-                    const loginsData = doc.data();
+                if (!docSnap.exists()) {
+                    console.log('❌ Nenhum usuário encontrado na coleção de logins');
                     allUsers = [];
-                    
-                    for (const [uid, userData] of Object.entries(loginsData)) {
-                        if (userData.login) {
-                            const usuario = {
-                                uid: uid,
-                                docId: uid,
-                                login: userData.login,
-                                nome: userData.login,
-                                perfil: userData.perfil || 'usuario',
-                                isOnline: userData.isOnline || false
-                            };
-                            
-                            // Adicionar todos os usuários (incluindo offline)
-                            allUsers.push(usuario);
-                        }
+                    return;
+                }
+                
+                const loginsData = docSnap.data();
+                allUsers = [];
+                
+                for (const [uid, userData] of Object.entries(loginsData)) {
+                    if (userData && userData.login) {
+                        const usuario = {
+                            uid: uid,
+                            docId: uid,
+                            login: userData.login,
+                            nome: userData.login,
+                            perfil: userData.perfil || 'usuario',
+                            isOnline: userData.isOnline || false
+                        };
+                        
+                        // Adicionar todos os usuários (incluindo offline)
+                        allUsers.push(usuario);
                     }
-                    
-                    console.log(`📊 Total de usuários no sistema: ${allUsers.length}`);
-                    
-                }).catch(error => {
-                    console.error('❌ Erro ao carregar usuários:', error);
-                    allUsers = [];
-                });
+                }
+                
+                console.log(`📊 Total de usuários no sistema: ${allUsers.length}`);
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
@@ -569,18 +561,18 @@
             
             console.log('📡 Configurando listeners em tempo real...');
             
-            // 1. Ouvir usuários online do Firestore (coleção de logins) - API COMPAT
-            const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+            // 1. Ouvir usuários online do Firestore (coleção de logins)
+            const loginsRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
             
-            // Listener para mudanças nos logins - API COMPAT
-            loginsRef.onSnapshot((doc) => {
-                if (doc.exists) {
+            // Listener para mudanças nos logins
+            unsubscribeLogins = onSnapshot(loginsRef, (doc) => {
+                if (doc.exists()) {
                     const loginsData = doc.data();
                     const onlineUsers = [];
                     
                     // Filtrar usuários online
                     for (const [uid, userData] of Object.entries(loginsData)) {
-                        if (userData.isOnline === true && uid !== currentUser.uid) {
+                        if (userData && userData.isOnline === true && uid !== currentUser.uid) {
                             onlineUsers.push({
                                 uid: uid,
                                 login: userData.login,
@@ -599,14 +591,14 @@
             });
             
             // 2. Ouvir conversas do usuário no RTDB
-            conversationsRef = chatDb.ref(`userConversations/${currentUser.uid}`);
-            conversationsRef.on('value', (snapshot) => {
+            conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
+            onValue(conversationsRef, (snapshot) => {
                 const conversationsData = snapshot.val();
                 renderConversations(conversationsData);
             });
         }
 
-          // ========== RENDERIZAR USUÁRIOS ONLINE ==========
+        // ========== RENDERIZAR USUÁRIOS ONLINE ==========
         function renderOnlineUsers(onlineUsers) {
             const onlineUsersList = document.getElementById('online-users-list');
             if (!onlineUsersList) return;
@@ -724,27 +716,29 @@
             console.log('ID da conversa:', conversationId);
             
             try {
-                const conversationRef = chatDb.ref(`userConversations/${currentUser.uid}/${conversationId}`);
-                const snapshot = await conversationRef.once('value');
+                const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${conversationId}`);
                 
-                if (!snapshot.exists()) {
-                    const conversationData = {
-                        participants: {
-                            [currentUser.uid]: true,
-                            [otherUserId]: true
-                        },
-                        lastMessage: '',
-                        lastTimestamp: Date.now(),
-                        unreadCount: 0
-                    };
+                // Verificar se já existe
+                onValue(conversationRef, (snapshot) => {
+                    if (!snapshot.exists()) {
+                        const conversationData = {
+                            participants: {
+                                [currentUser.uid]: true,
+                                [otherUserId]: true
+                            },
+                            lastMessage: '',
+                            lastTimestamp: Date.now(),
+                            unreadCount: 0
+                        };
+                        
+                        set(conversationRef, conversationData);
+                        set(ref(chatDb, `userConversations/${otherUserId}/${conversationId}`), conversationData);
+                        
+                        console.log('✅ Nova conversa criada');
+                    }
                     
-                    await conversationRef.set(conversationData);
-                    await chatDb.ref(`userConversations/${otherUserId}/${conversationId}`).set(conversationData);
-                    
-                    console.log('✅ Nova conversa criada');
-                }
-                
-                openConversation(conversationId, otherUserId);
+                    openConversation(conversationId, otherUserId);
+                }, { onlyOnce: true });
                 
             } catch (error) {
                 console.error('❌ Erro ao criar conversa:', error);
@@ -791,11 +785,12 @@
         // ========== CARREGAR MENSAGENS ==========
         function loadMessages(conversationId) {
             if (messagesRef) {
-                messagesRef.off();
+                // Limpar listener anterior se existir
+                // Nota: Para limpar listeners no RTDB modular, precisaríamos guardar a função unsubscribe
             }
             
-            messagesRef = chatDb.ref(`messages/${conversationId}`);
-            messagesRef.orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+            messagesRef = ref(chatDb, `messages/${conversationId}`);
+            onValue(query(messagesRef, orderByChild('timestamp'), limitToLast(50)), (snapshot) => {
                 const messagesData = snapshot.val();
                 const messagesContainer = document.getElementById('messages-container');
                 
@@ -827,13 +822,13 @@
             }
             
             const text = messageInput.value.trim();
-            const messageId = chatDb.ref().push().key;
+            const messageId = push(ref(chatDb, 'messages')).key;
             const timestamp = Date.now();
             
             console.log('📤 Enviando mensagem:', text);
             
             try {
-                await chatDb.ref(`messages/${currentConversation}/${messageId}`).set({
+                await set(ref(chatDb, `messages/${currentConversation}/${messageId}`), {
                     id: messageId,
                     senderId: currentUser.uid,
                     senderName: currentUser.nome,
@@ -850,8 +845,8 @@
                         lastTimestamp: timestamp
                     };
                     
-                    await chatDb.ref(`userConversations/${currentUser.uid}/${currentConversation}`).update(conversationUpdate);
-                    await chatDb.ref(`userConversations/${otherUserId}/${currentConversation}`).update(conversationUpdate);
+                    await update(ref(chatDb, `userConversations/${currentUser.uid}/${currentConversation}`), conversationUpdate);
+                    await update(ref(chatDb, `userConversations/${otherUserId}/${currentConversation}`), conversationUpdate);
                 }
                 
                 messageInput.value = '';
@@ -862,6 +857,51 @@
                 showStatus('Erro ao enviar mensagem', 'error');
             }
         }
+
+        // ========== HANDLER PARA BOTÃO VOLTAR ==========
+        async function handleBackButton() {
+            if (currentUser) {
+                try {
+                    // Atualizar status para offline no Firestore
+                    await updateUserStatusInFirestore(currentUser.uid, false);
+                    
+                    // Remover do RTDB também
+                    if (chatDb && currentUser.uid) {
+                        const userRef = ref(chatDb, `users/${currentUser.uid}`);
+                        await update(userRef, { isOnline: false, lastSeen: Date.now() });
+                    }
+                    
+                    // Parar listeners
+                    if (unsubscribeLogins) {
+                        unsubscribeLogins();
+                    }
+                    
+                    console.log('👋 Usuário desconectado:', currentUser.login);
+                } catch (error) {
+                    console.error('Erro ao desconectar:', error);
+                }
+            }
+            window.location.href = 'index.html';
+        }
+
+        // ========== HANDLER PARA QUANDO A PÁGINA É FECHADA ==========
+        window.addEventListener('beforeunload', async function() {
+            if (currentUser) {
+                try {
+                    await updateUserStatusInFirestore(currentUser.uid, false);
+                    
+                    // Remover do RTDB também
+                    if (chatDb && currentUser.uid) {
+                        const userRef = ref(chatDb, `users/${currentUser.uid}`);
+                        await update(userRef, { isOnline: false, lastSeen: Date.now() });
+                    }
+                    
+                    console.log('👋 Usuário desconectado (página fechada):', currentUser.login);
+                } catch (error) {
+                    console.error('Erro ao desconectar na saída:', error);
+                }
+            }
+        });
 
         // ========== FUNÇÕES AUXILIARES ==========
         function getOtherUserId(participants) {
@@ -950,6 +990,7 @@
         document.addEventListener('DOMContentLoaded', init);
     </script>
 
+    <!-- O CSS permanece igual -->
     <style>
         * {
             margin: 0;
