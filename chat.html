@@ -264,28 +264,41 @@
                     const usuarioLogado = JSON.parse(usuarioLogadoStr);
                     console.log('👤 Tentando auto-login para:', usuarioLogado.usuario);
                     
-                    // Buscar usuário no Firestore
-                    const querySnapshot = await db.collection('usuarios')
-                        .where('usuario', '==', usuarioLogado.usuario)
-                        .get();
+                    // Buscar usuário na coleção de logins (correto)
+                    const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                    const docSnap = await loginsRef.get();
                     
-                    if (!querySnapshot.empty) {
-                        const doc = querySnapshot.docs[0];
-                        const userData = doc.data();
+                    if (docSnap.exists()) {
+                        const loginsData = docSnap.data();
                         
-                        console.log('✅ Auto-login bem-sucedido para:', userData.usuario);
+                        // Procurar o usuário pelo login
+                        let foundUser = null;
+                        let userUid = null;
                         
-                        const usuarioChat = {
-                            uid: doc.id,
-                            docId: doc.id,
-                            login: userData.usuario,
-                            nome: userData.usuario,
-                            perfil: userData.nivel || 'usuario'
-                        };
+                        for (const [uid, userData] of Object.entries(loginsData)) {
+                            if (userData.login === usuarioLogado.usuario) {
+                                foundUser = userData;
+                                userUid = uid;
+                                break;
+                            }
+                        }
                         
-                        // Fazer login automático
-                        await performLogin(usuarioChat);
-                        return true;
+                        if (foundUser) {
+                            console.log('✅ Auto-login bem-sucedido para:', foundUser.login);
+                            
+                            const usuarioChat = {
+                                uid: userUid,
+                                docId: userUid,
+                                login: foundUser.login,
+                                nome: foundUser.login, // Usar o login como nome se não houver nome
+                                perfil: foundUser.perfil || 'usuario',
+                                isOnline: foundUser.isOnline || false
+                            };
+                            
+                            // Fazer login automático
+                            await performLogin(usuarioChat);
+                            return true;
+                        }
                     }
                 }
             } catch (error) {
@@ -299,28 +312,42 @@
             try {
                 showStatus('Carregando usuários...', 'info');
                 
-                const querySnapshot = await db.collection('usuarios').get();
-                console.log(`📄 Usuários encontrados: ${querySnapshot.size}`);
+                // Buscar na coleção correta de logins
+                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                const docSnap = await loginsRef.get();
                 
-                querySnapshot.forEach(doc => {
-                    const dados = doc.data();
-                    
-                    if (dados.usuario) {
+                if (!docSnap.exists()) {
+                    showStatus('Nenhum usuário encontrado', 'error');
+                    return;
+                }
+                
+                const loginsData = docSnap.data();
+                console.log(`📄 Usuários encontrados: ${Object.keys(loginsData).length}`);
+                
+                // Limpar opções existentes
+                if (userSelect) {
+                    userSelect.innerHTML = '<option value="">Selecione seu usuário...</option>';
+                }
+                
+                // Adicionar cada usuário como opção
+                for (const [uid, userData] of Object.entries(loginsData)) {
+                    if (userData.login) {
                         const usuario = {
-                            uid: doc.id,
-                            login: dados.usuario,
-                            nome: dados.usuario,
-                            perfil: dados.nivel || 'usuario'
+                            uid: uid,
+                            login: userData.login,
+                            nome: userData.login,
+                            perfil: userData.perfil || 'usuario',
+                            isOnline: userData.isOnline || false
                         };
                         
-                        const option = document.createElement('option');
-                        option.value = JSON.stringify(usuario);
-                        option.textContent = `${usuario.login} - ${usuario.perfil}`;
                         if (userSelect) {
+                            const option = document.createElement('option');
+                            option.value = JSON.stringify(usuario);
+                            option.textContent = `${usuario.login} (${usuario.perfil})`;
                             userSelect.appendChild(option);
                         }
                     }
-                });
+                }
                 
                 showStatus('Selecione seu usuário', 'info');
                 
@@ -330,11 +357,35 @@
             }
         }
 
+        // ========== ATUALIZAR STATUS NO FIRESTORE ==========
+        async function updateUserStatusInFirestore(userUid, isOnline) {
+            try {
+                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                const docSnap = await loginsRef.get();
+                
+                if (docSnap.exists()) {
+                    const updateData = {};
+                    updateData[`${userUid}.isOnline`] = isOnline;
+                    
+                    await loginsRef.update(updateData);
+                    console.log(`✅ Status atualizado no Firestore: ${userUid} -> ${isOnline ? 'online' : 'offline'}`);
+                } else {
+                    console.log('⚠️ Documento de logins não encontrado');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status no Firestore:', error);
+            }
+        }
+            
         // ========== REALIZAR LOGIN ==========
         async function performLogin(userData) {
             console.log('🔑 Realizando login para:', userData.login);
             
             currentUser = userData;
+            
+            // === ADICIONE ESTAS 2 LINHAS ===
+            // Atualizar status no Firestore (coleção de logins)
+            await updateUserStatusInFirestore(currentUser.uid, true);
             
             // Atualizar interface
             updateUserInterface();
@@ -408,19 +459,29 @@
         async function loadAllUsers() {
             try {
                 console.log('🔍 Carregando todos os usuários...');
-                const snapshot = await db.collection('usuarios').get();
+                
+                // Buscar na coleção correta
+                const loginsRef = db.collection('logins').doc('LOGINS_ORGTAREFAS');
+                const docSnap = await loginsRef.get();
+                
+                if (!docSnap.exists()) {
+                    console.log('❌ Nenhum usuário encontrado na coleção de logins');
+                    allUsers = [];
+                    return;
+                }
+                
+                const loginsData = docSnap.data();
                 allUsers = [];
                 
-                snapshot.forEach(doc => {
-                    const dados = doc.data();
-                    
-                    if (dados.usuario) {
+                for (const [uid, userData] of Object.entries(loginsData)) {
+                    if (userData.login) {
                         const usuario = {
-                            uid: doc.id,
-                            docId: doc.id,
-                            login: dados.usuario,
-                            nome: dados.usuario,
-                            perfil: dados.nivel || 'usuario'
+                            uid: uid,
+                            docId: uid,
+                            login: userData.login,
+                            nome: userData.login,
+                            perfil: userData.perfil || 'usuario',
+                            isOnline: userData.isOnline || false
                         };
                         
                         // Adicionar apenas se for diferente do usuário atual
@@ -428,12 +489,13 @@
                             allUsers.push(usuario);
                         }
                     }
-                });
+                }
                 
                 console.log(`📊 Total de usuários para conversar: ${allUsers.length}`);
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
+                allUsers = [];
             }
         }
 
