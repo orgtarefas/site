@@ -121,8 +121,12 @@ async function autoLogin() {
         
         console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
         
-        // Carregar todos os usuários no cache
-        await loadAllUsers();
+        // Inicializar cache de usuários
+        allUsers = loginsData;
+        console.log(`📊 ${Object.keys(allUsers).length} usuários carregados`);
+        
+        // Configurar cache em tempo real
+        setupUsersCache();
         
         // Atualizar interface
         document.getElementById('current-user-name').textContent = currentUser.nome;
@@ -148,7 +152,7 @@ async function autoLogin() {
         onDisconnect(ref(chatDb, `users/${currentUser.uid}/isOnline`)).set(false);
         onDisconnect(ref(chatDb, `users/${currentUser.uid}/lastSeen`)).set(Date.now());
         
-        // Carregar usuários online
+        // Carregar dados
         loadOnlineUsers();
         loadConversations();
         
@@ -177,20 +181,55 @@ async function loadAllUsers() {
 
 // ========== OBTER INFORMAÇÕES DO USUÁRIO ==========
 function getUserInfo(userId) {
-    if (!allUsers[userId]) {
+    // Se for o usuário atual
+    if (currentUser && userId === currentUser.uid) {
         return {
-            nome: `Usuário ${userId.substring(0, 8)}`,
-            login: userId,
-            perfil: 'desconhecido'
+            nome: currentUser.nome,
+            login: currentUser.login,
+            perfil: currentUser.perfil
         };
     }
     
-    const userData = allUsers[userId];
+    // Buscar no cache de usuários
+    if (allUsers[userId]) {
+        const userData = allUsers[userId];
+        return {
+            nome: userData.displayName || userData.login,
+            login: userData.login,
+            perfil: userData.perfil || 'usuario',
+            isOnline: userData.isOnline || false
+        };
+    }
+    
+    // Se não encontrou, tentar buscar no Firestore em tempo real
+    console.log(`🔍 Buscando informações do usuário: ${userId}`);
+    
+    // Retornar valores padrão enquanto busca
     return {
-        nome: userData.displayName || userData.login,
-        login: userData.login,
-        perfil: userData.perfil || 'usuario'
+        nome: `Usuário ${userId.substring(0, 8)}`,
+        login: userId,
+        perfil: 'desconhecido',
+        isOnline: false
     };
+}
+
+// ========== ATUALIZAR CACHE DE USUÁRIOS EM TEMPO REAL ==========
+async function setupUsersCache() {
+    const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+    
+    // Listener para atualizações em tempo real
+    onSnapshot(loginsRef, (doc) => {
+        if (doc.exists()) {
+            allUsers = doc.data();
+            console.log(`📊 Cache de usuários atualizado: ${Object.keys(allUsers).length} usuários`);
+            
+            // Atualizar interface se houver mudanças
+            if (currentUser) {
+                loadOnlineUsers();
+                loadConversations();
+            }
+        }
+    });
 }
 
 // ========== CARREGAR USUÁRIOS ONLINE ==========
@@ -270,32 +309,49 @@ function renderConversations(conversations) {
         return;
     }
     
-    let html = '';
-    Object.entries(conversations).forEach(([conversationId, conversationData]) => {
+    // Limpar container
+    container.innerHTML = '';
+    
+    // Ordenar conversas por última mensagem (mais recente primeiro)
+    const sortedConversations = Object.entries(conversations)
+        .sort(([, a], [, b]) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
+    
+    sortedConversations.forEach(([conversationId, conversationData]) => {
         const otherUserId = getOtherUserId(conversationData.participants);
         
         if (otherUserId) {
+            // Criar elemento de conversa
+            const conversationItem = document.createElement('div');
+            conversationItem.className = 'conversation-item';
+            conversationItem.onclick = () => openConversation(conversationId, otherUserId);
+            
+            // Buscar informações do usuário
             const userInfo = getUserInfo(otherUserId);
             const time = formatTime(conversationData.lastTimestamp || Date.now());
             
-            html += `
-                <div class="conversation-item" onclick="openConversation('${conversationId}', '${otherUserId}')">
-                    <div class="conversation-avatar">${userInfo.nome.charAt(0).toUpperCase()}</div>
-                    <div class="conversation-info">
-                        <div class="conversation-header">
-                            <span class="conversation-name">${userInfo.nome}</span>
-                            <span class="conversation-time">${time}</span>
-                        </div>
-                        <div class="conversation-preview">
-                            ${conversationData.lastMessage || 'Nova conversa'}
-                        </div>
+            // Preencher com informações corretas
+            conversationItem.innerHTML = `
+                <div class="conversation-avatar">${userInfo.nome.charAt(0).toUpperCase()}</div>
+                <div class="conversation-info">
+                    <div class="conversation-header">
+                        <span class="conversation-name">${userInfo.nome}</span>
+                        <span class="conversation-time">${time}</span>
+                    </div>
+                    <div class="conversation-preview">
+                        ${conversationData.lastMessage || 'Nova conversa'}
                     </div>
                 </div>`;
+            
+            container.appendChild(conversationItem);
         }
     });
     
-    container.innerHTML = html || '<div class="empty-state">Nenhuma conversa</div>';
-}
+    // Se não houver conversas, mostrar mensagem
+    if (container.children.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhuma conversa</div>';
+    }
+}    
+    
 
 // ========== INICIAR CONVERSA ==========
 window.startConversation = async function(otherUserId) {
