@@ -305,34 +305,76 @@
         // ========== CARREGAR TODOS OS USUÁRIOS DO FIRESTORE ==========
         async function getAllUsersFromFirestore() {
             try {
-                const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+                console.log('🔍 Buscando usuários no Firestore...');
                 const users = [];
                 
+                // Buscar na coleção LOGINS_ORGTAREFAS
+                const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+                
+                console.log(`📄 Total de documentos em LOGINS_ORGTAREFAS: ${snapshot.size}`);
+                
+                if (snapshot.empty) {
+                    console.log('⚠️ Nenhum documento encontrado em LOGINS_ORGTAREFAS');
+                    return users;
+                }
+                
+                // Para cada documento
                 snapshot.forEach(doc => {
+                    const docId = doc.id;
                     const dados = doc.data();
                     
+                    console.log(`\n📁 Documento ID: ${docId}`);
+                    console.log('📊 Dados do documento:', dados);
+                    
+                    // Verificar TODOS os campos do documento
                     Object.keys(dados).forEach(campo => {
                         const valor = dados[campo];
+                        console.log(`   🔍 Campo "${campo}":`, valor);
                         
-                        if (typeof valor === 'object' && valor !== null && valor.login) {
-                            const usuario = {
-                                uid: `${doc.id}_${campo}`,
-                                docId: doc.id,
-                                campo: campo,
-                                login: valor.login,
-                                nome: valor.displayName || valor.login,
-                                perfil: valor.perfil || 'Usuário',
-                                isOnline: valor.isOnline || false,
-                                email: valor.email || '',
-                                status: valor.status || 'Ativo'
-                            };
+                        // Se o campo for um objeto e tiver propriedades de usuário
+                        if (typeof valor === 'object' && valor !== null) {
+                            // Verificar se tem propriedades de usuário
+                            const temLogin = valor.hasOwnProperty('login');
+                            const temDisplayName = valor.hasOwnProperty('displayName');
+                            const temIsOnline = valor.hasOwnProperty('isOnline');
                             
-                            users.push(usuario);
+                            console.log(`     ${temLogin ? '✅' : '❌'} login: ${valor.login || 'não tem'}`);
+                            console.log(`     ${temDisplayName ? '✅' : '❌'} displayName: ${valor.displayName || 'não tem'}`);
+                            console.log(`     ${temIsOnline ? '✅' : '❌'} isOnline: ${valor.isOnline || 'não tem'}`);
+                            
+                            // Se tem login, é um usuário
+                            if (temLogin && valor.login) {
+                                console.log(`     🎯 ENCONTRADO USUÁRIO: ${valor.login}`);
+                                
+                                const usuario = {
+                                    uid: `${docId}_${campo}`, // ID único: docId + campo
+                                    docId: docId,
+                                    campo: campo, // user1_uid, user2_uid, etc
+                                    login: valor.login,
+                                    nome: valor.displayName || valor.login,
+                                    perfil: valor.perfil || 'Usuário',
+                                    isOnline: valor.isOnline || false,
+                                    email: valor.email || '',
+                                    status: valor.status || 'Ativo',
+                                    source: 'LOGINS_ORGTAREFAS'
+                                };
+                                
+                                users.push(usuario);
+                            }
                         }
                     });
                 });
                 
-                console.log(`📄 Total de usuários no Firestore: ${users.length}`);
+                console.log(`\n📊 Total de usuários encontrados: ${users.length}`);
+                
+                // Mostrar todos os usuários encontrados
+                if (users.length > 0) {
+                    console.log('👥 Lista de usuários:');
+                    users.forEach((user, index) => {
+                        console.log(`${index + 1}. ${user.login} (${user.nome}) - online: ${user.isOnline} - campo: ${user.campo}`);
+                    });
+                }
+                
                 return users;
                 
             } catch (error) {
@@ -550,6 +592,9 @@
             
             // Configurar listeners em tempo real
             setupRealtimeListeners();
+
+            // DEBUG: Ver usuários no RTDB
+            await debugRTDBUsers();
             
             showStatus(`✅ Bem-vindo, ${currentUser.login}!`, 'success');
             
@@ -580,48 +625,63 @@
         // ========== CARREGAR TODOS OS USUÁRIOS ==========
         async function loadAllUsers() {
             try {
-                console.log('🔍 Carregando todos os usuários...');
-                const snapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+                console.log('🔍 Carregando todos os usuários para conversar...');
+                
+                // Primeiro, pegar TODOS os usuários do Firestore
+                const allFirestoreUsers = await getAllUsersFromFirestore();
                 allUsers = [];
                 
-                snapshot.forEach(doc => {
-                    const docId = doc.id;
-                    const dados = doc.data();
+                console.log(`📊 Total de usuários no Firestore: ${allFirestoreUsers.length}`);
+                
+                if (allFirestoreUsers.length === 0) {
+                    console.log('⚠️ Nenhum usuário encontrado no Firestore');
+                    return;
+                }
+                
+                // Filtrar apenas usuários diferentes do atual
+                allFirestoreUsers.forEach(user => {
+                    // Verificar se é diferente do usuário atual
+                    const isCurrentUser = currentUser && 
+                                         (user.login === currentUser.login || 
+                                          user.uid === currentUser.uid);
                     
-                    // Percorrer todos os campos do documento
-                    Object.keys(dados).forEach(campo => {
-                        const valor = dados[campo];
-                        
-                        // Verificar se é um objeto de usuário
-                        if (typeof valor === 'object' && valor !== null && valor.login) {
-                            console.log(`✅ Encontrado usuário: ${valor.login} no campo ${campo}`);
-                            
-                            const usuario = {
-                                uid: `${docId}_${campo}`,
-                                docId: docId,
-                                campo: campo,
-                                login: valor.login,
-                                nome: valor.displayName || valor.login,
-                                perfil: valor.perfil || 'Usuário',
-                                isOnline: valor.isOnline || false,
-                                email: valor.email || '',
-                                status: valor.status || 'Ativo'
-                            };
-                            
-                            // Adicionar apenas se for diferente do usuário atual
-                            if (usuario.login !== currentUser.login) {
-                                allUsers.push(usuario);
-                                console.log(`📝 Adicionado usuário: ${usuario.nome} (${usuario.login})`);
-                            }
-                        }
-                    });
+                    if (!isCurrentUser) {
+                        allUsers.push(user);
+                        console.log(`📝 Adicionado para conversar: ${user.login} (${user.nome}) - online: ${user.isOnline}`);
+                    } else {
+                        console.log(`👤 Ignorado (usuário atual): ${user.login}`);
+                    }
                 });
                 
-                console.log(`📊 Total de usuários carregados: ${allUsers.length}`);
-                console.log('👥 Lista de usuários:', allUsers.map(u => `${u.login} (${u.nome})`));
+                console.log(`📊 Total de usuários para conversar: ${allUsers.length}`);
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
+            }
+        }
+        
+        // ========== DEBUG: VER USUÁRIOS NO RTDB ==========
+        async function debugRTDBUsers() {
+            try {
+                console.log('🔍 DEBUG: Verificando usuários no RTDB...');
+                
+                const snapshot = await chatDb.ref('users').once('value');
+                const usersData = snapshot.val();
+                
+                if (!usersData) {
+                    console.log('⚠️ Nenhum usuário no RTDB');
+                    return;
+                }
+                
+                console.log(`📊 Total de usuários no RTDB: ${Object.keys(usersData).length}`);
+                
+                Object.keys(usersData).forEach(uid => {
+                    const user = usersData[uid];
+                    console.log(`👤 ${uid}: ${user.login || 'sem login'} - online: ${user.isOnline} - nome: ${user.nome || 'sem nome'}`);
+                });
+                
+            } catch (error) {
+                console.error('❌ Erro ao verificar RTDB:', error);
             }
         }
         
