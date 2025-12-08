@@ -106,7 +106,6 @@
                 console.log('✅ Firebase App (Firestore) inicializado');
                 
                 // Inicializar segundo app (Realtime Database - chat)
-                // NOTA: Não podemos dar o mesmo nome 'chatApp' duas vezes
                 const chatApp = firebase.initializeApp(chatFirebaseConfig, 'chatApp');
                 console.log('✅ Firebase App (Chat) inicializado');
                 
@@ -142,7 +141,7 @@
             // 3. Configurar event listeners
             setupEventListeners();
             
-            // 4. Carregar usuários
+            // 4. Carregar usuários da coleção CORRETA
             await loadUsersFromFirestore();
         }
 
@@ -169,18 +168,19 @@
             }
         }
 
-        // ========== CARREGAR USUÁRIOS DO FIRESTORE ==========
+        // ========== CARREGAR USUÁRIOS DO FIRESTORE (coleção USUARIOS) ==========
         async function loadUsersFromFirestore() {
             try {
-                console.log('🔍 Buscando usuários reais...');
+                console.log('🔍 Buscando usuários da coleção "usuarios"...');
                 showStatus('Buscando usuários...', 'info');
                 
                 if (!db) {
                     throw new Error('Firestore não inicializado');
                 }
                 
-                const querySnapshot = await db.collection('LOGINS_ORGTAREFAS').get();
-                console.log(`📄 Total de documentos: ${querySnapshot.size}`);
+                // BUSCAR DA COLEÇÃO "usuarios" (igual ao login.js)
+                const querySnapshot = await db.collection('usuarios').get();
+                console.log(`📄 Total de documentos em "usuarios": ${querySnapshot.size}`);
                 
                 let usuariosReais = [];
                 
@@ -188,34 +188,28 @@
                     const docId = doc.id;
                     const dados = doc.data();
                     
-                    // Verificar TODOS os campos do documento
-                    Object.keys(dados).forEach(campo => {
-                        const valor = dados[campo];
+                    console.log(`📋 Documento ${docId}:`, dados);
+                    
+                    // Verificar se é um usuário válido (estrutura do login.js)
+                    if (dados.usuario && dados.nome) {
+                        console.log(`✅ USUÁRIO VÁLIDO: ${dados.usuario}`);
                         
-                        if (typeof valor === 'object' && valor !== null) {
-                            // Se tem login e displayName, é um usuário
-                            if (valor.login && valor.displayName) {
-                                console.log(`✅ ENCONTROU USUÁRIO: ${valor.login}`);
-                                
-                                const usuario = {
-                                    uid: `${docId}_${campo}`,
-                                    docId: docId,
-                                    campo: campo,
-                                    login: valor.login,
-                                    nome: valor.displayName,
-                                    perfil: valor.perfil || 'Usuário',
-                                    email: valor.email || '',
-                                    status: valor.status || 'Ativo',
-                                    senha: valor.senha || ''
-                                };
-                                
-                                usuariosReais.push(usuario);
-                            }
-                        }
-                    });
+                        const usuario = {
+                            uid: docId, // Usar o ID do documento como UID
+                            docId: docId,
+                            login: dados.usuario, // "usuario" no banco
+                            nome: dados.nome,
+                            perfil: dados.nivel || 'usuario', // "nivel" no banco
+                            email: dados.email || '',
+                            senha: dados.senha || ''
+                        };
+                        
+                        usuariosReais.push(usuario);
+                    }
                 });
                 
-                console.log(`🎯 Total de usuários reais encontrados: ${usuariosReais.length}`);
+                console.log(`🎯 Total de usuários encontrados: ${usuariosReais.length}`);
+                console.log('👥 Usuários:', usuariosReais);
                 
                 if (usuariosReais.length > 0) {
                     // Ordenar por nome
@@ -232,13 +226,103 @@
                     });
                     
                     showStatus(`${usuariosReais.length} usuário(s) carregado(s)`, 'success');
+                    
+                    // Se tivermos um usuário logado no localStorage, selecioná-lo automaticamente
+                    try {
+                        const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
+                        if (usuarioLogadoStr) {
+                            const usuarioLogado = JSON.parse(usuarioLogadoStr);
+                            console.log('👤 Usuário logado no sistema:', usuarioLogado);
+                            
+                            // Tentar encontrar este usuário na lista
+                            const usuarioEncontrado = usuariosReais.find(
+                                u => u.login === usuarioLogado.usuario
+                            );
+                            
+                            if (usuarioEncontrado) {
+                                // Selecionar automaticamente
+                                const usuarioJson = JSON.stringify(usuarioEncontrado);
+                                
+                                // Encontrar a opção correspondente
+                                for (let i = 0; i < userSelect.options.length; i++) {
+                                    if (userSelect.options[i].value === usuarioJson) {
+                                        userSelect.selectedIndex = i;
+                                        if (confirmUserBtn) {
+                                            confirmUserBtn.disabled = false;
+                                        }
+                                        showStatus(`Usuário ${usuarioLogado.nome} detectado`, 'success');
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Não foi possível detectar usuário logado:', e);
+                    }
+                    
                 } else {
-                    showStatus('Nenhum usuário encontrado na coleção LOGINS_ORGTAREFAS', 'error');
+                    showStatus('Nenhum usuário encontrado na coleção "usuarios"', 'error');
+                    console.log('🔍 Tentando buscar de LOGINS_ORGTAREFAS como fallback...');
+                    
+                    // Tentar como fallback buscar de LOGINS_ORGTAREFAS
+                    await loadUsersFromLOGINS_ORGTAREFAS();
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar usuários:', error);
                 showStatus('Erro: ' + error.message, 'error');
+                
+                // Tentar fallback
+                await loadUsersFromLOGINS_ORGTAREFAS();
+            }
+        }
+
+        // ========== FALLBACK: CARREGAR DE LOGINS_ORGTAREFAS ==========
+        async function loadUsersFromLOGINS_ORGTAREFAS() {
+            try {
+                console.log('🔍 Tentando coleção LOGINS_ORGTAREFAS...');
+                const querySnapshot = await db.collection('LOGINS_ORGTAREFAS').get();
+                console.log(`📄 Documentos em LOGINS_ORGTAREFAS: ${querySnapshot.size}`);
+                
+                let usuariosReais = [];
+                
+                querySnapshot.forEach(doc => {
+                    const dados = doc.data();
+                    console.log(`📋 LOGINS_ORGTAREFAS ${doc.id}:`, dados);
+                    
+                    // Verificar estrutura antiga
+                    Object.keys(dados).forEach(campo => {
+                        const valor = dados[campo];
+                        if (typeof valor === 'object' && valor !== null) {
+                            if (valor.login && valor.displayName) {
+                                const usuario = {
+                                    uid: `${doc.id}_${campo}`,
+                                    docId: doc.id,
+                                    campo: campo,
+                                    login: valor.login,
+                                    nome: valor.displayName,
+                                    perfil: valor.perfil || 'Usuário'
+                                };
+                                usuariosReais.push(usuario);
+                            }
+                        }
+                    });
+                });
+                
+                if (usuariosReais.length > 0) {
+                    usuariosReais.forEach(usuario => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify(usuario);
+                        option.textContent = `${usuario.nome} (${usuario.login})`;
+                        if (userSelect) {
+                            userSelect.appendChild(option);
+                        }
+                    });
+                    showStatus(`${usuariosReais.length} usuário(s) de LOGINS_ORGTAREFAS`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro no fallback:', error);
             }
         }
 
