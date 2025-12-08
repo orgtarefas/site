@@ -14,10 +14,7 @@ import {
     update, 
     push, 
     onValue,
-    onDisconnect,
-    query,
-    orderByChild,
-    limitToLast
+    onDisconnect
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
 // PROJETO 1: LOGINS (Firestore)
@@ -44,38 +41,30 @@ const chatConfig = {
 // ========== VARIÁVEIS GLOBAIS ==========
 let loginsDb, chatDb, currentUser = null;
 let currentConversation = null;
-let unsubscribeLogins = null;
-let unsubscribeConversations = null;
-let unsubscribeMessages = null;
 
 // ========== INICIALIZAÇÃO ==========
 async function init() {
-    console.log('🚀 Inicializando Chat (auto-login)...');
+    console.log('🚀 Inicializando Chat...');
     
     try {
-        // Inicializar os dois projetos Firebase
+        // Inicializar Firebase
         const loginsApp = initializeApp(loginsConfig, 'loginsApp');
         const chatApp = initializeApp(chatConfig, 'chatApp');
         
         loginsDb = getFirestore(loginsApp);
         chatDb = getDatabase(chatApp);
         
-        console.log('✅ Firebase inicializado com sucesso!');
+        console.log('✅ Firebase inicializado');
         
-        // Fazer auto-login automaticamente
+        // Fazer auto-login
         await autoLogin();
         
-        // Configurar event listeners
+        // Configurar eventos
         setupEventListeners();
-        setupResponsive();
         
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
-        showNotification('Erro ao conectar com o servidor', 'error');
-        // Se der erro, redireciona para index após 3 segundos
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 3000);
+        showNotification('Erro ao conectar', 'error');
     }
 }
 
@@ -83,29 +72,23 @@ async function init() {
 async function autoLogin() {
     console.log('🔐 Tentando auto-login...');
     
+    const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
+    if (!usuarioLogadoStr) {
+        console.log('⚠️ Nenhum usuário logado');
+        window.location.href = 'index.html';
+        return;
+    }
+    
     try {
-        // Buscar usuário logado do localStorage (do login.html)
-        const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
-        
-        if (!usuarioLogadoStr) {
-            console.log('⚠️ Nenhum usuário logado encontrado');
-            showNotification('Usuário não logado. Redirecionando...', 'error');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
-            return;
-        }
-        
         const usuarioLogado = JSON.parse(usuarioLogadoStr);
-        console.log('👤 Usuário encontrado:', usuarioLogado.usuario);
+        console.log('👤 Usuário:', usuarioLogado.usuario);
         
-        // Buscar usuário no Firestore (logins)
+        // Buscar no Firestore
         const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
         const docSnap = await getDoc(loginsRef);
         
         if (!docSnap.exists()) {
-            console.log('❌ Documento de logins não encontrado');
-            showNotification('Erro no sistema de logins', 'error');
+            console.log('❌ Documento não encontrado');
             return;
         }
         
@@ -113,7 +96,7 @@ async function autoLogin() {
         let userFound = null;
         let userUid = null;
         
-        // Procurar usuário pelo login
+        // Encontrar usuário
         for (const [uid, userData] of Object.entries(loginsData)) {
             if (userData && userData.login === usuarioLogado.usuario) {
                 userFound = userData;
@@ -123,130 +106,61 @@ async function autoLogin() {
         }
         
         if (!userFound) {
-            console.log('❌ Usuário não encontrado no sistema');
-            showNotification('Usuário não autorizado', 'error');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
+            console.log('❌ Usuário não encontrado');
             return;
         }
         
-        // Criar objeto do usuário para o chat
-        const userData = {
+        // Criar objeto do usuário
+        currentUser = {
             uid: userUid,
             login: userFound.login,
             nome: userFound.displayName || userFound.login,
             perfil: userFound.perfil || 'usuario'
         };
         
-        console.log('✅ Auto-login bem-sucedido:', userData.nome);
+        console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
         
-        // Fazer login automático
-        await loginUser(userData);
+        // Atualizar interface
+        document.getElementById('current-user-name').textContent = currentUser.nome;
+        document.getElementById('current-user-status').classList.add('online');
         
-    } catch (error) {
-        console.error('❌ Erro no auto-login:', error);
-        showNotification('Erro no login automático', 'error');
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 2000);
-    }
-}
-
-// ========== LOGIN DO USUÁRIO ==========
-async function loginUser(userData) {
-    try {
-        currentUser = userData;
-        
-        // Atualizar status online no Firestore (logins)
-        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+        // Atualizar status online
         await updateDoc(loginsRef, {
-            [`${userData.uid}.isOnline`]: true
+            [`${currentUser.uid}.isOnline`]: true
         });
         
-        // Configurar usuário no Realtime Database (chat)
-        const userRef = ref(chatDb, `users/${userData.uid}`);
+        // Configurar no Realtime Database
+        const userRef = ref(chatDb, `users/${currentUser.uid}`);
         await set(userRef, {
-            uid: userData.uid,
-            login: userData.login,
-            nome: userData.nome,
-            perfil: userData.perfil,
+            uid: currentUser.uid,
+            login: currentUser.login,
+            nome: currentUser.nome,
+            perfil: currentUser.perfil,
             isOnline: true,
             lastSeen: Date.now()
         });
         
-        // Configurar desconexão automática
-        onDisconnect(ref(chatDb, `users/${userData.uid}/isOnline`)).set(false);
-        onDisconnect(ref(chatDb, `users/${userData.uid}/lastSeen`)).set(Date.now());
+        // Desconexão automática
+        onDisconnect(ref(chatDb, `users/${currentUser.uid}/isOnline`)).set(false);
+        onDisconnect(ref(chatDb, `users/${currentUser.uid}/lastSeen`)).set(Date.now());
         
-        // Atualizar interface
-        updateUIAfterLogin();
+        // Carregar usuários online
+        loadOnlineUsers();
+        loadConversations();
         
-        // Configurar listeners do chat
-        setupChatListeners();
-        
-        showNotification(`✅ Olá, ${userData.nome}!`, 'success');
-        
-        // Fechar sidebar em mobile
-        if (window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
+        // Mostrar notificação
+        showNotification(`✅ Olá, ${currentUser.nome}!`, 'success');
         
     } catch (error) {
-        console.error('❌ Erro no login:', error);
-        showNotification('Erro ao conectar ao chat', 'error');
+        console.error('❌ Erro no auto-login:', error);
     }
 }
 
-// ========== ATUALIZAR INTERFACE APÓS LOGIN ==========
-function updateUIAfterLogin() {
-    // Atualizar informações do usuário
-    document.getElementById('current-user-name').textContent = currentUser.nome;
-    document.getElementById('current-user-status').classList.add('online');
-    
-    // Remover estados de loading
-    document.querySelectorAll('.loading-state').forEach(el => {
-        el.style.display = 'none';
-    });
-}
-
-// ========== LOGOUT (ao voltar) ==========
-async function logout() {
-    if (!currentUser) return;
-    
-    try {
-        // Atualizar status offline no Firestore (logins)
-        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-        await updateDoc(loginsRef, {
-            [`${currentUser.uid}.isOnline`]: false
-        });
-        
-        // Atualizar no Realtime Database (chat)
-        const userRef = ref(chatDb, `users/${currentUser.uid}`);
-        await update(userRef, {
-            isOnline: false,
-            lastSeen: Date.now()
-        });
-        
-        // Parar listeners
-        if (unsubscribeLogins) unsubscribeLogins();
-        if (unsubscribeConversations) unsubscribeConversations();
-        if (unsubscribeMessages) unsubscribeMessages();
-        
-        console.log('👋 Usuário desconectado:', currentUser.login);
-        
-    } catch (error) {
-        console.error('❌ Erro no logout:', error);
-    }
-}
-
-// ========== CONFIGURAR LISTENERS DO CHAT ==========
-function setupChatListeners() {
-    if (!currentUser) return;
-    
-    // 1. Ouvir usuários online (Firestore - logins)
+// ========== CARREGAR USUÁRIOS ONLINE ==========
+function loadOnlineUsers() {
     const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-    unsubscribeLogins = onSnapshot(loginsRef, (doc) => {
+    
+    onSnapshot(loginsRef, (doc) => {
         if (doc.exists()) {
             const loginsData = doc.data();
             const onlineUsers = [];
@@ -265,13 +179,6 @@ function setupChatListeners() {
             renderOnlineUsers(onlineUsers);
         }
     });
-    
-    // 2. Ouvir conversas (Realtime Database - chat)
-    const conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
-    unsubscribeConversations = onValue(conversationsRef, (snapshot) => {
-        const conversations = snapshot.val();
-        renderConversations(conversations);
-    });
 }
 
 // ========== RENDERIZAR USUÁRIOS ONLINE ==========
@@ -280,14 +187,10 @@ function renderOnlineUsers(users) {
     const count = document.getElementById('online-count');
     
     count.textContent = users.length;
-    count.style.display = users.length > 0 ? 'flex' : 'none';
+    count.style.display = 'flex';
     
     if (users.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-user-slash"></i>
-                <p>Nenhum colega online</p>
-            </div>`;
+        container.innerHTML = '<div class="empty-state">Nenhum colega online</div>';
         return;
     }
     
@@ -295,9 +198,7 @@ function renderOnlineUsers(users) {
     users.forEach(user => {
         html += `
             <div class="user-item" onclick="startConversation('${user.uid}')">
-                <div class="user-avatar">
-                    ${user.nome.charAt(0).toUpperCase()}
-                </div>
+                <div class="user-avatar">${user.nome.charAt(0)}</div>
                 <div class="user-info">
                     <div class="user-name">${user.nome}</div>
                     <div class="user-details">
@@ -312,161 +213,123 @@ function renderOnlineUsers(users) {
     container.innerHTML = html;
 }
 
+// ========== CARREGAR CONVERSAS ==========
+function loadConversations() {
+    const conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
+    
+    onValue(conversationsRef, (snapshot) => {
+        const conversations = snapshot.val();
+        renderConversations(conversations);
+    });
+}
+
 // ========== RENDERIZAR CONVERSAS ==========
 function renderConversations(conversations) {
     const container = document.getElementById('conversations');
     
-    if (!conversations || Object.keys(conversations).length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-comments"></i>
-                <p>Nenhuma conversa</p>
-                <small>Inicie uma conversa com um colega online</small>
-            </div>`;
+    if (!conversations) {
+        container.innerHTML = '<div class="empty-state">Nenhuma conversa</div>';
         return;
     }
     
-    // Ordenar conversas por última mensagem
-    const sortedConversations = Object.entries(conversations)
-        .sort(([, a], [, b]) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
-    
     let html = '';
-    sortedConversations.forEach(([conversationId, conversationData]) => {
+    Object.entries(conversations).forEach(([conversationId, conversationData]) => {
         const otherUserId = getOtherUserId(conversationData.participants);
         
-        // Buscar informações do outro usuário
-        getOtherUserInfo(otherUserId).then(otherUser => {
-            if (otherUser) {
-                const isActive = currentConversation === conversationId;
-                const time = conversationData.lastTimestamp ? 
-                    formatTime(conversationData.lastTimestamp) : '';
-                
-                const conversationElement = document.createElement('div');
-                conversationElement.className = `conversation-item ${isActive ? 'active' : ''}`;
-                conversationElement.innerHTML = `
-                    <div class="conversation-avatar">
-                        ${otherUser.nome.charAt(0).toUpperCase()}
-                    </div>
+        // Tentar buscar informações do outro usuário
+        if (otherUserId) {
+            html += `
+                <div class="conversation-item" onclick="openConversation('${conversationId}', '${otherUserId}')">
+                    <div class="conversation-avatar">U</div>
                     <div class="conversation-info">
                         <div class="conversation-header">
-                            <span class="conversation-name">${otherUser.nome}</span>
-                            <span class="conversation-time">${time}</span>
+                            <span class="conversation-name">Usuário ${otherUserId.substring(0, 8)}</span>
+                            <span class="conversation-time">${formatTime(conversationData.lastTimestamp || Date.now())}</span>
                         </div>
                         <div class="conversation-preview">
                             ${conversationData.lastMessage || 'Nova conversa'}
                         </div>
-                    </div>`;
-                
-                conversationElement.onclick = () => openConversation(conversationId, otherUserId);
-                container.appendChild(conversationElement);
-            }
-        });
+                    </div>
+                </div>`;
+        }
     });
+    
+    container.innerHTML = html || '<div class="empty-state">Nenhuma conversa</div>';
 }
 
 // ========== INICIAR CONVERSA ==========
-async function startConversation(otherUserId) {
+window.startConversation = async function(otherUserId) {
     if (!currentUser || !otherUserId) return;
     
-    const conversationId = [currentUser.uid, otherUserId].sort().join('_');
-    currentConversation = conversationId;
+    currentConversation = [currentUser.uid, otherUserId].sort().join('_');
     
-    try {
-        // Buscar informações do outro usuário
-        const otherUser = await getOtherUserInfo(otherUserId);
-        if (!otherUser) return;
-        
-        // Atualizar interface
-        document.getElementById('other-user-name').textContent = otherUser.nome;
-        document.getElementById('no-conversation').classList.add('hidden');
-        document.getElementById('active-conversation').classList.remove('hidden');
-        document.getElementById('message-input-area').classList.remove('hidden');
-        
-        // Criar/verificar conversa
-        const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${conversationId}`);
-        
-        onValue(conversationRef, (snapshot) => {
-            if (!snapshot.exists()) {
-                const conversationData = {
-                    participants: {
-                        [currentUser.uid]: true,
-                        [otherUserId]: true
-                    },
-                    lastMessage: '',
-                    lastTimestamp: Date.now(),
-                    unreadCount: 0
-                };
-                
-                // Criar conversa para ambos os usuários
-                set(conversationRef, conversationData);
-                set(ref(chatDb, `userConversations/${otherUserId}/${conversationId}`), conversationData);
-            }
+    console.log('💬 Iniciando conversa com:', otherUserId);
+    
+    // Atualizar interface
+    document.getElementById('other-user-name').textContent = 'Usuário';
+    document.getElementById('no-conversation').classList.add('hidden');
+    document.getElementById('active-conversation').classList.remove('hidden');
+    
+    // Criar conversa se não existir
+    const conversationRef = ref(chatDb, `userConversations/${currentUser.uid}/${currentConversation}`);
+    
+    onValue(conversationRef, (snapshot) => {
+        if (!snapshot.exists()) {
+            const conversationData = {
+                participants: {
+                    [currentUser.uid]: true,
+                    [otherUserId]: true
+                },
+                lastMessage: '',
+                lastTimestamp: Date.now()
+            };
             
-            // Carregar mensagens
-            loadMessages(conversationId);
-            
-        }, { onlyOnce: true });
-        
-        // Fechar sidebar em mobile
-        if (window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.remove('active');
+            set(conversationRef, conversationData);
+            set(ref(chatDb, `userConversations/${otherUserId}/${currentConversation}`), conversationData);
         }
-        
-        // Focar no input de mensagem
-        setTimeout(() => {
-            document.getElementById('message-input').focus();
-        }, 300);
-        
-    } catch (error) {
-        console.error('❌ Erro ao iniciar conversa:', error);
-        showNotification('Erro ao iniciar conversa', 'error');
-    }
-}
-
-// ========== ABRIR CONVERSA ==========
-async function openConversation(conversationId, otherUserId) {
-    currentConversation = conversationId;
-    
-    try {
-        const otherUser = await getOtherUserInfo(otherUserId);
-        if (!otherUser) return;
-        
-        // Atualizar interface
-        document.getElementById('other-user-name').textContent = otherUser.nome;
-        document.getElementById('no-conversation').classList.add('hidden');
-        document.getElementById('active-conversation').classList.remove('hidden');
-        document.getElementById('message-input-area').classList.remove('hidden');
         
         // Carregar mensagens
-        loadMessages(conversationId);
+        loadMessages(currentConversation);
         
-        // Fechar sidebar em mobile
-        if (window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
-        
-        // Focar no input de mensagem
-        setTimeout(() => {
-            document.getElementById('message-input').focus();
-        }, 300);
-        
-    } catch (error) {
-        console.error('❌ Erro ao abrir conversa:', error);
-    }
-}
+    }, { onlyOnce: true });
+    
+    // Focar no input
+    setTimeout(() => {
+        const input = document.getElementById('message-input');
+        if (input) input.focus();
+    }, 300);
+};
+
+// ========== ABRIR CONVERSA ==========
+window.openConversation = function(conversationId, otherUserId) {
+    currentConversation = conversationId;
+    
+    console.log('📂 Abrindo conversa:', conversationId);
+    
+    // Atualizar interface
+    document.getElementById('other-user-name').textContent = 'Usuário';
+    document.getElementById('no-conversation').classList.add('hidden');
+    document.getElementById('active-conversation').classList.remove('hidden');
+    
+    // Carregar mensagens
+    loadMessages(conversationId);
+    
+    // Focar no input
+    setTimeout(() => {
+        const input = document.getElementById('message-input');
+        if (input) input.focus();
+    }, 300);
+};
 
 // ========== CARREGAR MENSAGENS ==========
 function loadMessages(conversationId) {
-    // Limpar listener anterior
-    if (unsubscribeMessages) unsubscribeMessages();
-    
     const messagesRef = ref(chatDb, `messages/${conversationId}`);
     const container = document.getElementById('messages-container');
     
-    unsubscribeMessages = onValue(query(messagesRef, orderByChild('timestamp'), limitToLast(100)), (snapshot) => {
+    onValue(messagesRef, (snapshot) => {
         const messagesData = snapshot.val();
         
-        if (!messagesData || Object.keys(messagesData).length === 0) {
+        if (!messagesData) {
             container.innerHTML = `
                 <div class="empty-conversation">
                     <i class="fas fa-comment-slash"></i>
@@ -476,7 +339,6 @@ function loadMessages(conversationId) {
             return;
         }
         
-        // Converter e ordenar mensagens
         const messages = Object.values(messagesData)
             .sort((a, b) => a.timestamp - b.timestamp);
         
@@ -490,33 +352,18 @@ function renderMessages(messages) {
     const container = document.getElementById('messages-container');
     container.innerHTML = '';
     
-    let lastDate = null;
-    
     messages.forEach(msg => {
-        const messageDate = new Date(msg.timestamp).toLocaleDateString('pt-BR');
         const isCurrentUser = msg.senderId === currentUser.uid;
+        const time = formatTime(msg.timestamp);
         
-        // Adicionar separador de data se necessário
-        if (messageDate !== lastDate) {
-            const dateDiv = document.createElement('div');
-            dateDiv.className = 'date-separator';
-            dateDiv.textContent = formatDate(msg.timestamp);
-            container.appendChild(dateDiv);
-            lastDate = messageDate;
-        }
-        
-        // Criar elemento da mensagem
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isCurrentUser ? 'sent' : 'received'}`;
-        
-        const time = formatTime(msg.timestamp);
-        const formattedDate = formatDateTime(msg.timestamp);
         
         messageDiv.innerHTML = `
             <div class="message-content">
                 ${!isCurrentUser ? `<div class="message-sender">${msg.senderName}</div>` : ''}
                 <div class="message-text">${msg.text}</div>
-                <div class="message-time" title="${formattedDate}">${time}</div>
+                <div class="message-time">${time}</div>
             </div>`;
         
         container.appendChild(messageDiv);
@@ -529,15 +376,15 @@ async function sendMessage() {
     const text = input.value.trim();
     
     if (!text || !currentUser || !currentConversation) {
-        console.log('❌ Não pode enviar:', { text, currentUser, currentConversation });
+        console.log('⚠️ Não pode enviar:', { text, currentUser, currentConversation });
         return;
     }
+    
+    console.log('📤 Enviando mensagem:', text);
     
     try {
         const messageId = push(ref(chatDb, 'messages')).key;
         const timestamp = Date.now();
-        
-        console.log('📤 Enviando mensagem:', text);
         
         // Enviar mensagem
         await set(ref(chatDb, `messages/${currentConversation}/${messageId}`), {
@@ -549,9 +396,9 @@ async function sendMessage() {
             read: false
         });
         
-        // Atualizar última mensagem na conversa
+        // Atualizar conversa
         const conversationUpdate = {
-            lastMessage: text.length > 50 ? text.substring(0, 47) + '...' : text,
+            lastMessage: text,
             lastTimestamp: timestamp
         };
         
@@ -565,47 +412,23 @@ async function sendMessage() {
         input.value = '';
         input.focus();
         
-        console.log('✅ Mensagem enviada com sucesso!');
+        console.log('✅ Mensagem enviada!');
         
     } catch (error) {
-        console.error('❌ Erro ao enviar mensagem:', error);
+        console.error('❌ Erro ao enviar:', error);
         showNotification('Erro ao enviar mensagem', 'error');
     }
 }
 
 // ========== FUNÇÕES AUXILIARES ==========
-async function getOtherUserInfo(otherUserId) {
-    try {
-        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-        const docSnap = await getDoc(loginsRef);
-        
-        if (docSnap.exists()) {
-            const loginsData = docSnap.data();
-            const userData = loginsData[otherUserId];
-            
-            if (userData) {
-                return {
-                    uid: otherUserId,
-                    login: userData.login,
-                    nome: userData.displayName || userData.login,
-                    perfil: userData.perfil || 'usuario'
-                };
-            }
-        }
-    } catch (error) {
-        console.error('Erro ao buscar usuário:', error);
-    }
-    return null;
-}
-
 function getOtherUserId(participants) {
-    if (!participants) return null;
+    if (!participants || !currentUser) return null;
     const participantIds = Object.keys(participants);
     return participantIds.find(id => id !== currentUser.uid);
 }
 
 function getOtherUserIdFromConversation(conversationId) {
-    if (!conversationId) return null;
+    if (!conversationId || !currentUser) return null;
     const parts = conversationId.split('_');
     return parts.find(part => part !== currentUser.uid);
 }
@@ -614,37 +437,6 @@ function formatTime(timestamp) {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('pt-BR', { 
         hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-    });
-}
-
-function formatDate(timestamp) {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-        return 'Hoje';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Ontem';
-    } else {
-        return date.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    }
-}
-
-function formatDateTime(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
         minute: '2-digit'
     });
 }
@@ -658,17 +450,16 @@ function scrollToBottom() {
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
-    console.log('🔧 Configurando event listeners...');
+    console.log('🔧 Configurando listeners...');
     
-    // Enviar mensagem
+    // Botão enviar
     const sendBtn = document.getElementById('send-btn');
     if (sendBtn) {
         sendBtn.addEventListener('click', sendMessage);
-        console.log('✅ Listener do botão enviar configurado');
-    } else {
-        console.log('❌ Botão enviar não encontrado');
+        console.log('✅ Botão enviar configurado');
     }
     
+    // Input Enter
     const messageInput = document.getElementById('message-input');
     if (messageInput) {
         messageInput.addEventListener('keypress', (e) => {
@@ -677,7 +468,7 @@ function setupEventListeners() {
                 sendMessage();
             }
         });
-        console.log('✅ Listener do input configurado');
+        console.log('✅ Input configurado');
     }
     
     // Menu toggle
@@ -688,92 +479,37 @@ function setupEventListeners() {
         });
     }
     
-    // Logout quando a página for fechada
-    window.addEventListener('beforeunload', logout);
-    
-    // Logout ao clicar no botão voltar
+    // Botão voltar
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await logout();
+        logoutBtn.addEventListener('click', async () => {
+            if (currentUser) {
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                await updateDoc(loginsRef, {
+                    [`${currentUser.uid}.isOnline`]: false
+                });
+            }
             window.location.href = 'index.html';
         });
     }
     
-    // Debug: Log quando listeners são configurados
-    console.log('📝 Event listeners configurados:', {
-        sendBtn: !!sendBtn,
-        messageInput: !!messageInput,
-        menuToggle: !!menuToggle,
-        logoutBtn: !!logoutBtn
-    });
+    // Log ao configurar
+    console.log('📝 Listeners configurados');
 }
 
-// ========== RESPONSIVIDADE ==========
-function setupResponsive() {
-    // Fechar sidebar ao clicar fora (mobile)
-    document.addEventListener('click', (e) => {
-        const sidebar = document.getElementById('sidebar');
-        const menuToggle = document.getElementById('menu-toggle');
-        
-        if (window.innerWidth < 768 && 
-            sidebar.classList.contains('active') &&
-            !sidebar.contains(e.target) && 
-            !menuToggle.contains(e.target)) {
-            sidebar.classList.remove('active');
-        }
-    });
-    
-    // Ajustar layout no resize
-    window.addEventListener('resize', () => {
-        if (window.innerWidth >= 768) {
-            document.getElementById('sidebar').classList.add('active');
-        } else {
-            document.getElementById('sidebar').classList.remove('active');
-        }
-    });
-}
-
-// ========== MOSTRAR NOTIFICAÇÃO ==========
+// ========== NOTIFICAÇÃO ==========
 function showNotification(message, type = 'info') {
     const notification = document.getElementById('notification');
+    if (!notification) return;
     
-    if (!notification) {
-        console.log('❌ Elemento de notificação não encontrado');
-        return;
-    }
-    
-    // Limpar notificação anterior
-    notification.textContent = '';
-    notification.className = 'notification';
-    
-    // Definir tipo
-    const typeClasses = {
-        error: 'error',
-        success: 'success',
-        info: 'info'
-    };
-    
-    notification.classList.add(typeClasses[type] || 'info');
-    
-    // Adicionar ícone
-    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-    notification.textContent = `${icon} ${message}`;
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
     notification.classList.remove('hidden');
     
-    // Auto-esconder
     setTimeout(() => {
         notification.classList.add('hidden');
     }, 3000);
 }
 
-// ========== EXPORTAR FUNÇÕES PARA HTML ==========
-// Exportar startConversation para ser chamada do HTML
-window.startConversation = startConversation;
-
-// ========== INICIAR APLICAÇÃO ==========
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📱 DOM carregado, iniciando app...');
-    init();
-});
+// ========== INICIAR ==========
+document.addEventListener('DOMContentLoaded', init);
