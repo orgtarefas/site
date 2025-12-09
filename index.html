@@ -116,7 +116,7 @@
         </div>
     </div>
 
-    <!-- Modal Tarefa ATUALIZADO com campo Grupos -->
+    <!-- Modal Tarefa ATUALIZADO com campo Grupos e Atividades -->
     <div id="modalTarefa" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -145,6 +145,18 @@
                             <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
                         </div>
                         
+                        <!-- SEÇÃO DE ATIVIDADES -->
+                        <div class="form-group full-width" id="secao-atividades">
+                            <label><i class="fas fa-check-circle"></i> Atividades da Tarefa</label>
+                            <div id="lista-atividades">
+                                <!-- As atividades serão geradas dinamicamente aqui -->
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="adicionarAtividade()" style="margin-top: 10px;">
+                                <i class="fas fa-plus"></i> Adicionar Atividade
+                            </button>
+                            <small class="form-help">Clique no checkbox para marcar como concluída</small>
+                        </div>
+                        
                         <div class="form-group">
                             <label for="tarefaPrioridade"><i class="fas fa-flag"></i> Prioridade *</label>
                             <select id="tarefaPrioridade" required>
@@ -171,7 +183,7 @@
                         
                         <div class="form-group">
                             <label for="tarefaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
-                            <input type="date" id="tarefaDataFim" required>
+                                <input type="date" id="tarefaDataFim" required>
                         </div>
                         
                         <div class="form-group">
