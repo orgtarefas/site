@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('userName').textContent = usuarioLogado.nome;
     document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
     
+    // Configurar data mínima
+    configurarDataMinima();
+    
     // Inicializar sistema
     inicializarSistema();
 });
@@ -44,7 +47,6 @@ function inicializarSistema() {
     console.log('✅ Firebase carregado!');
     
     try {
-        configurarDataMinima();
         carregarUsuarios();
         carregarGrupos(); // <-- APENAS GRUPOS
         configurarFirebase();
@@ -82,7 +84,7 @@ function configurarFirebase() {
                 document.getElementById('mainContent').style.display = 'block';
                 document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Tempo Real';
                 
-                await atualizarInterfaceComAtividades();
+                atualizarInterface();
                 console.log('🎉 Sistema carregado com sucesso!');
             },
             (error) => {
@@ -112,13 +114,18 @@ async function carregarUsuarios() {
         const selectResponsavel = document.getElementById('tarefaResponsavel');
         const selectFiltro = document.getElementById('filterResponsavel');
         
-        selectResponsavel.innerHTML = '<option value="">Selecionar...</option>';
-        selectFiltro.innerHTML = '<option value="">Todos</option>';
+        if (selectResponsavel) {
+            selectResponsavel.innerHTML = '<option value="">Selecionar...</option>';
+        }
+        
+        if (selectFiltro) {
+            selectFiltro.innerHTML = '<option value="">Todos</option>';
+        }
         
         usuarios.forEach(usuario => {
             const option = `<option value="${usuario.usuario}">${usuario.nome || usuario.usuario}</option>`;
-            selectResponsavel.innerHTML += option;
-            selectFiltro.innerHTML += option;
+            if (selectResponsavel) selectResponsavel.innerHTML += option;
+            if (selectFiltro) selectFiltro.innerHTML += option;
         });
         
     } catch (error) {
@@ -143,14 +150,16 @@ async function carregarGrupos() {
         // Preencher select de grupos (múltipla escolha)
         const selectGrupos = document.getElementById('tarefaGrupos');
         
-        selectGrupos.innerHTML = '<option value="">Selecione um ou mais grupos...</option>';
-        
-        grupos.forEach(grupo => {
-            const option = document.createElement('option');
-            option.value = grupo.id;
-            option.textContent = grupo.nome;
-            selectGrupos.appendChild(option);
-        });
+        if (selectGrupos) {
+            selectGrupos.innerHTML = '<option value="">Selecione um ou mais grupos...</option>';
+            
+            grupos.forEach(grupo => {
+                const option = document.createElement('option');
+                option.value = grupo.id;
+                option.textContent = grupo.nome;
+                selectGrupos.appendChild(option);
+            });
+        }
         
     } catch (error) {
         console.error('❌ Erro ao carregar grupos:', error);
@@ -175,7 +184,10 @@ function abrirModalTarefa(tarefaId = null) {
 }
 
 function fecharModalTarefa() {
-    document.getElementById('modalTarefa').style.display = 'none';
+    const modal = document.getElementById('modalTarefa');
+    if (modal) {
+        modal.style.display = 'none';
+    }
     editandoTarefaId = null;
 }
 
@@ -218,14 +230,19 @@ function preencherFormulario(tarefaId) {
 }
 
 function limparFormulario() {
-    document.getElementById('formTarefa').reset();
+    const form = document.getElementById('formTarefa');
+    if (form) {
+        form.reset();
+    }
     configurarDataMinima();
     
     // Desmarcar todos os grupos
     const selectGrupos = document.getElementById('tarefaGrupos');
-    Array.from(selectGrupos.options).forEach(option => {
-        option.selected = false;
-    });
+    if (selectGrupos) {
+        Array.from(selectGrupos.options).forEach(option => {
+            option.selected = false;
+        });
+    }
 }
 
 // FUNÇÃO: Obter nome do primeiro grupo
@@ -311,15 +328,15 @@ async function excluirTarefa(tarefaId) {
 }
 
 // Interface
-async function atualizarInterfaceComAtividades() {
+function atualizarInterface() {
     atualizarEstatisticas();
-    await atualizarListaTarefas();
+    atualizarListaTarefas();
 }
 
 function atualizarEstatisticas() {
     // Obter usuário logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    const usuarioGrupos = usuarioLogado.grupos || [];
+    const usuarioGrupos = usuarioLogado?.grupos || [];
     
     // Filtrar tarefas baseado no usuário logado
     const tarefasVisiveis = tarefas.filter(tarefa => {
@@ -350,12 +367,13 @@ function atualizarEstatisticas() {
     document.getElementById('tarefas-concluidas').textContent = concluidas;
 }
 
-async function atualizarListaTarefas() {
+function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
+    if (!container) return;
     
     // Obter usuário logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    const usuarioGrupos = usuarioLogado.grupos || [];
+    const usuarioGrupos = usuarioLogado?.grupos || [];
     
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
@@ -450,10 +468,15 @@ async function atualizarListaTarefas() {
 }
 
 function filtrarTarefas(tarefasLista = tarefas) {
-    const termo = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('filterStatus').value;
-    const prioridade = document.getElementById('filterPrioridade').value;
-    const responsavel = document.getElementById('filterResponsavel').value;
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    const termo = searchInput ? searchInput.value.toLowerCase() : '';
+    const status = filterStatus ? filterStatus.value : '';
+    const prioridade = filterPrioridade ? filterPrioridade.value : '';
+    const responsavel = filterResponsavel ? filterResponsavel.value : '';
 
     return tarefasLista.filter(tarefa => {
         if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
@@ -535,11 +558,29 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Event Listeners para filtros
-document.getElementById('searchInput').addEventListener('input', () => atualizarListaTarefas());
-document.getElementById('filterStatus').addEventListener('change', () => atualizarListaTarefas());
-document.getElementById('filterPrioridade').addEventListener('change', () => atualizarListaTarefas());
-document.getElementById('filterResponsavel').addEventListener('change', () => atualizarListaTarefas());
+// Configurar event listeners apenas se os elementos existirem
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', () => atualizarListaTarefas());
+    }
+    
+    if (filterStatus) {
+        filterStatus.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterPrioridade) {
+        filterPrioridade.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterResponsavel) {
+        filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
+    }
+});
 
 // Fechar modal clicando fora
 window.onclick = function(event) {
