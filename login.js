@@ -1,7 +1,7 @@
-// login.js - VERSÃO ORIGINAL QUE FUNCIONAVA
+// login.js - VERSÃO ATUALIZADA COM CARREGAMENTO DE GRUPOS
 console.log('=== LOGIN INICIADO ===');
 
-// Sistema de login DIRETO
+// Sistema de login DIRETO com carregamento de grupos
 async function fazerLogin(usuario, senha) {
     console.log('Tentando login:', usuario);
     
@@ -47,17 +47,42 @@ async function fazerLogin(usuario, senha) {
             throw new Error('Senha incorreta');
         }
         
-        // Salvar informações do usuário no localStorage
+        // CARREGAR GRUPOS DO USUÁRIO
+        let gruposUsuario = [];
+        if (userData.grupos && Array.isArray(userData.grupos)) {
+            // Usuário já tem grupos definidos no documento
+            gruposUsuario = userData.grupos;
+        } else if (userData.grupo) {
+            // Usuário tem um único grupo (para compatibilidade com versões antigas)
+            gruposUsuario = [userData.grupo];
+        }
+        
+        console.log('Grupos do usuário:', gruposUsuario);
+        
+        // Salvar informações do usuário no localStorage COM GRUPOS
         localStorage.setItem('usuarioLogado', JSON.stringify({
             id: usuarioDoc.id,
             usuario: userData.usuario,
             nome: userData.nome || userData.usuario,
             nivel: userData.nivel || 'usuario',
             email: userData.email || '',
+            grupos: gruposUsuario, // <-- ADICIONADO: GRUPOS DO USUÁRIO
             dataLogin: new Date().toISOString()
         }));
         
         console.log('✅ Login realizado com sucesso!');
+        console.log('📋 Dados salvos no localStorage:', {
+            nome: userData.nome || userData.usuario,
+            grupos: gruposUsuario
+        });
+        
+        // Verificar se lembrar usuário está marcado
+        const rememberMe = document.getElementById('rememberMe').checked;
+        if (rememberMe) {
+            localStorage.setItem('savedUser', usuario);
+        } else {
+            localStorage.removeItem('savedUser');
+        }
         
         // Redirecionar para index.html
         btnText.textContent = 'Sucesso! Redirecionando...';
@@ -75,6 +100,8 @@ async function fazerLogin(usuario, senha) {
             mensagemErro = 'Usuário não encontrado';
         } else if (error.message.includes('Senha incorreta')) {
             mensagemErro = 'Senha incorreta';
+        } else {
+            mensagemErro = error.message;
         }
         
         alert('Erro: ' + mensagemErro);
