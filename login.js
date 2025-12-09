@@ -1,7 +1,7 @@
-// login.js - VERSÃO ATUALIZADA COM CARREGAMENTO DE GRUPOS
-console.log('=== LOGIN INICIADO ===');
+// login.js - VERSÃO ATUALIZADA
+console.log('=== LOGIN INICIANDO ===');
 
-// Sistema de login DIRETO com carregamento de grupos
+// Sistema de login DIRETO
 async function fazerLogin(usuario, senha) {
     console.log('Tentando login:', usuario);
     
@@ -25,7 +25,7 @@ async function fazerLogin(usuario, senha) {
         // Usar as funções MODULARES v12
         const { collection, query, where, getDocs } = firebaseModules;
         
-        // Buscar usuário - FORMA CORRETA v12
+        // Buscar usuário
         const usuariosRef = collection(db, 'usuarios');
         const q = query(usuariosRef, where('usuario', '==', usuario));
         
@@ -49,40 +49,33 @@ async function fazerLogin(usuario, senha) {
         
         // CARREGAR GRUPOS DO USUÁRIO
         let gruposUsuario = [];
+        
+        // Se já tem grupos definidos no documento
         if (userData.grupos && Array.isArray(userData.grupos)) {
-            // Usuário já tem grupos definidos no documento
             gruposUsuario = userData.grupos;
-        } else if (userData.grupo) {
-            // Usuário tem um único grupo (para compatibilidade com versões antigas)
-            gruposUsuario = [userData.grupo];
+            console.log('Grupos do documento:', gruposUsuario);
+        } else {
+            // Buscar grupos onde o usuário é membro
+            gruposUsuario = await buscarGruposDoUsuario(usuario);
+            console.log('Grupos buscados:', gruposUsuario);
         }
         
-        console.log('Grupos do usuário:', gruposUsuario);
-        
-        // Salvar informações do usuário no localStorage COM GRUPOS
+        // Salvar informações do usuário no localStorage
         localStorage.setItem('usuarioLogado', JSON.stringify({
             id: usuarioDoc.id,
             usuario: userData.usuario,
             nome: userData.nome || userData.usuario,
             nivel: userData.nivel || 'usuario',
             email: userData.email || '',
-            grupos: gruposUsuario, // <-- ADICIONADO: GRUPOS DO USUÁRIO
+            grupos: gruposUsuario, // <-- IMPORTANTE: grupos carregados
             dataLogin: new Date().toISOString()
         }));
         
         console.log('✅ Login realizado com sucesso!');
-        console.log('📋 Dados salvos no localStorage:', {
+        console.log('📋 Dados salvos:', {
             nome: userData.nome || userData.usuario,
             grupos: gruposUsuario
         });
-        
-        // Verificar se lembrar usuário está marcado
-        const rememberMe = document.getElementById('rememberMe').checked;
-        if (rememberMe) {
-            localStorage.setItem('savedUser', usuario);
-        } else {
-            localStorage.removeItem('savedUser');
-        }
         
         // Redirecionar para index.html
         btnText.textContent = 'Sucesso! Redirecionando...';
@@ -110,6 +103,29 @@ async function fazerLogin(usuario, senha) {
         btnLogin.disabled = false;
         btnText.textContent = 'Entrar no Sistema';
         spinner.classList.add('hidden');
+    }
+}
+
+// Função para buscar grupos do usuário
+async function buscarGruposDoUsuario(usuarioId) {
+    try {
+        const { db, firebaseModules } = window.firebaseApp;
+        const { collection, query, where, getDocs } = firebaseModules;
+        
+        // Buscar grupos onde o usuário é membro
+        const gruposRef = collection(db, 'grupos');
+        const q = query(gruposRef, where('membros', 'array-contains', usuarioId));
+        
+        const querySnapshot = await getDocs(q);
+        const gruposIds = querySnapshot.docs.map(doc => doc.id);
+        
+        console.log(`✅ ${gruposIds.length} grupos encontrados para ${usuarioId}`);
+        
+        return gruposIds;
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar grupos:', error);
+        return [];
     }
 }
 
@@ -146,7 +162,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     
     console.log('=== SISTEMA CONFIGURADO ===');
-    
-    // Verificar Firebase
-    console.log('FirebaseApp disponível?', window.firebaseApp ? '✅ SIM' : '❌ NÃO');
 });
