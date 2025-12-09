@@ -1,10 +1,11 @@
-// script.js - VERSÃO COMPLETA COM ATIVIDADES
+// script.js - VERSÃO COMPLETA COM ATIVIDADES VINCULADAS
 console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
 let tarefas = [];
 let usuarios = [];
 let grupos = [];
+let atividadesPorTarefa = {}; // Objeto para armazenar atividades por tarefaId
 let editandoTarefaId = null;
 
 // Inicialização
@@ -79,6 +80,9 @@ function configurarFirebase() {
                     ...doc.data()
                 }));
                 
+                // Carregar atividades para todas as tarefas
+                await carregarAtividadesParaTodasTarefas();
+                
                 // Finalizar carregamento
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
@@ -95,6 +99,94 @@ function configurarFirebase() {
                 mostrarErro('Erro ao carregar tarefas: ' + error.message);
             }
         );
+}
+
+async function carregarAtividadesParaTodasTarefas() {
+    console.log('📋 Carregando atividades para todas as tarefas...');
+    
+    try {
+        // Buscar todas as atividades
+        const snapshot = await db.collection("atividades").get();
+        const todasAtividades = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Atividades carregadas:', todasAtividades.length);
+
+        // Organizar atividades por tarefaId
+        atividadesPorTarefa = {};
+        
+        todasAtividades.forEach(atividade => {
+            if (atividade.tarefaId) {
+                if (!atividadesPorTarefa[atividade.tarefaId]) {
+                    atividadesPorTarefa[atividade.tarefaId] = [];
+                }
+                atividadesPorTarefa[atividade.tarefaId].push(atividade);
+            }
+        });
+
+        console.log('📊 Atividades organizadas por tarefa:', Object.keys(atividadesPorTarefa).length);
+        
+        // Ordenar atividades dentro de cada tarefa
+        Object.keys(atividadesPorTarefa).forEach(tarefaId => {
+            atividadesPorTarefa[tarefaId] = ordenarAtividadesPorTipo(atividadesPorTarefa[tarefaId]);
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar atividades:', error);
+    }
+}
+
+// FUNÇÃO: Buscar atividades específicas de uma tarefa
+async function buscarAtividadesDaTarefa(tarefaId) {
+    try {
+        const snapshot = await db.collection("atividades")
+            .where("tarefaId", "==", tarefaId)
+            .get();
+        
+        if (!snapshot.empty) {
+            let atividades = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Ordenar atividades por tipo
+            atividades = ordenarAtividadesPorTipo(atividades);
+            
+            return atividades;
+        }
+        return [];
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividades da tarefa:', error);
+        return [];
+    }
+}
+
+// FUNÇÃO: Ordenar atividades por tipo
+function ordenarAtividadesPorTipo(atividades) {
+    // Ordem específica dos tipos
+    const ordemTipos = ['execucao', 'monitoramento', 'conclusao'];
+    
+    // Separar atividades que têm tipo definido
+    const atividadesComTipo = atividades.filter(a => a.tipo);
+    const atividadesSemTipo = atividades.filter(a => !a.tipo);
+    
+    // Ordenar atividades com tipo na ordem específica
+    atividadesComTipo.sort((a, b) => {
+        const indiceA = ordemTipos.indexOf(a.tipo);
+        const indiceB = ordemTipos.indexOf(b.tipo);
+        
+        if (indiceA !== -1 && indiceB !== -1) {
+            return indiceA - indiceB;
+        }
+        if (indiceA !== -1) return -1;
+        if (indiceB !== -1) return 1;
+        return 0;
+    });
+    
+    // Combinar: atividades ordenadas por tipo + atividades sem tipo
+    return [...atividadesComTipo, ...atividadesSemTipo];
 }
 
 async function carregarUsuarios() {
@@ -133,7 +225,6 @@ async function carregarUsuarios() {
     }
 }
 
-// FUNÇÃO: Carregar grupos
 async function carregarGrupos() {
     console.log('👥 Carregando grupos...');
     
@@ -146,101 +237,10 @@ async function carregarGrupos() {
         }));
 
         console.log('✅ Grupos carregados:', grupos.length);
-
-        // Preencher select de grupos (múltipla escolha)
-        const selectGrupos = document.getElementById('tarefaGrupos');
-        
-        if (selectGrupos) {
-            selectGrupos.innerHTML = '<option value="">Selecione um ou mais grupos...</option>';
-            
-            grupos.forEach(grupo => {
-                const option = document.createElement('option');
-                option.value = grupo.id;
-                option.textContent = grupo.nome;
-                selectGrupos.appendChild(option);
-            });
-        }
         
     } catch (error) {
         console.error('❌ Erro ao carregar grupos:', error);
     }
-}
-
-// FUNÇÃO: Adicionar nova atividade no modal
-function adicionarAtividade(texto = '', concluida = false) {
-    const listaAtividades = document.getElementById('lista-atividades');
-    const atividadeId = 'atividade_' + Date.now();
-    
-    const atividadeDiv = document.createElement('div');
-    atividadeDiv.className = `atividade-item ${concluida ? 'atividade-concluida' : ''}`;
-    atividadeDiv.id = atividadeId;
-    
-    atividadeDiv.innerHTML = `
-        <input type="checkbox" class="atividade-checkbox" ${concluida ? 'checked' : ''} 
-               onclick="alternarAtividade('${atividadeId}')">
-        <input type="text" class="atividade-texto" value="${texto}" 
-               placeholder="Descreva a atividade..." 
-               onchange="atualizarAtividadeTexto('${atividadeId}', this.value)">
-        <button type="button" class="btn-remover-atividade" onclick="removerAtividade('${atividadeId}')">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    listaAtividades.appendChild(atividadeDiv);
-}
-
-// FUNÇÃO: Alternar status da atividade
-function alternarAtividade(atividadeId) {
-    const atividadeDiv = document.getElementById(atividadeId);
-    const checkbox = atividadeDiv.querySelector('.atividade-checkbox');
-    atividadeDiv.classList.toggle('atividade-concluida', checkbox.checked);
-}
-
-// FUNÇÃO: Atualizar texto da atividade
-function atualizarAtividadeTexto(atividadeId, texto) {
-    // Apenas atualiza o objeto em memória, o salvamento será feito no salvarTarefa()
-    console.log('Texto da atividade atualizado:', texto);
-}
-
-// FUNÇÃO: Remover atividade
-function removerAtividade(atividadeId) {
-    const atividadeDiv = document.getElementById(atividadeId);
-    if (atividadeDiv && confirm('Remover esta atividade?')) {
-        atividadeDiv.remove();
-    }
-}
-
-// FUNÇÃO: Carregar atividades no formulário
-function carregarAtividadesNoFormulario(atividades = []) {
-    const listaAtividades = document.getElementById('lista-atividades');
-    listaAtividades.innerHTML = '';
-    
-    if (atividades && atividades.length > 0) {
-        atividades.forEach(atividade => {
-            adicionarAtividade(atividade.texto, atividade.concluida);
-        });
-    }
-}
-
-// FUNÇÃO: Obter atividades do formulário
-function obterAtividadesDoFormulario() {
-    const atividades = [];
-    const itensAtividades = document.querySelectorAll('.atividade-item');
-    
-    itensAtividades.forEach(item => {
-        const textoInput = item.querySelector('.atividade-texto');
-        const checkbox = item.querySelector('.atividade-checkbox');
-        
-        if (textoInput && textoInput.value.trim() !== '') {
-            atividades.push({
-                texto: textoInput.value.trim(),
-                concluida: checkbox.checked,
-                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-    });
-    
-    return atividades;
 }
 
 // Modal Functions
@@ -304,13 +304,6 @@ function preencherFormulario(tarefaId) {
             option.selected = false;
         });
     }
-    
-    // Preencher atividades
-    if (tarefa.atividades && Array.isArray(tarefa.atividades)) {
-        carregarAtividadesNoFormulario(tarefa.atividades);
-    } else {
-        carregarAtividadesNoFormulario([]);
-    }
 }
 
 function limparFormulario() {
@@ -327,9 +320,6 @@ function limparFormulario() {
             option.selected = false;
         });
     }
-    
-    // Limpar atividades
-    carregarAtividadesNoFormulario([]);
 }
 
 // FUNÇÃO: Obter nome do primeiro grupo
@@ -366,9 +356,6 @@ async function salvarTarefa() {
         `${nomePrimeiroGrupo} - ${tituloDigitado}` : 
         tituloDigitado;
     
-    // Obter atividades do formulário
-    const atividades = obterAtividadesDoFormulario();
-    
     const tarefa = {
         titulo: tituloCompleto,
         descricao: document.getElementById('tarefaDescricao').value || '',
@@ -378,16 +365,8 @@ async function salvarTarefa() {
         dataFim: document.getElementById('tarefaDataFim').value,
         responsavel: document.getElementById('tarefaResponsavel').value || '',
         gruposAcesso: gruposSelecionados,
-        atividades: atividades,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
-
-    // DEBUG
-    console.log('📦 Dados a serem salvos:', {
-        titulo: tarefa.titulo,
-        atividades: tarefa.atividades,
-        quantidadeAtividades: tarefa.atividades.length
-    });
 
     try {
         if (editandoTarefaId) {
@@ -519,32 +498,48 @@ function atualizarListaTarefas() {
             }
         }
         
-        // Calcular atividades concluídas
-        let atividadesConcluidas = 0;
-        let totalAtividades = 0;
+        // Buscar atividades da tarefa
+        const atividadesDaTarefa = atividadesPorTarefa[tarefa.id] || [];
         let atividadesHTML = '';
         
-        if (tarefa.atividades && Array.isArray(tarefa.atividades)) {
-            totalAtividades = tarefa.atividades.length;
-            atividadesConcluidas = tarefa.atividades.filter(a => a.concluida).length;
+        if (atividadesDaTarefa.length > 0) {
+            const atividadesConcluidas = atividadesDaTarefa.filter(a => 
+                a.status && a.status.toLowerCase() === 'concluido'
+            ).length;
             
-            if (totalAtividades > 0) {
-                atividadesHTML = `
-                    <div class="atividades-tarefa">
-                        <h4>
-                            <i class="fas fa-list-check"></i> Atividades (${atividadesConcluidas}/${totalAtividades})
-                        </h4>
-                        <div class="atividades-lista">
-                            ${tarefa.atividades.map(atividade => `
-                                <div class="atividade-exibida ${atividade.concluida ? 'atividade-concluida' : ''}">
-                                    <i class="fas fa-${atividade.concluida ? 'check-circle' : 'circle'}"></i>
-                                    <span>${atividade.texto || 'Atividade sem descrição'}</span>
-                                </div>
-                            `).join('')}
-                        </div>
+            atividadesHTML = `
+                <div class="atividades-sistema">
+                    <div class="atividades-header">
+                        <i class="fas fa-list-check"></i>
+                        <strong>Atividades da Tarefa (${atividadesConcluidas}/${atividadesDaTarefa.length}):</strong>
                     </div>
-                `;
-            }
+                    <div class="atividades-lista">
+                        ${atividadesDaTarefa.map((atividade, index) => {
+                            const isConcluida = atividade.status && 
+                                               (atividade.status.toLowerCase() === 'concluido' || 
+                                                atividade.status.toLowerCase() === 'concluída');
+                            
+                            return `
+                                <div class="atividade-item ${isConcluida ? 'concluida' : ''} ${atividade.tipo ? `tipo-${atividade.tipo}` : ''}">
+                                    <div class="atividade-ordem">
+                                        <span class="ordem-numero">${index + 1}</span>
+                                    </div>
+                                    <div class="atividade-tipo">
+                                        <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
+                                        <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
+                                    </div>
+                                    <div class="atividade-conteudo">
+                                        <span class="atividade-titulo">${atividade.titulo || atividade.descricao || 'Atividade sem título'}</span>
+                                        <span class="atividade-status badge status-${atividade.status ? atividade.status.replace(/[^a-z0-9]/g, '_') : 'pendente'}">
+                                            ${getLabelStatus(atividade.status)}
+                                        </span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
         }
         
         return `
@@ -554,7 +549,6 @@ function atualizarListaTarefas() {
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
                     ${gruposInfo}
-                    ${atividadesHTML}
                 </div>
             </div>
             
@@ -572,6 +566,8 @@ function atualizarListaTarefas() {
                 ` : ''}
             </div>
 
+            ${atividadesHTML}
+
             <div class="task-meta">
                 ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
                 <small><i class="fas fa-flag-checkered"></i> ${formatarData(tarefa.dataFim)}</small>
@@ -588,6 +584,51 @@ function atualizarListaTarefas() {
         </div>
         `;
     }).join('');
+}
+
+// FUNÇÕES AUXILIARES PARA ATIVIDADES
+function getIconTipo(tipo) {
+    if (!tipo) return 'tasks';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'play-circle';
+        case 'monitoramento': return 'eye';
+        case 'conclusao': return 'check-double';
+        default: return 'tasks';
+    }
+}
+
+function getLabelTipo(tipo) {
+    if (!tipo) return 'Outras';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'Execução';
+        case 'monitoramento': return 'Monitoramento';
+        case 'conclusao': return 'Conclusão';
+        default: return tipo.charAt(0).toUpperCase() + tipo.slice(1);
+    }
+}
+
+function getLabelStatus(status) {
+    if (!status) return 'Não Iniciado';
+    
+    const statusNorm = status.toLowerCase().trim();
+    
+    switch(statusNorm) {
+        case 'nao_iniciado':
+        case 'não iniciado':
+            return 'Não Iniciado';
+        case 'pendente':
+            return 'Pendente';
+        case 'andamento':
+        case 'em andamento':
+            return 'Em Andamento';
+        case 'concluido':
+        case 'concluído':
+            return 'Concluído';
+        default:
+            return status.charAt(0).toUpperCase() + status.slice(1);
+    }
 }
 
 function filtrarTarefas(tarefasLista = tarefas) {
@@ -611,18 +652,6 @@ function filtrarTarefas(tarefasLista = tarefas) {
         if (responsavel && tarefa.responsavel !== responsavel) return false;
         return true;
     });
-}
-
-function getLabelStatus(status) {
-    if (!status) return 'Não Iniciado';
-    
-    switch(status) {
-        case 'nao_iniciado': return 'Não Iniciado';
-        case 'pendente': return 'Pendente';
-        case 'andamento': return 'Em Andamento';
-        case 'concluido': return 'Concluído';
-        default: return status;
-    }
 }
 
 // Utils
@@ -681,60 +710,6 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// FUNÇÕES DE TESTE (remova em produção)
-async function adicionarAtividadesTeste(tarefaId) {
-    const atividadesExemplo = [
-        {
-            texto: "Análise dos requisitos do sistema",
-            concluida: true,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-            texto: "Desenvolvimento da interface",
-            concluida: true,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-            texto: "Testes unitários",
-            concluida: false,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-            texto: "Documentação do projeto",
-            concluida: false,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        }
-    ];
-    
-    try {
-        await db.collection("tarefas").doc(tarefaId).update({
-            atividades: atividadesExemplo,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        console.log('✅ Atividades adicionadas com sucesso!');
-        mostrarNotificacao('Atividades de teste adicionadas!', 'success');
-    } catch (error) {
-        console.error('❌ Erro ao adicionar atividades:', error);
-        mostrarNotificacao('Erro ao adicionar atividades', 'error');
-    }
-}
-
-function verificarEstruturaTarefa(tarefaId) {
-    const tarefa = tarefas.find(t => t.id === tarefaId);
-    if (tarefa) {
-        console.log('📊 Estrutura da tarefa:', {
-            id: tarefa.id,
-            titulo: tarefa.titulo,
-            temAtividades: tarefa.atividades ? true : false,
-            tipoAtividades: tarefa.atividades ? typeof tarefa.atividades : 'não definido',
-            atividades: tarefa.atividades,
-            todasPropriedades: Object.keys(tarefa)
-        });
-    } else {
-        console.log('❌ Tarefa não encontrada');
-    }
-}
-
 // Configurar event listeners
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
@@ -757,28 +732,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterResponsavel) {
         filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
     }
-    
-    // Adicionar uma atividade padrão quando abrir modal de nova tarefa
-    const modal = document.getElementById('modalTarefa');
-    if (modal) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    const display = modal.style.display;
-                    if (display === 'flex' && !editandoTarefaId) {
-                        // Adicionar uma atividade em branco por padrão
-                        setTimeout(() => {
-                            if (document.querySelectorAll('.atividade-item').length === 0) {
-                                adicionarAtividade();
-                            }
-                        }, 100);
-                    }
-                }
-            });
-        });
-        
-        observer.observe(modal, { attributes: true });
-    }
 });
 
 // Fechar modal clicando fora
@@ -789,6 +742,8 @@ window.onclick = function(event) {
     }
 }
 
-// Torna as funções de teste disponíveis globalmente (para debug)
-window.adicionarAtividadesTeste = adicionarAtividadesTeste;
-window.verificarEstruturaTarefa = verificarEstruturaTarefa;
+// Função para recarregar atividades (pode ser chamada quando necessário)
+async function recarregarAtividades() {
+    await carregarAtividadesParaTodasTarefas();
+    atualizarListaTarefas();
+}
