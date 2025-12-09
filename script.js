@@ -1,4 +1,4 @@
-// script.js - VERSÃO SIMPLIFICADA SEM SISTEMAS, COM GRUPOS NO TÍTULO
+// script.js - VERSÃO COMPLETA COM ATIVIDADES
 console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
@@ -48,7 +48,7 @@ function inicializarSistema() {
     
     try {
         carregarUsuarios();
-        carregarGrupos(); // <-- APENAS GRUPOS
+        carregarGrupos();
         configurarFirebase();
         
     } catch (error) {
@@ -166,6 +166,83 @@ async function carregarGrupos() {
     }
 }
 
+// FUNÇÃO: Adicionar nova atividade no modal
+function adicionarAtividade(texto = '', concluida = false) {
+    const listaAtividades = document.getElementById('lista-atividades');
+    const atividadeId = 'atividade_' + Date.now();
+    
+    const atividadeDiv = document.createElement('div');
+    atividadeDiv.className = `atividade-item ${concluida ? 'atividade-concluida' : ''}`;
+    atividadeDiv.id = atividadeId;
+    
+    atividadeDiv.innerHTML = `
+        <input type="checkbox" class="atividade-checkbox" ${concluida ? 'checked' : ''} 
+               onclick="alternarAtividade('${atividadeId}')">
+        <input type="text" class="atividade-texto" value="${texto}" 
+               placeholder="Descreva a atividade..." 
+               onchange="atualizarAtividadeTexto('${atividadeId}', this.value)">
+        <button type="button" class="btn-remover-atividade" onclick="removerAtividade('${atividadeId}')">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    listaAtividades.appendChild(atividadeDiv);
+}
+
+// FUNÇÃO: Alternar status da atividade
+function alternarAtividade(atividadeId) {
+    const atividadeDiv = document.getElementById(atividadeId);
+    const checkbox = atividadeDiv.querySelector('.atividade-checkbox');
+    atividadeDiv.classList.toggle('atividade-concluida', checkbox.checked);
+}
+
+// FUNÇÃO: Atualizar texto da atividade
+function atualizarAtividadeTexto(atividadeId, texto) {
+    // Apenas atualiza o objeto em memória, o salvamento será feito no salvarTarefa()
+    console.log('Texto da atividade atualizado:', texto);
+}
+
+// FUNÇÃO: Remover atividade
+function removerAtividade(atividadeId) {
+    const atividadeDiv = document.getElementById(atividadeId);
+    if (atividadeDiv && confirm('Remover esta atividade?')) {
+        atividadeDiv.remove();
+    }
+}
+
+// FUNÇÃO: Carregar atividades no formulário
+function carregarAtividadesNoFormulario(atividades = []) {
+    const listaAtividades = document.getElementById('lista-atividades');
+    listaAtividades.innerHTML = '';
+    
+    if (atividades && atividades.length > 0) {
+        atividades.forEach(atividade => {
+            adicionarAtividade(atividade.texto, atividade.concluida);
+        });
+    }
+}
+
+// FUNÇÃO: Obter atividades do formulário
+function obterAtividadesDoFormulario() {
+    const atividades = [];
+    const itensAtividades = document.querySelectorAll('.atividade-item');
+    
+    itensAtividades.forEach(item => {
+        const textoInput = item.querySelector('.atividade-texto');
+        const checkbox = item.querySelector('.atividade-checkbox');
+        
+        if (textoInput && textoInput.value.trim() !== '') {
+            atividades.push({
+                texto: textoInput.value.trim(),
+                concluida: checkbox.checked,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    });
+    
+    return atividades;
+}
+
 // Modal Functions
 function abrirModalTarefa(tarefaId = null) {
     editandoTarefaId = tarefaId;
@@ -227,6 +304,13 @@ function preencherFormulario(tarefaId) {
             option.selected = false;
         });
     }
+    
+    // Preencher atividades
+    if (tarefa.atividades && Array.isArray(tarefa.atividades)) {
+        carregarAtividadesNoFormulario(tarefa.atividades);
+    } else {
+        carregarAtividadesNoFormulario([]);
+    }
 }
 
 function limparFormulario() {
@@ -243,6 +327,9 @@ function limparFormulario() {
             option.selected = false;
         });
     }
+    
+    // Limpar atividades
+    carregarAtividadesNoFormulario([]);
 }
 
 // FUNÇÃO: Obter nome do primeiro grupo
@@ -279,8 +366,11 @@ async function salvarTarefa() {
         `${nomePrimeiroGrupo} - ${tituloDigitado}` : 
         tituloDigitado;
     
+    // Obter atividades do formulário
+    const atividades = obterAtividadesDoFormulario();
+    
     const tarefa = {
-        titulo: tituloCompleto, // <-- TÍTULO COM NOME DO GRUPO
+        titulo: tituloCompleto,
         descricao: document.getElementById('tarefaDescricao').value,
         prioridade: document.getElementById('tarefaPrioridade').value,
         status: document.getElementById('tarefaStatus').value,
@@ -288,6 +378,7 @@ async function salvarTarefa() {
         dataFim: document.getElementById('tarefaDataFim').value,
         responsavel: document.getElementById('tarefaResponsavel').value,
         gruposAcesso: gruposSelecionados,
+        atividades: atividades, // <-- ATIVIDADES ADICIONADAS
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -444,7 +535,7 @@ function atualizarListaTarefas() {
         return { ...tarefa, gruposInfo };
     });
 
-    // Renderizar tarefas
+    // Renderizar tarefas com atividades
     container.innerHTML = tarefasProcessadas.map(tarefa => `
         <div class="task-card prioridade-${tarefa.prioridade}">
             <div class="task-header">
@@ -452,6 +543,23 @@ function atualizarListaTarefas() {
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
                     ${tarefa.gruposInfo || ''}
+                    
+                    <!-- SEÇÃO DE ATIVIDADES NA TAREFA -->
+                    ${tarefa.atividades && tarefa.atividades.length > 0 ? `
+                        <div class="atividades-tarefa">
+                            <h4>
+                                <i class="fas fa-list-check"></i> Atividades (${tarefa.atividades.filter(a => a.concluida).length}/${tarefa.atividades.length})
+                            </h4>
+                            <div class="atividades-lista">
+                                ${tarefa.atividades.map(atividade => `
+                                    <div class="atividade-exibida ${atividade.concluida ? 'atividade-concluida' : ''}">
+                                        <i class="fas fa-${atividade.concluida ? 'check-circle' : 'circle'}"></i>
+                                        <span>${atividade.texto}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
             
@@ -608,3 +716,28 @@ window.onclick = function(event) {
         fecharModalTarefa();
     }
 }
+
+// Adicionar uma atividade padrão quando abrir modal de nova tarefa
+document.addEventListener('DOMContentLoaded', function() {
+    // Garantir que a função adicionarAtividade seja chamada apenas quando necessário
+    const modal = document.getElementById('modalTarefa');
+    if (modal) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const display = modal.style.display;
+                    if (display === 'flex' && !editandoTarefaId) {
+                        // Adicionar uma atividade em branco por padrão
+                        setTimeout(() => {
+                            if (document.querySelectorAll('.atividade-item').length === 0) {
+                                adicionarAtividade();
+                            }
+                        }, 100);
+                    }
+                }
+            });
+        });
+        
+        observer.observe(modal, { attributes: true });
+    }
+});
