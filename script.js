@@ -115,19 +115,7 @@ async function carregarUsuarios() {
 
         console.log('✅ Usuários carregados:', usuarios.length);
 
-        // Preencher select de responsável
-        const selectResponsavel = document.getElementById('tarefaResponsavel');
-        if (selectResponsavel) {
-            selectResponsavel.innerHTML = '<option value="">Selecionar...</option>';
-            usuarios.forEach(usuario => {
-                const option = document.createElement('option');
-                option.value = usuario.usuario || usuario.id;
-                option.textContent = usuario.nome || usuario.usuario || usuario.id;
-                selectResponsavel.appendChild(option);
-            });
-        }
-
-        // Preencher select de responsável para FILTRO
+        // Apenas preencher select de responsável para FILTRO
         const selectFiltro = document.getElementById('filterResponsavel');
         if (selectFiltro) {
             selectFiltro.innerHTML = '<option value="">Todos</option>';
@@ -276,17 +264,20 @@ function abrirModalTarefa(tarefaId = null) {
     const modal = document.getElementById('modalTarefa');
     const titulo = document.getElementById('modalTitulo');
     const btnSalvar = document.getElementById('btnSalvarTarefa');
+    const secaoAtividades = document.getElementById('secao-atividades');
     
     if (modoEdicao) {
         titulo.textContent = 'Editar Tarefa';
         btnSalvar.textContent = 'Salvar Alterações';
         preencherFormulario(tarefaId);
-        ocultarCamposNovaTarefa();
+        // Ocultar atividades na edição
+        if (secaoAtividades) secaoAtividades.style.display = 'none';
     } else {
         titulo.textContent = 'Nova Tarefa';
         btnSalvar.textContent = 'Salvar Tarefa';
         limparFormulario();
-        mostrarCamposNovaTarefa();
+        // Mostrar atividades apenas na nova tarefa
+        if (secaoAtividades) secaoAtividades.style.display = 'block';
     }
     
     modal.style.display = 'flex';
@@ -421,7 +412,7 @@ async function salvarTarefa() {
         `${nomePrimeiroGrupo} - ${tituloDigitado}` : 
         tituloDigitado;
     
-    // Preparar objeto tarefa base
+    // Preparar objeto tarefa (sem Status e Responsável)
     const tarefa = {
         titulo: tituloCompleto,
         descricao: document.getElementById('tarefaDescricao').value || '',
@@ -432,10 +423,10 @@ async function salvarTarefa() {
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // Adicionar campos específicos para NOVA TAREFA
+    // Para NOVA TAREFA, podemos definir Status padrão e adicionar atividades
     if (!modoEdicao) {
-        tarefa.status = document.getElementById('tarefaStatus').value;
-        tarefa.responsavel = document.getElementById('tarefaResponsavel').value || '';
+        // Status padrão para nova tarefa
+        tarefa.status = 'nao_iniciado'; // Valor padrão
         
         // Adicionar atividades da nova tarefa
         const atividades = obterAtividadesDoFormulario();
@@ -447,6 +438,7 @@ async function salvarTarefa() {
     try {
         if (modoEdicao && editandoTarefaId) {
             console.log('✏️ Editando tarefa:', editandoTarefaId);
+            // Na edição, mantém o Status existente (não atualiza)
             await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
         } else {
             console.log('🆕 Criando nova tarefa');
