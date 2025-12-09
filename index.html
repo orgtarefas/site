@@ -116,7 +116,7 @@
         </div>
     </div>
 
-    <!-- Modal Tarefa ATUALIZADO com campo Grupos e Atividades -->
+    <!-- Modal Tarefa com campo Grupos e Atividades -->
     <div id="modalTarefa" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -145,8 +145,8 @@
                             <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
                         </div>
                         
-                        <!-- SEÇÃO DE ATIVIDADES -->
-                        <div class="form-group full-width" id="secao-atividades">
+                        <!-- SEÇÃO DE ATIVIDADES (APENAS NOVA TAREFA) -->
+                        <div class="form-group full-width" id="secao-atividades" style="display: none;">
                             <label><i class="fas fa-check-circle"></i> Atividades da Tarefa</label>
                             <div id="lista-atividades">
                                 <!-- As atividades serão geradas dinamicamente aqui -->
@@ -166,7 +166,8 @@
                             </select>
                         </div>
                         
-                        <div class="form-group">
+                        <!-- CAMPO STATUS (APENAS NOVA TAREFA) -->
+                        <div class="form-group campo-nova-tarefa">
                             <label for="tarefaStatus"><i class="fas fa-tasks"></i> Status *</label>
                             <select id="tarefaStatus" required>
                                 <option value="nao_iniciado">Não Iniciado</option>
@@ -186,7 +187,8 @@
                             <input type="date" id="tarefaDataFim" required>
                         </div>
                         
-                        <div class="form-group">
+                        <!-- CAMPO RESPONSÁVEL (APENAS NOVA TAREFA) -->
+                        <div class="form-group campo-nova-tarefa">
                             <label for="tarefaResponsavel"><i class="fas fa-user"></i> Responsável</label>
                             <select id="tarefaResponsavel">
                                 <option value="">Selecionar...</option>
@@ -197,7 +199,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="fecharModalTarefa()">Cancelar</button>
-                <button class="btn btn-primary" onclick="salvarTarefa()">Salvar Tarefa</button>
+                <button class="btn btn-primary" id="btnSalvarTarefa" onclick="salvarTarefa()">Salvar Tarefa</button>
             </div>
         </div>
     </div>
