@@ -1,4 +1,4 @@
-// workmanager.js - Sistema com Firebase v12
+// workmanager.js - Sistema com Firebase v12 - VERSÃO ATUALIZADA
 console.log('=== WORK MANAGER v12 INICIANDO ===');
 
 // Sistema de Gerenciamento de Grupos com Firebase v12
@@ -13,6 +13,10 @@ class WorkManagerV12 {
         this.grupoEditando = null;
         this.filtroAtual = 'meus';
         this.unsubscribeListeners = [];
+        this.grupoSelecionado = null;
+        this.usuarioParaConvitar = null;
+        this.acaoConfirmacao = null;
+        this.dadosConfirmacao = null;
         
         // Inicializar quando o Firebase estiver pronto
         if (window.firebaseModules) {
@@ -74,6 +78,7 @@ class WorkManagerV12 {
             
             this.usuarioAtual = JSON.parse(usuarioLogado);
             console.log('👤 Usuário autenticado:', this.usuarioAtual.usuario);
+            console.log('👥 Grupos do usuário:', this.usuarioAtual.grupos);
             
             // Atualizar interface
             if (document.getElementById('userName')) {
@@ -240,11 +245,13 @@ class WorkManagerV12 {
 
         // Fechar modais clicando fora
         window.onclick = (event) => {
-            const modals = ['modalGrupo', 'modalMembros', 'modalDetalhesGrupo'];
+            const modals = ['modalGrupo', 'modalMembros', 'modalDetalhesGrupo', 'modalConfirmacao'];
             modals.forEach(modalId => {
                 const modal = document.getElementById(modalId);
                 if (event.target === modal) {
-                    this[`fecharModal${modalId.replace('modal', '')}`]();
+                    if (modalId === 'modalGrupo') this.fecharModalGrupo();
+                    else if (modalId === 'modalMembros') this.fecharModalMembros();
+                    else if (modalId === 'modalConfirmacao') this.fecharModalConfirmacao();
                 }
             });
         };
@@ -253,15 +260,25 @@ class WorkManagerV12 {
     processarGrupos(snapshot) {
         this.grupos = snapshot.docs.map(doc => {
             const data = doc.data();
-            const membro = Array.isArray(data.membros) 
-                ? data.membros.find(m => m.usuarioId === this.usuarioAtual.usuario)
-                : null;
+            let minhaPermissao = 'pendente';
+            
+            // Verificar se o usuário está no grupo
+            if (data.membros) {
+                for (const membro of data.membros) {
+                    if (typeof membro === 'string' && membro === this.usuarioAtual.usuario) {
+                        minhaPermissao = 'membro';
+                        break;
+                    } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario) {
+                        minhaPermissao = membro.permissao || 'membro';
+                        break;
+                    }
+                }
+            }
             
             return {
                 id: doc.id,
                 ...data,
-                minhaPermissao: membro?.permissao || 'pendente',
-                membroAtual: membro
+                minhaPermissao: minhaPermissao
             };
         });
         
@@ -325,41 +342,26 @@ class WorkManagerV12 {
                             <button class="btn btn-outline btn-sm" onclick="workManager.verDetalhesGrupo('${grupo.id}')">
                                 <i class="fas fa-eye"></i> Ver
                             </button>
-                            ${this.getBotoesPorPermissao(grupo)}
+                            <button class="btn btn-primary btn-sm" onclick="workManager.gerenciarMembros('${grupo.id}')">
+                                <i class="fas fa-users-cog"></i> Membros
+                            </button>
+                            ${grupo.minhaPermissao === 'admin' ? `
+                                <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            ` : `
+                                <button class="btn btn-danger btn-sm" onclick="workManager.sairGrupo('${grupo.id}')">
+                                    <i class="fas fa-sign-out-alt"></i> Sair
+                                </button>
+                            `}
                         `}
                     </div>
                 </div>
             `;
         }).join('');
-    }
-
-    getBotoesPorPermissao(grupo) {
-        const baseBotoes = `
-            <button class="btn btn-primary btn-sm" onclick="workManager.gerenciarMembros('${grupo.id}')">
-                <i class="fas fa-users-cog"></i> Membros
-            </button>
-        `;
-        
-        if (grupo.minhaPermissao === 'admin') {
-            return baseBotoes + `
-                <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
-                    <i class="fas fa-edit"></i> Editar
-                </button>
-                <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
-                    <i class="fas fa-trash"></i> Excluir
-                </button>
-            `;
-        }
-        
-        if (grupo.minhaPermissao === 'atuador') {
-            return baseBotoes + `
-                <button class="btn btn-primary btn-sm" onclick="workManager.novaTarefaGrupo('${grupo.id}')">
-                    <i class="fas fa-plus"></i> Tarefa
-                </button>
-            `;
-        }
-        
-        return baseBotoes;
     }
 
     filtrarGrupos(filtro, termoBusca = '') {
@@ -395,12 +397,369 @@ class WorkManagerV12 {
         return gruposFiltrados;
     }
 
-    // FUNÇÕES DE GRUPOS - COM FIREBASE v12
+    // ========== CONVIDAR USUÁRIOS ==========
+    
+    async convidarUsuarioSelecionado() {
+        console.log('📨 Convidando usuário...');
+        
+        if (!this.usuarioParaConvitar) {
+            this.mostrarNotificacao('⚠️ Por favor, selecione um usuário primeiro', 'warning');
+            return;
+        }
+        
+        if (!this.grupoSelecionado) {
+            this.mostrarNotificacao('❌ Nenhum grupo selecionado', 'error');
+            return;
+        }
+        
+        try {
+            const modules = this.modules;
+            const grupoRef = modules.doc(this.db, 'grupos', this.grupoSelecionado);
+            const grupoDoc = await modules.getDoc(grupoRef);
+            const grupoData = grupoDoc.data();
+            
+            // Verificar se o usuário já está no grupo
+            let jaEstaNoGrupo = false;
+            if (grupoData.membros) {
+                for (const membro of grupoData.membros) {
+                    if (typeof membro === 'string' && membro === this.usuarioParaConvitar) {
+                        jaEstaNoGrupo = true;
+                        break;
+                    } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioParaConvitar) {
+                        jaEstaNoGrupo = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (jaEstaNoGrupo) {
+                this.mostrarNotificacao('⚠️ Este usuário já está no grupo', 'warning');
+                return;
+            }
+            
+            // Adicionar usuário como membro pendente
+            await modules.updateDoc(grupoRef, {
+                membros: modules.arrayUnion(this.usuarioParaConvitar), // String simples
+                dataAtualizacao: modules.serverTimestamp()
+            });
+            
+            // ATUALIZAR O DOCUMENTO DO USUÁRIO COM O GRUPO
+            await this.atualizarUsuarioComGrupo(this.usuarioParaConvitar, this.grupoSelecionado);
+            
+            this.mostrarNotificacao('✅ Convite enviado com sucesso!', 'success');
+            
+            // Limpar seleção
+            this.usuarioParaConvitar = null;
+            const input = document.getElementById('buscarUsuarioParaConvite');
+            if (input) input.value = '';
+            
+            // Atualizar lista de usuários para convite
+            this.exibirUsuariosParaConvite('');
+            
+        } catch (error) {
+            console.error('❌ Erro ao convidar usuário:', error);
+            this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
+        }
+    }
+    
+    async atualizarUsuarioComGrupo(usuarioId, grupoId) {
+        try {
+            const modules = this.modules;
+            const usuarioRef = modules.doc(this.db, 'usuarios', usuarioId);
+            const usuarioDoc = await modules.getDoc(usuarioRef);
+            
+            if (usuarioDoc.exists()) {
+                const usuarioData = usuarioDoc.data();
+                const gruposAtuais = usuarioData.grupos || [];
+                
+                // Adicionar o grupo apenas se ainda não estiver na lista
+                if (!gruposAtuais.includes(grupoId)) {
+                    await modules.updateDoc(usuarioRef, {
+                        grupos: [...gruposAtuais, grupoId]
+                    });
+                    console.log(`✅ Usuário ${usuarioId} atualizado com o grupo ${grupoId}`);
+                }
+            } else {
+                console.warn(`⚠️ Usuário ${usuarioId} não encontrado no Firestore`);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar usuário:', error);
+            // Continuar mesmo se falhar
+        }
+    }
+
+    // ========== RESPONDER CONVITE ==========
+    
+    async responderConvite(grupoId, resposta) {
+        this.mostrarConfirmacao(
+            resposta === 'aceitar' ? 'Aceitar Convite' : 'Recusar Convite',
+            resposta === 'aceitar' 
+                ? 'Tem certeza que deseja aceitar o convite e entrar neste grupo?'
+                : 'Tem certeza que deseja recusar este convite?',
+            async () => {
+                try {
+                    const modules = this.modules;
+                    const grupoRef = modules.doc(this.db, 'grupos', grupoId);
+                    const grupoDoc = await modules.getDoc(grupoRef);
+                    const grupoData = grupoDoc.data();
+                    
+                    if (resposta === 'aceitar') {
+                        // Converter de pendente para membro
+                        let membrosAtualizados = [];
+                        
+                        if (grupoData.membros) {
+                            membrosAtualizados = grupoData.membros.map(membro => {
+                                if (typeof membro === 'string' && membro === this.usuarioAtual.usuario) {
+                                    return { 
+                                        usuarioId: this.usuarioAtual.usuario, 
+                                        permissao: 'membro'
+                                    };
+                                } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario) {
+                                    return { 
+                                        ...membro, 
+                                        permissao: 'membro'
+                                    };
+                                }
+                                return membro;
+                            });
+                            
+                            // Se não encontrou, adicionar como novo membro
+                            if (!membrosAtualizados.some(m => 
+                                (typeof m === 'string' && m === this.usuarioAtual.usuario) ||
+                                (m && typeof m === 'object' && m.usuarioId === this.usuarioAtual.usuario)
+                            )) {
+                                membrosAtualizados.push({ 
+                                    usuarioId: this.usuarioAtual.usuario, 
+                                    permissao: 'membro'
+                                });
+                            }
+                        } else {
+                            membrosAtualizados = [{ 
+                                usuarioId: this.usuarioAtual.usuario, 
+                                permissao: 'membro'
+                            }];
+                        }
+                        
+                        await modules.updateDoc(grupoRef, {
+                            membros: membrosAtualizados,
+                            dataAtualizacao: modules.serverTimestamp()
+                        });
+                        
+                        // ATUALIZAR O USUÁRIO COM O GRUPO
+                        await this.atualizarUsuarioComGrupo(this.usuarioAtual.usuario, grupoId);
+                        
+                        this.mostrarNotificacao('✅ Convite aceito! Bem-vindo ao grupo!', 'success');
+                    } else {
+                        // Remover o usuário da lista de membros
+                        let membrosAtualizados = [];
+                        
+                        if (grupoData.membros) {
+                            membrosAtualizados = grupoData.membros.filter(membro => {
+                                if (typeof membro === 'string') {
+                                    return membro !== this.usuarioAtual.usuario;
+                                } else if (membro && typeof membro === 'object') {
+                                    return membro.usuarioId !== this.usuarioAtual.usuario;
+                                }
+                                return true;
+                            });
+                        }
+                        
+                        // REMOVER O GRUPO DO USUÁRIO SE RECUSOU
+                        await this.removerGrupoDoUsuario(this.usuarioAtual.usuario, grupoId);
+                        
+                        await modules.updateDoc(grupoRef, {
+                            membros: membrosAtualizados,
+                            dataAtualizacao: modules.serverTimestamp()
+                        });
+                        
+                        this.mostrarNotificacao('✅ Convite recusado', 'success');
+                    }
+                    
+                } catch (error) {
+                    console.error(`❌ Erro ao ${resposta} convite:`, error);
+                    this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
+                }
+            }
+        );
+    }
+    
+    async removerGrupoDoUsuario(usuarioId, grupoId) {
+        try {
+            const modules = this.modules;
+            const usuarioRef = modules.doc(this.db, 'usuarios', usuarioId);
+            const usuarioDoc = await modules.getDoc(usuarioRef);
+            
+            if (usuarioDoc.exists()) {
+                const usuarioData = usuarioDoc.data();
+                const gruposAtuais = usuarioData.grupos || [];
+                const gruposAtualizados = gruposAtuais.filter(g => g !== grupoId);
+                
+                if (gruposAtuais.length !== gruposAtualizados.length) {
+                    await modules.updateDoc(usuarioRef, {
+                        grupos: gruposAtualizados
+                    });
+                    console.log(`✅ Grupo ${grupoId} removido do usuário ${usuarioId}`);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erro ao remover grupo do usuário:', error);
+        }
+    }
+
+    // ========== GERENCIAR MEMBROS ==========
+    
+    async gerenciarMembros(grupoId) {
+        this.grupoSelecionado = grupoId;
+        const grupo = this.grupos.find(g => g.id === grupoId);
+        
+        if (!grupo) {
+            this.mostrarNotificacao('❌ Grupo não encontrado', 'error');
+            return;
+        }
+        
+        if (grupo.minhaPermissao !== 'admin') {
+            this.mostrarNotificacao('❌ Apenas administradores podem gerenciar membros', 'error');
+            return;
+        }
+        
+        const modal = document.getElementById('modalMembros');
+        
+        // Carregar membros do grupo
+        let membrosHTML = '<h3>Membros do Grupo</h3>';
+        
+        if (grupo.membros && grupo.membros.length > 0) {
+            membrosHTML += '<div class="lista-membros">';
+            
+            for (const membro of grupo.membros) {
+                let usuarioId, permissao;
+                
+                if (typeof membro === 'string') {
+                    usuarioId = membro;
+                    permissao = 'membro';
+                } else {
+                    usuarioId = membro.usuarioId;
+                    permissao = membro.permissao || 'membro';
+                }
+                
+                const usuarioInfo = this.usuarios.find(u => u.id === usuarioId);
+                const nome = usuarioInfo ? (usuarioInfo.nome || usuarioInfo.usuario || usuarioId) : usuarioId;
+                const isCurrentUser = usuarioId === this.usuarioAtual.usuario;
+                
+                membrosHTML += `
+                    <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
+                        <i class="fas fa-user${permissao === 'admin' ? '-shield' : ''}"></i>
+                        <div class="membro-info">
+                            <strong>${nome}</strong>
+                            <small>${usuarioId}</small>
+                        </div>
+                        <span class="permissao-badge ${permissao}">
+                            ${permissao === 'admin' ? 'Administrador' : 'Membro'}
+                        </span>
+                        ${!isCurrentUser ? `
+                            <div class="membro-acoes">
+                                <button class="btn-icon" onclick="workManager.alterarPermissaoMembro('${grupoId}', '${usuarioId}', '${permissao === 'admin' ? 'membro' : 'admin'}')">
+                                    <i class="fas fa-${permissao === 'admin' ? 'user' : 'user-shield'}"></i>
+                                </button>
+                                <button class="btn-icon btn-danger" onclick="workManager.removerMembroGrupo('${grupoId}', '${usuarioId}')">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            membrosHTML += '</div>';
+        } else {
+            membrosHTML += '<p>Nenhum membro no grupo</p>';
+        }
+        
+        document.getElementById('membrosAtuaisLista').innerHTML = membrosHTML;
+        
+        // Atualizar lista de usuários para convite
+        this.exibirUsuariosParaConvite('');
+        
+        modal.style.display = 'flex';
+    }
+    
+    exibirUsuariosParaConvite(termoBusca = '') {
+        const container = document.getElementById('usuariosParaConvite');
+        if (!container || !this.grupoSelecionado) return;
+        
+        const grupo = this.grupos.find(g => g.id === this.grupoSelecionado);
+        if (!grupo) return;
+        
+        // Obter membros atuais
+        const membrosAtuais = new Set();
+        if (grupo.membros) {
+            grupo.membros.forEach(membro => {
+                if (typeof membro === 'string') {
+                    membrosAtuais.add(membro);
+                } else if (membro && typeof membro === 'object') {
+                    membrosAtuais.add(membro.usuarioId);
+                }
+            });
+        }
+        
+        // Filtrar usuários que não são membros
+        let usuariosFiltrados = this.usuarios.filter(usuario => 
+            !membrosAtuais.has(usuario.id) && usuario.id !== this.usuarioAtual.usuario
+        );
+        
+        if (termoBusca) {
+            const termo = termoBusca.toLowerCase();
+            usuariosFiltrados = usuariosFiltrados.filter(usuario =>
+                (usuario.nome && usuario.nome.toLowerCase().includes(termo)) ||
+                (usuario.email && usuario.email.toLowerCase().includes(termo)) ||
+                usuario.id.toLowerCase().includes(termo)
+            );
+        }
+        
+        if (usuariosFiltrados.length === 0) {
+            container.innerHTML = `
+                <div class="empty-membros">
+                    <i class="fas fa-search"></i>
+                    <span>Nenhum usuário disponível para convite</span>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = usuariosFiltrados.map(usuario => {
+            const estaSelecionado = this.usuarioParaConvitar === usuario.id;
+            
+            return `
+                <div class="usuario-item ${estaSelecionado ? 'selecionado' : ''}" 
+                     onclick="workManager.selecionarUsuarioParaConvite('${usuario.id}')">
+                    <i class="fas fa-user-plus"></i>
+                    <div class="usuario-info">
+                        <strong>${usuario.nome || usuario.id}</strong>
+                        <small>${usuario.email || usuario.id}</small>
+                    </div>
+                    ${estaSelecionado ? '<i class="fas fa-check-circle" style="color: #28a745;"></i>' : ''}
+                </div>
+            `;
+        }).join('');
+    }
+    
+    selecionarUsuarioParaConvite(usuarioId) {
+        this.usuarioParaConvitar = usuarioId;
+        const input = document.getElementById('buscarUsuarioParaConvite');
+        if (input) {
+            const usuario = this.usuarios.find(u => u.id === usuarioId);
+            input.value = usuario ? (usuario.nome || usuario.email || usuarioId) : usuarioId;
+        }
+        
+        // Atualizar visualização
+        this.exibirUsuariosParaConvite(document.getElementById('buscarUsuarioParaConvite')?.value || '');
+    }
+
+    // ========== FUNÇÕES DE GRUPOS ==========
+    
     async salvarGrupo() {
         const nome = document.getElementById('grupoNome').value;
         const descricao = document.getElementById('grupoDescricao').value;
         const cor = document.getElementById('grupoCor').value;
-        const visibilidade = document.getElementById('grupoVisibilidade').value;
         
         if (!nome) {
             this.mostrarNotificacao('Preencha o nome do grupo', 'error');
@@ -412,27 +771,27 @@ class WorkManagerV12 {
                 nome,
                 descricao,
                 cor,
-                visibilidade,
                 criador: this.usuarioAtual.usuario,
+                criadorNome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
                 dataCriacao: this.modules.serverTimestamp(),
-                membros: [{
-                    usuarioId: this.usuarioAtual.usuario,
-                    permissao: 'admin',
-                    dataEntrada: this.modules.serverTimestamp(),
-                    nome: this.usuarioAtual.nome || this.usuarioAtual.usuario
-                }],
+                dataAtualizacao: this.modules.serverTimestamp(),
+                membros: [this.usuarioAtual.usuario], // Criador como primeiro membro
                 tarefas: []
             };
             
             if (this.grupoEditando) {
-                // Editar grupo existente - Firebase v12
+                // Editar grupo existente
                 const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
                 await this.modules.updateDoc(grupoRef, grupoData);
                 this.mostrarNotificacao('✅ Grupo atualizado com sucesso!', 'success');
             } else {
-                // Criar novo grupo - Firebase v12
+                // Criar novo grupo
                 const gruposRef = this.modules.collection(this.db, 'grupos');
-                await this.modules.addDoc(gruposRef, grupoData);
+                const docRef = await this.modules.addDoc(gruposRef, grupoData);
+                
+                // ATUALIZAR O CRIADOR COM O GRUPO
+                await this.atualizarUsuarioComGrupo(this.usuarioAtual.usuario, docRef.id);
+                
                 this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
             }
             
@@ -443,223 +802,196 @@ class WorkManagerV12 {
             this.mostrarNotificacao('Erro ao salvar grupo: ' + error.message, 'error');
         }
     }
-
+    
     async excluirGrupo(grupoId) {
-        if (!confirm('Tem certeza que deseja excluir este grupo? Esta ação não pode ser desfeita.')) {
-            return;
-        }
-        
-        try {
-            const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
-            await this.modules.deleteDoc(grupoRef);
-            this.mostrarNotificacao('✅ Grupo excluído com sucesso!', 'success');
-        } catch (error) {
-            console.error('❌ Erro ao excluir grupo:', error);
-            this.mostrarNotificacao('Erro ao excluir grupo', 'error');
-        }
-    }
-
-    // FUNÇÕES DE MEMBROS - COM FIREBASE v12
-    async gerenciarMembros(grupoId) {
-        this.grupoEditando = grupoId;
-        const grupo = this.grupos.find(g => g.id === grupoId);
-        
-        if (!grupo || grupo.minhaPermissao !== 'admin') {
-            this.mostrarNotificacao('Você não tem permissão para gerenciar membros', 'error');
-            return;
-        }
-        
-        document.getElementById('modalMembrosTitulo').textContent = `Membros - ${grupo.nome}`;
-        
-        // Carregar membros do grupo
-        let membrosHTML = '';
-        
-        if (grupo.membros && grupo.membros.length > 0) {
-            membrosHTML = grupo.membros.map(membro => {
-                const usuario = this.usuarios.find(u => u.usuario === membro.usuarioId);
-                const isYou = membro.usuarioId === this.usuarioAtual.usuario;
-                
-                return `
-                    <div class="membro-item">
-                        <div class="membro-info">
-                            <div class="membro-avatar">
-                                ${(usuario?.nome || membro.usuarioId).charAt(0).toUpperCase()}
-                            </div>
-                            <div class="membro-detalhes">
-                                <h4>${usuario?.nome || membro.usuarioId} ${isYou ? '(Você)' : ''}</h4>
-                                <small>${membro.permissao} • Entrou em ${this.formatarData(membro.dataEntrada)}</small>
-                            </div>
-                        </div>
-                        <div class="membro-acoes">
-                            ${!isYou ? `
-                                <select class="select-permissao" data-usuario="${membro.usuarioId}" 
-                                        onchange="workManager.alterarPermissao('${membro.usuarioId}', this.value)">
-                                    <option value="observador" ${membro.permissao === 'observador' ? 'selected' : ''}>Observador</option>
-                                    <option value="atuador" ${membro.permissao === 'atuador' ? 'selected' : ''}>Atuador</option>
-                                    <option value="admin" ${membro.permissao === 'admin' ? 'selected' : ''}>Administrador</option>
-                                </select>
-                                <button class="btn btn-danger btn-sm" onclick="workManager.removerMembro('${membro.usuarioId}')">
-                                    <i class="fas fa-user-times"></i>
-                                </button>
-                            ` : '<small class="text-muted">Administrador do grupo</small>'}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            membrosHTML = '<p class="text-center">Nenhum membro no grupo</p>';
-        }
-        
-        document.getElementById('membrosContainer').innerHTML = membrosHTML;
-        document.getElementById('modalMembros').style.display = 'flex';
-    }
-
-    async convidarMembro() {
-        const usuarioInput = document.getElementById('inputUsuario').value;
-        const permissao = document.getElementById('selectPermissao').value;
-        
-        if (!usuarioInput || !this.grupoEditando) {
-            this.mostrarNotificacao('Preencha o nome de usuário', 'error');
-            return;
-        }
-        
-        try {
-            // Buscar usuário no sistema
-            const usuario = this.usuarios.find(u => 
-                u.usuario === usuarioInput || 
-                u.email === usuarioInput ||
-                (u.nome && u.nome.toLowerCase().includes(usuarioInput.toLowerCase()))
-            );
-            
-            if (!usuario) {
-                this.mostrarNotificacao('Usuário não encontrado no sistema', 'error');
-                return;
-            }
-            
-            // Verificar se já é membro
-            const grupo = this.grupos.find(g => g.id === this.grupoEditando);
-            const jaMembro = grupo.membros?.find(m => m.usuarioId === usuario.usuario);
-            
-            if (jaMembro) {
-                this.mostrarNotificacao('Este usuário já é membro do grupo', 'warning');
-                return;
-            }
-            
-            // Adicionar ao grupo - Firebase v12
-            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
-            const novoMembro = {
-                usuarioId: usuario.usuario,
-                permissao: permissao,
-                dataEntrada: this.modules.serverTimestamp(),
-                nome: usuario.nome || usuario.usuario
-            };
-            
-            await this.modules.updateDoc(grupoRef, {
-                membros: this.modules.arrayUnion(novoMembro)
-            });
-            
-            this.mostrarNotificacao(`✅ Convite enviado para ${usuario.nome || usuario.usuario}`, 'success');
-            document.getElementById('inputUsuario').value = '';
-            
-        } catch (error) {
-            console.error('❌ Erro ao convidar membro:', error);
-            this.mostrarNotificacao('Erro ao convidar membro', 'error');
-        }
-    }
-
-    async responderConvite(grupoId, resposta) {
-        try {
-            const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
-            const grupo = this.grupos.find(g => g.id === grupoId);
-            
-            if (!grupo || !grupo.membros) {
-                throw new Error('Grupo não encontrado');
-            }
-            
-            if (resposta === 'aceitar') {
-                // Encontrar e atualizar membro
-                const membroIndex = grupo.membros.findIndex(m => m.usuarioId === this.usuarioAtual.usuario);
-                if (membroIndex !== -1) {
-                    grupo.membros[membroIndex].permissao = 'observador';
-                    grupo.membros[membroIndex].dataEntrada = this.modules.serverTimestamp();
+        this.mostrarConfirmacao(
+            'Excluir Grupo',
+            'Tem certeza que deseja excluir este grupo? Esta ação não pode ser desfeita.',
+            async () => {
+                try {
+                    const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
                     
-                    await this.modules.updateDoc(grupoRef, {
-                        membros: grupo.membros
-                    });
+                    // Primeiro, remover o grupo de todos os membros
+                    const grupoDoc = await this.modules.getDoc(grupoRef);
+                    const grupoData = grupoDoc.data();
+                    
+                    if (grupoData.membros) {
+                        for (const membro of grupoData.membros) {
+                            const usuarioId = typeof membro === 'string' ? membro : membro.usuarioId;
+                            if (usuarioId) {
+                                await this.removerGrupoDoUsuario(usuarioId, grupoId);
+                            }
+                        }
+                    }
+                    
+                    // Depois excluir o grupo
+                    await this.modules.deleteDoc(grupoRef);
+                    
+                    this.mostrarNotificacao('✅ Grupo excluído com sucesso', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao excluir grupo:', error);
+                    this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
                 }
-                
-                this.mostrarNotificacao('✅ Convite aceito com sucesso!', 'success');
-            } else {
-                // Remover do array de membros
-                const membro = grupo.membros.find(m => m.usuarioId === this.usuarioAtual.usuario);
-                if (membro) {
-                    await this.modules.updateDoc(grupoRef, {
-                        membros: this.modules.arrayRemove(membro)
-                    });
-                }
-                
-                this.mostrarNotificacao('Convite recusado', 'info');
             }
-            
-        } catch (error) {
-            console.error('❌ Erro ao responder convite:', error);
-            this.mostrarNotificacao('Erro ao processar convite', 'error');
-        }
+        );
+    }
+    
+    async sairGrupo(grupoId) {
+        this.mostrarConfirmacao(
+            'Sair do Grupo',
+            'Tem certeza que deseja sair deste grupo?',
+            async () => {
+                try {
+                    const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
+                    const grupoDoc = await this.modules.getDoc(grupoRef);
+                    const grupoData = grupoDoc.data();
+                    
+                    // Remover o usuário da lista de membros
+                    let membrosAtualizados = [];
+                    
+                    if (grupoData.membros) {
+                        membrosAtualizados = grupoData.membros.filter(membro => {
+                            if (typeof membro === 'string') {
+                                return membro !== this.usuarioAtual.usuario;
+                            } else if (membro && typeof membro === 'object') {
+                                return membro.usuarioId !== this.usuarioAtual.usuario;
+                            }
+                            return true;
+                        });
+                    }
+                    
+                    // REMOVER O GRUPO DO USUÁRIO
+                    await this.removerGrupoDoUsuario(this.usuarioAtual.usuario, grupoId);
+                    
+                    // Se não houver mais membros, excluir o grupo
+                    if (membrosAtualizados.length === 0) {
+                        await this.modules.deleteDoc(grupoRef);
+                        this.mostrarNotificacao('✅ Grupo excluído (sem membros)', 'info');
+                    } else {
+                        await this.modules.updateDoc(grupoRef, {
+                            membros: membrosAtualizados,
+                            dataAtualizacao: this.modules.serverTimestamp()
+                        });
+                        this.mostrarNotificacao('✅ Você saiu do grupo', 'success');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao sair do grupo:', error);
+                    this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
+                }
+            }
+        );
     }
 
-    async alterarPermissao(usuarioId, novaPermissao) {
-        if (!this.grupoEditando) return;
-        
+    // ========== OUTRAS FUNÇÕES ==========
+    
+    async alterarPermissaoMembro(grupoId, usuarioId, novaPermissao) {
         try {
-            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
-            const grupo = this.grupos.find(g => g.id === this.grupoEditando);
+            const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
+            const grupoDoc = await this.modules.getDoc(grupoRef);
+            const grupoData = grupoDoc.data();
             
-            if (!grupo || !grupo.membros) return;
+            if (!grupoData.membros) return;
             
-            // Encontrar e atualizar o membro
-            const membrosAtualizados = grupo.membros.map(membro => {
-                if (membro.usuarioId === usuarioId) {
+            // Atualizar a permissão do membro
+            const membrosAtualizados = grupoData.membros.map(membro => {
+                if (typeof membro === 'string' && membro === usuarioId) {
+                    return { usuarioId: usuarioId, permissao: novaPermissao };
+                } else if (membro && typeof membro === 'object' && membro.usuarioId === usuarioId) {
                     return { ...membro, permissao: novaPermissao };
                 }
                 return membro;
             });
             
-            await this.modules.updateDoc(grupoRef, { membros: membrosAtualizados });
-            this.mostrarNotificacao('✅ Permissão atualizada com sucesso!', 'success');
+            await this.modules.updateDoc(grupoRef, {
+                membros: membrosAtualizados,
+                dataAtualizacao: this.modules.serverTimestamp()
+            });
+            
+            this.mostrarNotificacao(`✅ Permissão alterada para ${novaPermissao}`, 'success');
+            
+            // Atualizar a lista de membros
+            this.gerenciarMembros(grupoId);
             
         } catch (error) {
             console.error('❌ Erro ao alterar permissão:', error);
-            this.mostrarNotificacao('Erro ao alterar permissão', 'error');
+            this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
         }
     }
+    
+    async removerMembroGrupo(grupoId, usuarioId) {
+        this.mostrarConfirmacao(
+            'Remover Membro',
+            'Tem certeza que deseja remover este membro do grupo?',
+            async () => {
+                try {
+                    const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
+                    const grupoDoc = await this.modules.getDoc(grupoRef);
+                    const grupoData = grupoDoc.data();
+                    
+                    // Remover o membro da lista
+                    let membrosAtualizados = [];
+                    
+                    if (grupoData.membros) {
+                        membrosAtualizados = grupoData.membros.filter(membro => {
+                            if (typeof membro === 'string') {
+                                return membro !== usuarioId;
+                            } else if (membro && typeof membro === 'object') {
+                                return membro.usuarioId !== usuarioId;
+                            }
+                            return true;
+                        });
+                    }
+                    
+                    // REMOVER O GRUPO DO USUÁRIO REMOVIDO
+                    await this.removerGrupoDoUsuario(usuarioId, grupoId);
+                    
+                    await this.modules.updateDoc(grupoRef, {
+                        membros: membrosAtualizados,
+                        dataAtualizacao: this.modules.serverTimestamp()
+                    });
+                    
+                    this.mostrarNotificacao('✅ Membro removido com sucesso', 'success');
+                    
+                    // Recarregar a lista de membros
+                    this.gerenciarMembros(grupoId);
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao remover membro:', error);
+                    this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
+                }
+            }
+        );
+    }
 
-    async removerMembro(usuarioId) {
-        if (!this.grupoEditando || !confirm('Tem certeza que deseja remover este membro?')) {
-            return;
-        }
+    // ========== MODAL DE CONFIRMAÇÃO ==========
+    
+    mostrarConfirmacao(titulo, mensagem, callback) {
+        this.acaoConfirmacao = callback;
         
-        try {
-            const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
-            const grupo = this.grupos.find(g => g.id === this.grupoEditando);
-            
-            // Encontrar o membro
-            const membro = grupo.membros.find(m => m.usuarioId === usuarioId);
-            if (!membro) return;
-            
-            // Remover do array
-            await this.modules.updateDoc(grupoRef, {
-                membros: this.modules.arrayRemove(membro)
-            });
-            
-            this.mostrarNotificacao('✅ Membro removido com sucesso!', 'success');
-            
-        } catch (error) {
-            console.error('❌ Erro ao remover membro:', error);
-            this.mostrarNotificacao('Erro ao remover membro', 'error');
+        document.getElementById('confirmacaoTitulo').textContent = titulo;
+        document.getElementById('confirmacaoMensagem').textContent = mensagem;
+        
+        const modal = document.getElementById('modalConfirmacao');
+        modal.style.display = 'flex';
+    }
+    
+    fecharModalConfirmacao() {
+        const modal = document.getElementById('modalConfirmacao');
+        modal.style.display = 'none';
+        this.acaoConfirmacao = null;
+    }
+    
+    confirmarAcao() {
+        if (this.acaoConfirmacao) {
+            this.acaoConfirmacao();
         }
+        this.fecharModalConfirmacao();
     }
 
-    // FUNÇÕES AUXILIARES
+    // ========== FUNÇÕES AUXILIARES ==========
+    
     atualizarStatusSincronizacao(status) {
         const syncElement = document.getElementById('syncStatus');
         if (syncElement) {
@@ -697,11 +1029,11 @@ class WorkManagerV12 {
             color: white;
             font-weight: 500;
             z-index: 10000;
-            background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : '#3498db'};
+            background: ${tipo === 'success' ? '#27ae60' : tipo === 'error' ? '#e74c3c' : tipo === 'warning' ? '#f39c12' : '#3498db'};
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         `;
         
-        notification.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i> ${mensagem}`;
+        notification.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : tipo === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i> ${mensagem}`;
         document.body.appendChild(notification);
         
         setTimeout(() => {
@@ -709,7 +1041,8 @@ class WorkManagerV12 {
         }, 3000);
     }
 
-    // MODAIS
+    // ========== MODAIS ==========
+    
     abrirModalGrupo(grupoId = null) {
         this.grupoEditando = grupoId;
         const modal = document.getElementById('modalGrupo');
@@ -739,22 +1072,65 @@ class WorkManagerV12 {
 
     fecharModalMembros() {
         document.getElementById('modalMembros').style.display = 'none';
-        this.grupoEditando = null;
+        this.grupoSelecionado = null;
+        this.usuarioParaConvitar = null;
     }
 
     verDetalhesGrupo(grupoId) {
-        alert(`Detalhes do grupo ID: ${grupoId}\n\nFuncionalidade disponível na versão completa.`);
+        const grupo = this.grupos.find(g => g.id === grupoId);
+        if (!grupo) return;
+        
+        const detalhes = `
+            <div style="padding: 20px;">
+                <h2 style="color: ${grupo.cor || '#4a6fa5'}; margin-top: 0;">${grupo.nome}</h2>
+                <p><strong>Descrição:</strong><br>${grupo.descricao || 'Não informada'}</p>
+                <p><strong>Criado em:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
+                <p><strong>Criador:</strong> ${grupo.criadorNome || grupo.criador || 'Não informado'}</p>
+                <p><strong>Membros:</strong> ${Array.isArray(grupo.membros) ? grupo.membros.length : 0}</p>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="workManager.fecharDetalhes()" class="btn btn-outline">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Criar modal de detalhes
+        const modalDetalhes = document.createElement('div');
+        modalDetalhes.className = 'modal';
+        modalDetalhes.id = 'modalDetalhes';
+        modalDetalhes.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2>Detalhes do Grupo</h2>
+                    <button class="close" onclick="workManager.fecharDetalhes()">&times;</button>
+                </div>
+                ${detalhes}
+            </div>
+        `;
+        
+        document.body.appendChild(modalDetalhes);
+        modalDetalhes.style.display = 'block';
+    }
+    
+    fecharDetalhes() {
+        const modal = document.getElementById('modalDetalhes');
+        if (modal) {
+            modal.style.display = 'none';
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    document.body.removeChild(modal);
+                }
+            }, 300);
+        }
     }
 
     editarGrupo(grupoId) {
         this.abrirModalGrupo(grupoId);
     }
 
-    novaTarefaGrupo(grupoId) {
-        alert(`Nova tarefa no grupo ID: ${grupoId}\n\nFuncionalidade disponível na versão completa.`);
-    }
-
-    // FUNÇÕES GLOBAIS
+    // ========== FILTRAR GRUPOS ==========
+    
     filtrarGrupos(filtro) {
         this.filtroAtual = filtro;
         
@@ -794,12 +1170,17 @@ window.abrirModalGrupo = (grupoId) => workManager.abrirModalGrupo(grupoId);
 window.fecharModalGrupo = () => workManager.fecharModalGrupo();
 window.salvarGrupo = () => workManager.salvarGrupo();
 window.filtrarGrupos = (filtro) => workManager.filtrarGrupos(filtro);
-window.convidarMembro = () => workManager.convidarMembro();
+window.convidarUsuarioSelecionado = () => workManager.convidarUsuarioSelecionado();
 window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
-window.alterarPermissao = (usuarioId, permissao) => workManager.alterarPermissao(usuarioId, permissao);
-window.removerMembro = (usuarioId) => workManager.removerMembro(usuarioId);
+window.alterarPermissaoMembro = (grupoId, usuarioId, permissao) => workManager.alterarPermissaoMembro(grupoId, usuarioId, permissao);
+window.removerMembroGrupo = (grupoId, usuarioId) => workManager.removerMembroGrupo(grupoId, usuarioId);
 window.verDetalhesGrupo = (grupoId) => workManager.verDetalhesGrupo(grupoId);
 window.editarGrupo = (grupoId) => workManager.editarGrupo(grupoId);
-window.novaTarefaGrupo = (grupoId) => workManager.novaTarefaGrupo(grupoId);
 window.excluirGrupo = (grupoId) => workManager.excluirGrupo(grupoId);
 window.gerenciarMembros = (grupoId) => workManager.gerenciarMembros(grupoId);
+window.sairGrupo = (grupoId) => workManager.sairGrupo(grupoId);
+window.fecharModalMembros = () => workManager.fecharModalMembros();
+window.fecharModalConfirmacao = () => workManager.fecharModalConfirmacao();
+window.confirmarAcao = () => workManager.confirmarAcao();
+window.filtrarUsuariosParaConvite = (termo) => workManager.exibirUsuariosParaConvite(termo);
+window.selecionarUsuarioParaConvite = (usuarioId) => workManager.selecionarUsuarioParaConvite(usuarioId);
