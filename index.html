@@ -166,16 +166,7 @@
                             </select>
                         </div>
                         
-                        <!-- CAMPO STATUS (APENAS NOVA TAREFA) -->
-                        <div class="form-group campo-status-responsavel">
-                            <label for="tarefaStatus"><i class="fas fa-tasks"></i> Status *</label>
-                            <select id="tarefaStatus" required>
-                                <option value="nao_iniciado">Não Iniciado</option>
-                                <option value="pendente">Pendente</option>
-                                <option value="andamento">Em Andamento</option>
-                                <option value="concluido">Concluído</option>
-                            </select>
-                        </div>
+                        <!-- REMOVIDOS: Status e Responsável -->
                         
                         <div class="form-group">
                             <label for="tarefaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início</label>
@@ -185,14 +176,6 @@
                         <div class="form-group">
                             <label for="tarefaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
                             <input type="date" id="tarefaDataFim" required>
-                        </div>
-                        
-                        <!-- CAMPO RESPONSÁVEL (APENAS NOVA TAREFA) -->
-                        <div class="form-group campo-status-responsavel">
-                            <label for="tarefaResponsavel"><i class="fas fa-user"></i> Responsável</label>
-                            <select id="tarefaResponsavel">
-                                <option value="">Selecionar...</option>
-                            </select>
                         </div>
                     </div>
                 </form>
