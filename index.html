@@ -100,12 +100,6 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label for="filterSistema">Sistema</label>
-                <select id="filterSistema">
-                    <option value="">Todos os sistemas</option>
-                </select>
-            </div>
-            <div class="filter-group">
                 <button class="btn btn-primary" onclick="abrirModalTarefa()">
                     <i class="fas fa-plus"></i> Nova Tarefa
                 </button>
@@ -122,7 +116,7 @@
         </div>
     </div>
 
-    <!-- Modal Tarefa ATUALIZADO com campo Sistema e Grupos -->
+    <!-- Modal Tarefa ATUALIZADO com campo Grupos -->
     <div id="modalTarefa" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -132,15 +126,6 @@
             <div class="modal-body">
                 <form id="formTarefa">
                     <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label for="tarefaTitulo">Título *</label>
-                            <input type="text" id="tarefaTitulo" required placeholder="Título da tarefa">
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="tarefaDescricao">Descrição</label>
-                            <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
-                        </div>
-                        
                         <div class="form-group">
                             <label for="tarefaGrupos"><i class="fas fa-users"></i> Grupos com Acesso *</label>
                             <select id="tarefaGrupos" multiple required style="min-height: 120px;">
@@ -149,11 +134,15 @@
                             <small class="form-help">Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos grupos</small>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="tarefaSistema"><i class="fas fa-project-diagram"></i> Vincular ao Sistema</label>
-                            <select id="tarefaSistema">
-                                <option value="">Nenhum sistema</option>
-                            </select>
+                        <div class="form-group full-width">
+                            <label for="tarefaTitulo">Título da Tarefa *</label>
+                            <input type="text" id="tarefaTitulo" required placeholder="Ex: MACRO PLANILHA CONVÊNIOS PKL">
+                            <small class="form-help">O nome do grupo será adicionado automaticamente antes do título</small>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="tarefaDescricao">Descrição</label>
+                            <textarea id="tarefaDescricao" placeholder="Descrição detalhada da tarefa"></textarea>
                         </div>
                         
                         <div class="form-group">
