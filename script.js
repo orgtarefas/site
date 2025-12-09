@@ -371,16 +371,23 @@ async function salvarTarefa() {
     
     const tarefa = {
         titulo: tituloCompleto,
-        descricao: document.getElementById('tarefaDescricao').value,
+        descricao: document.getElementById('tarefaDescricao').value || '',
         prioridade: document.getElementById('tarefaPrioridade').value,
         status: document.getElementById('tarefaStatus').value,
-        dataInicio: document.getElementById('tarefaDataInicio').value,
+        dataInicio: document.getElementById('tarefaDataInicio').value || null,
         dataFim: document.getElementById('tarefaDataFim').value,
-        responsavel: document.getElementById('tarefaResponsavel').value,
+        responsavel: document.getElementById('tarefaResponsavel').value || '',
         gruposAcesso: gruposSelecionados,
-        atividades: atividades, // <-- ATIVIDADES ADICIONADAS
+        atividades: atividades,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    // DEBUG
+    console.log('📦 Dados a serem salvos:', {
+        titulo: tarefa.titulo,
+        atividades: tarefa.atividades,
+        quantidadeAtividades: tarefa.atividades.length
+    });
 
     try {
         if (editandoTarefaId) {
@@ -466,33 +473,18 @@ function atualizarListaTarefas() {
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const usuarioGrupos = usuarioLogado?.grupos || [];
     
-    console.log('🔍 DEBUG - Verificando grupos:');
-    console.log('Usuário:', usuarioLogado?.usuario);
-    console.log('Grupos do usuário:', usuarioGrupos);
-    console.log('Total de tarefas:', tarefas.length);
-    
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
-        console.log(`\n📋 Tarefa: ${tarefa.titulo}`);
-        console.log('Grupos da tarefa:', tarefa.gruposAcesso || 'Nenhum');
-        
         // Se a tarefa não tem grupos definidos, mostra para todos
         if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-            console.log('✅ Tarefa sem grupos: MOSTRAR');
             return true;
         }
         
         // Verifica se usuário pertence a algum dos grupos da tarefa
-        const usuarioTemAcesso = tarefa.gruposAcesso.some(grupoId => 
+        return tarefa.gruposAcesso.some(grupoId => 
             usuarioGrupos.includes(grupoId)
         );
-        
-        console.log(`Usuário tem acesso? ${usuarioTemAcesso ? '✅ SIM' : '❌ NÃO'}`);
-        
-        return usuarioTemAcesso;
     });
-    
-    console.log(`\n📊 RESULTADO: ${tarefasFiltradasPorGrupo.length} tarefas visíveis de ${tarefas.length}`);
     
     const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
 
@@ -502,20 +494,15 @@ function atualizarListaTarefas() {
                 <i class="fas fa-tasks"></i>
                 <h3>Nenhuma tarefa encontrada</h3>
                 <p>Você não tem acesso a nenhuma tarefa ou não há tarefas disponíveis</p>
-                <small style="margin-top: 10px; color: #666;">
-                    Usuário: ${usuarioLogado?.nome || 'Não logado'}<br>
-                    Grupos: ${usuarioGrupos.join(', ') || 'Nenhum grupo'}
-                </small>
             </div>
         `;
         return;
     }
 
-    // Processar tarefas
-    const tarefasProcessadas = tarefasFiltradas.map(tarefa => {
-        let gruposInfo = '';
-        
+    // Renderizar tarefas
+    container.innerHTML = tarefasFiltradas.map(tarefa => {
         // Adicionar informação de grupos (todos os grupos)
+        let gruposInfo = '';
         if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
             const nomesGrupos = tarefa.gruposAcesso.map(grupoId => {
                 const grupo = grupos.find(g => g.id === grupoId);
@@ -532,34 +519,42 @@ function atualizarListaTarefas() {
             }
         }
         
-        return { ...tarefa, gruposInfo };
-    });
-
-    // Renderizar tarefas com atividades
-    container.innerHTML = tarefasProcessadas.map(tarefa => `
+        // Calcular atividades concluídas
+        let atividadesConcluidas = 0;
+        let totalAtividades = 0;
+        let atividadesHTML = '';
+        
+        if (tarefa.atividades && Array.isArray(tarefa.atividades)) {
+            totalAtividades = tarefa.atividades.length;
+            atividadesConcluidas = tarefa.atividades.filter(a => a.concluida).length;
+            
+            if (totalAtividades > 0) {
+                atividadesHTML = `
+                    <div class="atividades-tarefa">
+                        <h4>
+                            <i class="fas fa-list-check"></i> Atividades (${atividadesConcluidas}/${totalAtividades})
+                        </h4>
+                        <div class="atividades-lista">
+                            ${tarefa.atividades.map(atividade => `
+                                <div class="atividade-exibida ${atividade.concluida ? 'atividade-concluida' : ''}">
+                                    <i class="fas fa-${atividade.concluida ? 'check-circle' : 'circle'}"></i>
+                                    <span>${atividade.texto || 'Atividade sem descrição'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        return `
         <div class="task-card prioridade-${tarefa.prioridade}">
             <div class="task-header">
                 <div>
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
-                    ${tarefa.gruposInfo || ''}
-                    
-                    <!-- SEÇÃO DE ATIVIDADES NA TAREFA -->
-                    ${tarefa.atividades && tarefa.atividades.length > 0 ? `
-                        <div class="atividades-tarefa">
-                            <h4>
-                                <i class="fas fa-list-check"></i> Atividades (${tarefa.atividades.filter(a => a.concluida).length}/${tarefa.atividades.length})
-                            </h4>
-                            <div class="atividades-lista">
-                                ${tarefa.atividades.map(atividade => `
-                                    <div class="atividade-exibida ${atividade.concluida ? 'atividade-concluida' : ''}">
-                                        <i class="fas fa-${atividade.concluida ? 'check-circle' : 'circle'}"></i>
-                                        <span>${atividade.texto}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
+                    ${gruposInfo}
+                    ${atividadesHTML}
                 </div>
             </div>
             
@@ -591,7 +586,8 @@ function atualizarListaTarefas() {
                 </button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function filtrarTarefas(tarefasLista = tarefas) {
@@ -685,7 +681,61 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Configurar event listeners apenas se os elementos existirem
+// FUNÇÕES DE TESTE (remova em produção)
+async function adicionarAtividadesTeste(tarefaId) {
+    const atividadesExemplo = [
+        {
+            texto: "Análise dos requisitos do sistema",
+            concluida: true,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
+            texto: "Desenvolvimento da interface",
+            concluida: true,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
+            texto: "Testes unitários",
+            concluida: false,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
+            texto: "Documentação do projeto",
+            concluida: false,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        }
+    ];
+    
+    try {
+        await db.collection("tarefas").doc(tarefaId).update({
+            atividades: atividadesExemplo,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('✅ Atividades adicionadas com sucesso!');
+        mostrarNotificacao('Atividades de teste adicionadas!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao adicionar atividades:', error);
+        mostrarNotificacao('Erro ao adicionar atividades', 'error');
+    }
+}
+
+function verificarEstruturaTarefa(tarefaId) {
+    const tarefa = tarefas.find(t => t.id === tarefaId);
+    if (tarefa) {
+        console.log('📊 Estrutura da tarefa:', {
+            id: tarefa.id,
+            titulo: tarefa.titulo,
+            temAtividades: tarefa.atividades ? true : false,
+            tipoAtividades: tarefa.atividades ? typeof tarefa.atividades : 'não definido',
+            atividades: tarefa.atividades,
+            todasPropriedades: Object.keys(tarefa)
+        });
+    } else {
+        console.log('❌ Tarefa não encontrada');
+    }
+}
+
+// Configurar event listeners
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const filterStatus = document.getElementById('filterStatus');
@@ -707,19 +757,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterResponsavel) {
         filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
     }
-});
-
-// Fechar modal clicando fora
-window.onclick = function(event) {
-    const modal = document.getElementById('modalTarefa');
-    if (event.target === modal) {
-        fecharModalTarefa();
-    }
-}
-
-// Adicionar uma atividade padrão quando abrir modal de nova tarefa
-document.addEventListener('DOMContentLoaded', function() {
-    // Garantir que a função adicionarAtividade seja chamada apenas quando necessário
+    
+    // Adicionar uma atividade padrão quando abrir modal de nova tarefa
     const modal = document.getElementById('modalTarefa');
     if (modal) {
         const observer = new MutationObserver(function(mutations) {
@@ -741,3 +780,15 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(modal, { attributes: true });
     }
 });
+
+// Fechar modal clicando fora
+window.onclick = function(event) {
+    const modal = document.getElementById('modalTarefa');
+    if (event.target === modal) {
+        fecharModalTarefa();
+    }
+}
+
+// Torna as funções de teste disponíveis globalmente (para debug)
+window.adicionarAtividadesTeste = adicionarAtividadesTeste;
+window.verificarEstruturaTarefa = verificarEstruturaTarefa;
