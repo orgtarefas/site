@@ -435,7 +435,7 @@ function atualizarListaTarefas() {
                 gruposInfo = `
                     <div class="grupos-acesso">
                         <i class="fas fa-users"></i>
-                        <span class="grupos-nomes">Acesso: ${nomesGrupos}</span>
+                        <span class="grupos-nomes">${nomesGrupos}</span>
                     </div>
                 `;
             }
