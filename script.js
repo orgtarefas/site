@@ -1,11 +1,10 @@
-// script.js - VERSÃO COMPLETA COM VÍNCULO A SISTEMAS E GRUPOS
+// script.js - VERSÃO SIMPLIFICADA SEM SISTEMAS, COM GRUPOS NO TÍTULO
 console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
 let tarefas = [];
 let usuarios = [];
-let sistemas = [];
-let grupos = []; // <-- NOVA VARIÁVEL
+let grupos = [];
 let editandoTarefaId = null;
 
 // Inicialização
@@ -47,8 +46,7 @@ function inicializarSistema() {
     try {
         configurarDataMinima();
         carregarUsuarios();
-        carregarSistemas();
-        carregarGrupos(); // <-- NOVA CHAMADA
+        carregarGrupos(); // <-- APENAS GRUPOS
         configurarFirebase();
         
     } catch (error) {
@@ -128,38 +126,7 @@ async function carregarUsuarios() {
     }
 }
 
-async function carregarSistemas() {
-    console.log('📊 Carregando sistemas...');
-    
-    try {
-        const snapshot = await db.collection("sistemas").get();
-        
-        sistemas = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        console.log('✅ Sistemas carregados:', sistemas.length);
-
-        // Preencher select de sistema no modal
-        const selectSistemaModal = document.getElementById('tarefaSistema');
-        const selectSistemaFiltro = document.getElementById('filterSistema');
-        
-        selectSistemaModal.innerHTML = '<option value="">Nenhum sistema</option>';
-        selectSistemaFiltro.innerHTML = '<option value="">Todos os sistemas</option>';
-        
-        sistemas.forEach(sistema => {
-            const option = `<option value="${sistema.id}">${sistema.nome}</option>`;
-            selectSistemaModal.innerHTML += option;
-            selectSistemaFiltro.innerHTML += option;
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar sistemas:', error);
-    }
-}
-
-// NOVA FUNÇÃO: Carregar grupos
+// FUNÇÃO: Carregar grupos
 async function carregarGrupos() {
     console.log('👥 Carregando grupos...');
     
@@ -216,9 +183,20 @@ function preencherFormulario(tarefaId) {
     const tarefa = tarefas.find(t => t.id === tarefaId);
     if (!tarefa) return;
     
-    document.getElementById('tarefaTitulo').value = tarefa.titulo;
+    // Remover o prefixo do grupo do título se existir
+    let tituloOriginal = tarefa.titulo;
+    if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso) && tarefa.gruposAcesso.length > 0) {
+        const primeiroGrupo = grupos.find(g => g.id === tarefa.gruposAcesso[0]);
+        if (primeiroGrupo) {
+            const prefixoGrupo = primeiroGrupo.nome + ' - ';
+            if (tituloOriginal.startsWith(prefixoGrupo)) {
+                tituloOriginal = tituloOriginal.substring(prefixoGrupo.length);
+            }
+        }
+    }
+    
+    document.getElementById('tarefaTitulo').value = tituloOriginal;
     document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
-    document.getElementById('tarefaSistema').value = tarefa.sistemaId || '';
     document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
     document.getElementById('tarefaStatus').value = tarefa.status;
     document.getElementById('tarefaDataInicio').value = tarefa.dataInicio || '';
@@ -250,6 +228,16 @@ function limparFormulario() {
     });
 }
 
+// FUNÇÃO: Obter nome do primeiro grupo
+function obterNomePrimeiroGrupo(gruposIds) {
+    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
+        return '';
+    }
+    
+    const primeiroGrupo = grupos.find(g => g.id === gruposIds[0]);
+    return primeiroGrupo ? primeiroGrupo.nome : '';
+}
+
 // CRUD Operations
 async function salvarTarefa() {
     console.log('💾 Salvando tarefa...');
@@ -265,16 +253,24 @@ async function salvarTarefa() {
         return;
     }
     
+    // Obter nome do primeiro grupo para adicionar ao título
+    const nomePrimeiroGrupo = obterNomePrimeiroGrupo(gruposSelecionados);
+    const tituloDigitado = document.getElementById('tarefaTitulo').value.trim();
+    
+    // Criar título com prefixo do grupo
+    const tituloCompleto = nomePrimeiroGrupo ? 
+        `${nomePrimeiroGrupo} - ${tituloDigitado}` : 
+        tituloDigitado;
+    
     const tarefa = {
-        titulo: document.getElementById('tarefaTitulo').value,
+        titulo: tituloCompleto, // <-- TÍTULO COM NOME DO GRUPO
         descricao: document.getElementById('tarefaDescricao').value,
-        sistemaId: document.getElementById('tarefaSistema').value || null,
         prioridade: document.getElementById('tarefaPrioridade').value,
         status: document.getElementById('tarefaStatus').value,
         dataInicio: document.getElementById('tarefaDataInicio').value,
         dataFim: document.getElementById('tarefaDataFim').value,
         responsavel: document.getElementById('tarefaResponsavel').value,
-        gruposAcesso: gruposSelecionados, // <-- ADICIONADO
+        gruposAcesso: gruposSelecionados,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -317,7 +313,7 @@ async function excluirTarefa(tarefaId) {
 // Interface
 async function atualizarInterfaceComAtividades() {
     atualizarEstatisticas();
-    await atualizarListaTarefasComAtividades();
+    await atualizarListaTarefas();
 }
 
 function atualizarEstatisticas() {
@@ -354,76 +350,7 @@ function atualizarEstatisticas() {
     document.getElementById('tarefas-concluidas').textContent = concluidas;
 }
 
-async function buscarAtividadesDoSistema(sistemaId) {
-    try {
-        const snapshot = await db.collection('atividades')
-            .where('sistemaId', '==', sistemaId)
-            .get();
-        
-        if (!snapshot.empty) {
-            let atividades = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            // GARANTIR QUE TODAS AS ATIVIDADES TENHAM STATUS
-            atividades = atividades.map(atividade => {
-                // Se a atividade não tiver status definido, define como "Não Iniciado"
-                if (!atividade.status) {
-                    return {
-                        ...atividade,
-                        status: 'nao_iniciado'
-                    };
-                }
-                return atividade;
-            });
-            
-            // ORDENAR ATIVIDADES PELA ORDEM ESPECÍFICA
-            atividades = ordenarAtividadesPorTipo(atividades);
-            
-            return atividades;
-        }
-        return [];
-    } catch (error) {
-        console.error('❌ Erro ao buscar atividades:', error);
-        return [];
-    }
-}
-
-// FUNÇÃO PARA ORDENAR ATIVIDADES POR TIPO
-function ordenarAtividadesPorTipo(atividades) {
-    // Ordem específica dos tipos
-    const ordemTipos = ['execucao', 'monitoramento', 'conclusao'];
-    
-    // Primeiro, separar atividades que têm tipo definido
-    const atividadesComTipo = atividades.filter(a => a.tipo);
-    const atividadesSemTipo = atividades.filter(a => !a.tipo);
-    
-    // Ordenar atividades com tipo na ordem específica
-    atividadesComTipo.sort((a, b) => {
-        const indiceA = ordemTipos.indexOf(a.tipo);
-        const indiceB = ordemTipos.indexOf(b.tipo);
-        
-        // Se ambos têm tipo na lista de ordenação
-        if (indiceA !== -1 && indiceB !== -1) {
-            return indiceA - indiceB;
-        }
-        
-        // Se apenas A tem tipo na lista, vem primeiro
-        if (indiceA !== -1) return -1;
-        
-        // Se apenas B tem tipo na lista, vem depois
-        if (indiceB !== -1) return 1;
-        
-        // Se nenhum tem tipo na lista, manter ordem original
-        return 0;
-    });
-    
-    // Combinar: atividades ordenadas por tipo + atividades sem tipo
-    return [...atividadesComTipo, ...atividadesSemTipo];
-}
-
-async function atualizarListaTarefasComAtividades() {
+async function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
     
     // Obter usuário logado
@@ -456,94 +383,38 @@ async function atualizarListaTarefasComAtividades() {
         return;
     }
 
-    // Processar tarefas com suas atividades ORDENADAS
-    const tarefasProcessadas = await Promise.all(
-        tarefasFiltradas.map(async (tarefa) => {
-            let sistemaInfo = '';
-            let atividadesHTML = '';
-            let gruposInfo = '';
+    // Processar tarefas
+    const tarefasProcessadas = tarefasFiltradas.map(tarefa => {
+        let gruposInfo = '';
+        
+        // Adicionar informação de grupos (todos os grupos)
+        if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
+            const nomesGrupos = tarefa.gruposAcesso.map(grupoId => {
+                const grupo = grupos.find(g => g.id === grupoId);
+                return grupo ? grupo.nome : 'Grupo desconhecido';
+            }).join(', ');
             
-            // Adicionar informação de grupos
-            if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
-                const nomesGrupos = tarefa.gruposAcesso.map(grupoId => {
-                    const grupo = grupos.find(g => g.id === grupoId);
-                    return grupo ? grupo.nome : 'Grupo desconhecido';
-                }).join(', ');
-                
+            if (nomesGrupos) {
                 gruposInfo = `
                     <div class="grupos-acesso">
                         <i class="fas fa-users"></i>
-                        <span class="grupos-nomes">Grupos: ${nomesGrupos}</span>
+                        <span class="grupos-nomes">Acesso: ${nomesGrupos}</span>
                     </div>
                 `;
             }
-            
-            if (tarefa.sistemaId) {
-                const sistema = sistemas.find(s => s.id === tarefa.sistemaId);
-                if (sistema) {
-                    sistemaInfo = `
-                        <div class="sistema-vinculado">
-                            <i class="fas fa-project-diagram"></i>
-                            <span class="sistema-nome">Sistema: ${sistema.nome}</span>
-                        </div>
-                    `;
-                    
-                    // Buscar atividades da tarefa (JÁ ORDENADAS)
-                    const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
-                    
-                    if (atividades.length > 0) {
-                        atividadesHTML = `
-                            <div class="atividades-sistema">
-                                <div class="atividades-header">
-                                    <i class="fas fa-list-check"></i>
-                                    <strong>Atividades da Tarefa (${atividades.length}):</strong>
-                                </div>
-                                <div class="atividades-lista">
-                                    ${atividades.map((atividade, index) => {
-                                        const statusStr = String(atividade.status || '').toLowerCase().trim();
-                                        const isConcluida = statusStr === 'concluido' || 
-                                                           statusStr === 'concluído' ||
-                                                           statusStr === 'concluida' ||
-                                                           statusStr === 'concluída';
-                                        
-                                        return `
-                                            <div class="atividade-item ${isConcluida ? 'concluida' : ''}">
-                                                <div class="atividade-ordem">
-                                                    <span class="ordem-numero">${index + 1}</span>
-                                                </div>
-                                                <div class="atividade-tipo">
-                                                    <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
-                                                    <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
-                                                </div>
-                                                <div class="atividade-conteudo">
-                                                    <span class="atividade-titulo">${atividade.titulo}</span>
-                                                    <span class="atividade-status badge status-${statusStr.replace(/[^a-z0-9]/g, '_')}">
-                                                        ${getLabelStatus(atividade.status)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-            }
-            
-            return { ...tarefa, sistemaInfo, atividadesHTML, gruposInfo };
-        })
-    );
+        }
+        
+        return { ...tarefa, gruposInfo };
+    });
 
     // Renderizar tarefas
     container.innerHTML = tarefasProcessadas.map(tarefa => `
-        <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.sistemaId ? 'vinculada-sistema' : ''}">
+        <div class="task-card prioridade-${tarefa.prioridade}">
             <div class="task-header">
                 <div>
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
                     ${tarefa.gruposInfo || ''}
-                    ${tarefa.sistemaInfo || ''}
                 </div>
             </div>
             
@@ -560,8 +431,6 @@ async function atualizarListaTarefasComAtividades() {
                     </span>
                 ` : ''}
             </div>
-
-            ${tarefa.atividadesHTML || ''}
 
             <div class="task-meta">
                 ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
@@ -585,7 +454,6 @@ function filtrarTarefas(tarefasLista = tarefas) {
     const status = document.getElementById('filterStatus').value;
     const prioridade = document.getElementById('filterPrioridade').value;
     const responsavel = document.getElementById('filterResponsavel').value;
-    const sistema = document.getElementById('filterSistema').value;
 
     return tarefasLista.filter(tarefa => {
         if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
@@ -595,35 +463,8 @@ function filtrarTarefas(tarefasLista = tarefas) {
         if (status && tarefa.status !== status) return false;
         if (prioridade && tarefa.prioridade !== prioridade) return false;
         if (responsavel && tarefa.responsavel !== responsavel) return false;
-        if (sistema) {
-            if (sistema === 'sem-sistema' && tarefa.sistemaId) return false;
-            if (sistema !== 'sem-sistema' && tarefa.sistemaId !== sistema) return false;
-        }
         return true;
     });
-}
-
-// FUNÇÕES AUXILIARES PARA TIPOS
-function getIconTipo(tipo) {
-    if (!tipo) return 'question-circle';
-    
-    switch(tipo.toLowerCase()) {
-        case 'execucao': return 'play-circle';
-        case 'monitoramento': return 'eye';
-        case 'conclusao': return 'check-double';
-        default: return 'tasks';
-    }
-}
-
-function getLabelTipo(tipo) {
-    if (!tipo) return 'Outras';
-    
-    switch(tipo.toLowerCase()) {
-        case 'execucao': return 'Execução';
-        case 'monitoramento': return 'Monitoramento';
-        case 'conclusao': return 'Conclusão';
-        default: return tipo.charAt(0).toUpperCase() + tipo.slice(1);
-    }
 }
 
 function getLabelStatus(status) {
@@ -635,15 +476,6 @@ function getLabelStatus(status) {
         case 'andamento': return 'Em Andamento';
         case 'concluido': return 'Concluído';
         default: return status;
-    }
-}
-
-function getIconStatusAtividade(status) {
-    switch(status) {
-        case 'pendente': return 'clock';
-        case 'andamento': return 'spinner';
-        case 'concluido': return 'check-circle';
-        default: return 'question-circle';
     }
 }
 
@@ -704,11 +536,10 @@ function logout() {
 }
 
 // Event Listeners para filtros
-document.getElementById('searchInput').addEventListener('input', () => atualizarListaTarefasComAtividades());
-document.getElementById('filterStatus').addEventListener('change', () => atualizarListaTarefasComAtividades());
-document.getElementById('filterPrioridade').addEventListener('change', () => atualizarListaTarefasComAtividades());
-document.getElementById('filterResponsavel').addEventListener('change', () => atualizarListaTarefasComAtividades());
-document.getElementById('filterSistema').addEventListener('change', () => atualizarListaTarefasComAtividades());
+document.getElementById('searchInput').addEventListener('input', () => atualizarListaTarefas());
+document.getElementById('filterStatus').addEventListener('change', () => atualizarListaTarefas());
+document.getElementById('filterPrioridade').addEventListener('change', () => atualizarListaTarefas());
+document.getElementById('filterResponsavel').addEventListener('change', () => atualizarListaTarefas());
 
 // Fechar modal clicando fora
 window.onclick = function(event) {
