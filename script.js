@@ -375,18 +375,33 @@ function atualizarListaTarefas() {
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const usuarioGrupos = usuarioLogado?.grupos || [];
     
+    console.log('🔍 DEBUG - Verificando grupos:');
+    console.log('Usuário:', usuarioLogado?.usuario);
+    console.log('Grupos do usuário:', usuarioGrupos);
+    console.log('Total de tarefas:', tarefas.length);
+    
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
+        console.log(`\n📋 Tarefa: ${tarefa.titulo}`);
+        console.log('Grupos da tarefa:', tarefa.gruposAcesso || 'Nenhum');
+        
         // Se a tarefa não tem grupos definidos, mostra para todos
         if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+            console.log('✅ Tarefa sem grupos: MOSTRAR');
             return true;
         }
         
         // Verifica se usuário pertence a algum dos grupos da tarefa
-        return tarefa.gruposAcesso.some(grupoId => 
+        const usuarioTemAcesso = tarefa.gruposAcesso.some(grupoId => 
             usuarioGrupos.includes(grupoId)
         );
+        
+        console.log(`Usuário tem acesso? ${usuarioTemAcesso ? '✅ SIM' : '❌ NÃO'}`);
+        
+        return usuarioTemAcesso;
     });
+    
+    console.log(`\n📊 RESULTADO: ${tarefasFiltradasPorGrupo.length} tarefas visíveis de ${tarefas.length}`);
     
     const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
 
@@ -396,6 +411,10 @@ function atualizarListaTarefas() {
                 <i class="fas fa-tasks"></i>
                 <h3>Nenhuma tarefa encontrada</h3>
                 <p>Você não tem acesso a nenhuma tarefa ou não há tarefas disponíveis</p>
+                <small style="margin-top: 10px; color: #666;">
+                    Usuário: ${usuarioLogado?.nome || 'Não logado'}<br>
+                    Grupos: ${usuarioGrupos.join(', ') || 'Nenhum grupo'}
+                </small>
             </div>
         `;
         return;
