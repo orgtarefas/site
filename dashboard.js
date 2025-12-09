@@ -1,4 +1,4 @@
-// dashboard.js - VERSÃO CORRIGIDA
+// dashboard.js - VERSÃO CORRIGIDA PARA USAR TITULO
 console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
 class GestorAtividades {
@@ -58,8 +58,10 @@ class GestorAtividades {
             return 'Tarefa não encontrada';
         }
         
-        console.log(`✅ Tarefa encontrada: ${tarefa.nome}`);
-        return tarefa.nome;
+        // Usar 'titulo' se existir, senão usar 'nome'
+        const nomeTarefa = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
+        console.log(`✅ Tarefa encontrada: ${nomeTarefa}`);
+        return nomeTarefa;
     }
 
     async verificarAutenticacao() {
@@ -106,7 +108,12 @@ class GestorAtividades {
                 ...doc.data()
             }));
             console.log(`✅ ${this.tarefas.length} tarefas carregadas da coleção 'tarefas':`, 
-                this.tarefas.map(t => ({ id: t.id, nome: t.nome })));
+                this.tarefas.map(t => ({ 
+                    id: t.id, 
+                    titulo: t.titulo,
+                    nome: t.nome,
+                    descricao: t.descricao 
+                })));
 
             // Carregar atividades
             const atividadesSnapshot = await db.collection('atividades').get();
@@ -131,7 +138,7 @@ class GestorAtividades {
             // Agrupar atividades por tarefa
             this.tarefas.forEach(tarefa => {
                 tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                console.log(`📌 Tarefa "${tarefa.nome}" tem ${tarefa.atividades.length} atividades`);
+                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
             });
 
             // Atualizar status
@@ -202,7 +209,8 @@ class GestorAtividades {
         try {
             const ctx = document.getElementById('progressChart').getContext('2d');
             
-            const tarefasNomes = this.tarefas.map(t => t.nome || 'Sem nome');
+            // Usar titulo se existir, senão nome
+            const tarefasNomes = this.tarefas.map(t => t.titulo || t.nome || 'Sem nome');
             const tarefasProgresso = this.tarefas.map(tarefa => {
                 const atividades = tarefa.atividades || [];
                 if (atividades.length === 0) return 0;
@@ -342,12 +350,15 @@ class GestorAtividades {
             // Verificar se esta tarefa estava expandida
             const estavaExpandida = tarefasExpandidas.has(tarefa.id);
             
+            // Usar titulo se existir, senão nome
+            const nomeExibicao = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
+            
             return `
                 <div class="task-card">
                     <div class="task-header" onclick="toggleTarefa('${tarefa.id}')">
                         <h2>
                             <i class="fas fa-tasks" style="color: ${tarefa.cor || '#2C3E50'}"></i>
-                            ${tarefa.nome || 'Tarefa sem nome'}
+                            ${nomeExibicao}
                         </h2>
                         <div class="task-status">
                             <div class="status-badges-container">
@@ -833,7 +844,7 @@ class GestorAtividades {
 
 // ==================== fim da classe
 
-// ... (restante do código permanece igual)
+// ... (restante do código com as funções auxiliares)
 
 // Instanciar e inicializar o gestor
 const gestorAtividades = new GestorAtividades();
