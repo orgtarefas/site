@@ -1,21 +1,20 @@
-// dashboard.js - VERSÃO COMPLETA COM EDIÇÃO
-console.log('=== DASHBOARD INICIANDO ===');
+// dashboard.js - VERSÃO COMPLETA AJUSTADA PARA TAREFAS
+console.log('=== GESTOR DE TAREFAS INICIANDO ===');
 
-// Sistema de Monitoramento Dinâmico
-class SistemaMonitoramento {
+// Sistema de Monitoramento Dinâmico para Tarefas
+class GestorTarefas {
     constructor() {
-        this.sistemas = [];
+        this.tarefas = []; // Alterado: sistemas → tarefas
         this.usuarios = [];
         this.usuario = null;
         this.charts = {};
-        this.sistemaEditando = null;
+        this.tarefaEditando = null; // Alterado: sistemaEditando → tarefaEditando
         this.atividadeEditando = null;
         this.atividadesDisponiveis = []; // Todas as atividades para vínculos
     }
 
-
     async init() {
-        console.log('🚀 Inicializando Dashboard...');
+        console.log('🚀 Inicializando Gestor de Tarefas...');
         
         // Verificar autenticação
         await this.verificarAutenticacao();
@@ -29,14 +28,13 @@ class SistemaMonitoramento {
         // Inicializar gráficos DEPOIS de carregar dados
         this.inicializarGraficos();
         
-        // Renderizar sistemas
-        this.renderizarSistemas();
+        // Renderizar tarefas
+        this.renderizarTarefas();
         
         // Configurar listeners
-        this.configurarListeners(); // ✅ Isso chama o listener de conclusões
+        this.configurarListeners();
         
-        console.log('✅ Dashboard inicializado com sucesso!');
-        
+        console.log('✅ Gestor de Tarefas inicializado com sucesso!');
     }
 
     async carregarAtividadesParaVinculo() {
@@ -45,7 +43,7 @@ class SistemaMonitoramento {
             this.atividadesDisponiveis = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
+                tarefaNome: this.getNomeTarefa(doc.data().tarefaId) // Alterado: sistemaId → tarefaId
             }));
             console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
         } catch (error) {
@@ -53,11 +51,10 @@ class SistemaMonitoramento {
         }
     }
 
-    getNomeSistema(sistemaId) {
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
-        return sistema ? sistema.nome : 'Sistema não encontrado';
+    getNomeTarefa(tarefaId) { // Alterado
+        const tarefa = this.tarefas.find(t => t.id === tarefaId);
+        return tarefa ? tarefa.nome : 'Tarefa não encontrada';
     }
-    
 
     async verificarAutenticacao() {
         const usuarioLogado = localStorage.getItem('usuarioLogado');
@@ -84,7 +81,6 @@ class SistemaMonitoramento {
         document.getElementById('mainContent').style.display = 'block';
     }
 
-
     async carregarDados() {
         console.log('📊 Carregando dados do Firebase...');
         
@@ -97,25 +93,25 @@ class SistemaMonitoramento {
             }));
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
 
-            // Carregar sistemas
-            const sistemasSnapshot = await db.collection('sistemas').get();
-            this.sistemas = sistemasSnapshot.docs.map(doc => ({
+            // Carregar tarefas (ANTIGOS SISTEMAS)
+            const tarefasSnapshot = await db.collection('tarefas').get();
+            this.tarefas = tarefasSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log(`✅ ${this.sistemas.length} sistemas carregados`);
+            console.log(`✅ ${this.tarefas.length} tarefas carregadas`);
 
             // Carregar atividades
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
+                tarefaNome: this.getNomeTarefa(doc.data().tarefaId) // Alterado: sistemaId → tarefaId
             }));
             
-            // Agrupar atividades por sistema
-            this.sistemas.forEach(sistema => {
-                sistema.atividades = todasAtividades.filter(a => a.sistemaId === sistema.id);
+            // Agrupar atividades por tarefa
+            this.tarefas.forEach(tarefa => {
+                tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
             });
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
@@ -130,7 +126,6 @@ class SistemaMonitoramento {
                 '<i class="fas fa-exclamation-triangle"></i> Offline';
         }
     }
-
 
     async processarConclusaoAtividade(atividadeId) {
         try {
@@ -175,31 +170,24 @@ class SistemaMonitoramento {
                         });
                         atualizadas++;
                     } else {
-                        console.log(⚠️ Atividade vinculada ${vinculadaId} não existe`);
+                        console.log(`⚠️ Atividade vinculada ${vinculadaId} não existe`);
                     }
                 }
                 
                 if (atualizadas > 0) {
                     await batch.commit();
                     console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
-                    
-                    // ❌ REMOVER ESTE ALERTA - Apenas log no console
-                    // alert(`✅ ${atualizadas} atividade(s) vinculada(s) foram alteradas para "Pendente"`);
-                    
                 } else {
                     console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
                 }
-                
-                // ⚠️ CORREÇÃO: Remova o setTimeout que está depois deste bloco
-                // O recarregamento dos dados deve acontecer aqui, mas apenas uma vez
                 
                 // Recarregar dados após atualização
                 setTimeout(() => {
                     // Atualizar apenas os dados necessários sem recolher
                     this.carregarDados().then(() => {
-                        // Manter sistemas expandidos
-                        restaurarEstadoExpansaoSistemas();
-                        this.renderizarSistemas();
+                        // Manter tarefas expandidas
+                        restaurarEstadoExpansaoTarefas();
+                        this.renderizarTarefas();
                         this.atualizarGraficos();
                     });
                 }, 1000);
@@ -210,11 +198,8 @@ class SistemaMonitoramento {
             
         } catch (error) {
             console.error('❌ Erro ao processar conclusão:', error);
-            // ❌ REMOVER ESTE ALERTA TAMBÉM
-            // alert('Erro ao processar conclusão: ' + error.message);
         }
     }
-
 
     inicializarGraficos() {
         this.inicializarGraficoStatus();
@@ -226,7 +211,6 @@ class SistemaMonitoramento {
         const ctx = document.getElementById('statusChart').getContext('2d');
         const dados = this.calcularEstatisticas();
         
-        // DEBUG: Verificar dados que estão sendo usados no gráfico
         console.log('Dados para gráfico:', dados);
         
         this.charts.status = new Chart(ctx, {
@@ -235,18 +219,18 @@ class SistemaMonitoramento {
                 labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
                 datasets: [{
                     data: [
-                        dados.naoIniciadas,  // Deve ser 3
-                        dados.pendentes,     // Deve ser 1  
-                        dados.andamento,     // Deve ser 1
-                        dados.concluidas,    // Deve ser 2
-                        dados.atrasadas      // Deve ser 0
+                        dados.naoIniciadas,
+                        dados.pendentes,  
+                        dados.andamento,
+                        dados.concluidas,
+                        dados.atrasadas
                     ],
                     backgroundColor: [
-                        '#6c757d',   // Cinza para Não Iniciadas
-                        '#f39c12',   // Laranja para Pendentes
-                        '#3498db',   // Azul para Em Andamento
-                        '#27ae60',   // Verde para Concluídas
-                        '#e74c3c'    // Vermelho para Atrasadas
+                        '#6c757d',
+                        '#f39c12',
+                        '#3498db',
+                        '#27ae60',
+                        '#e74c3c'
                     ],
                     borderWidth: 2,
                     borderColor: '#fff'
@@ -267,9 +251,9 @@ class SistemaMonitoramento {
     inicializarGraficoProgresso() {
         const ctx = document.getElementById('progressChart').getContext('2d');
         
-        const sistemasNomes = this.sistemas.map(s => s.nome);
-        const sistemasProgresso = this.sistemas.map(sistema => {
-            const atividades = sistema.atividades || [];
+        const tarefasNomes = this.tarefas.map(t => t.nome);
+        const tarefasProgresso = this.tarefas.map(tarefa => {
+            const atividades = tarefa.atividades || [];
             if (atividades.length === 0) return 0;
             const concluidas = atividades.filter(a => a.status === 'concluido').length;
             return (concluidas / atividades.length) * 100;
@@ -278,11 +262,11 @@ class SistemaMonitoramento {
         this.charts.progress = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: sistemasNomes,
+                labels: tarefasNomes,
                 datasets: [{
                     label: 'Progresso (%)',
-                    data: sistemasProgresso,
-                    backgroundColor: this.sistemas.map(s => s.cor || '#2C3E50')
+                    data: tarefasProgresso,
+                    backgroundColor: this.tarefas.map(t => t.cor || '#2C3E50')
                 }]
             },
             options: {
@@ -307,7 +291,7 @@ class SistemaMonitoramento {
         const ctx = document.getElementById('timelineChart').getContext('2d');
         
         // Dados de exemplo
-        const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Qui', 'Sáb', 'Dom'];
+        const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
         const dadosTimeline = [5, 8, 12, 6, 15, 10, 7];
 
         this.charts.timeline = new Chart(ctx, {
@@ -343,19 +327,13 @@ class SistemaMonitoramento {
         let concluidas = 0;
         let atrasadas = 0;
     
-        this.sistemas.forEach(sistema => {
-            const atividades = sistema.atividades || [];
+        this.tarefas.forEach(tarefa => {
+            const atividades = tarefa.atividades || [];
             total += atividades.length;
-            
-            // DEBUG: Mostrar atividades de cada sistema
-            console.log(`Sistema: ${sistema.nome}`);
-            console.log(`- Total atividades: ${atividades.length}`);
-            console.log(`- Atividades:`, atividades);
             
             // Verificar status CORRETAMENTE
             atividades.forEach(atividade => {
                 const status = atividade.status ? atividade.status.toLowerCase().trim() : '';
-                console.log(`  Atividade: ${atividade.titulo}, Status: ${status}`);
                 
                 if (status === 'nao_iniciado' || status === 'não iniciado') {
                     naoIniciadas++;
@@ -369,16 +347,6 @@ class SistemaMonitoramento {
             });
         });
     
-        // DEBUG: Mostrar estatísticas calculadas
-        console.log('Estatísticas calculadas:', {
-            total,
-            naoIniciadas,
-            pendentes,
-            andamento,
-            concluidas,
-            atrasadas
-        });
-    
         // Atualizar interface
         document.getElementById('total-atividades').textContent = total;
         document.getElementById('nao-iniciadas').textContent = naoIniciadas;
@@ -390,68 +358,67 @@ class SistemaMonitoramento {
         return { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas };
     }
 
-    renderizarSistemas() {
-        const container = document.getElementById('sistemas-container');
+    renderizarTarefas() {
+        const container = document.getElementById('tarefas-container');
         
-        if (this.sistemas.length === 0) {
+        if (this.tarefas.length === 0) {
             container.innerHTML = `
-                <div class="empty-sistemas">
-                    <i class="fas fa-project-diagram"></i>
-                    <h3>Nenhum sistema cadastrado</h3>
-                    <p>Clique em "Novo Sistema" para começar</p>
+                <div class="empty-tarefas">
+                    <i class="fas fa-tasks"></i>
+                    <h3>Nenhuma tarefa cadastrada</h3>
+                    <p>Clique em "Nova Tarefa" para começar</p>
                 </div>
             `;
             return;
         }
     
         // Salvar estado atual ANTES de re-renderizar
-        manterEstadoExpansaoSistemas();
+        manterEstadoExpansaoTarefas();
         
-        container.innerHTML = this.sistemas.map(sistema => {
-            // Verificar se este sistema estava expandido
-            const estavaExpandido = sistemasExpandidos.has(sistema.id);
+        container.innerHTML = this.tarefas.map(tarefa => {
+            // Verificar se esta tarefa estava expandida
+            const estavaExpandida = tarefasExpandidas.has(tarefa.id);
             
             return `
-                <div class="system-card">
-                    <div class="system-header" onclick="toggleSistema('${sistema.id}')">
+                <div class="task-card">
+                    <div class="task-header" onclick="toggleTarefa('${tarefa.id}')">
                         <h2>
-                            <i class="fas fa-project-diagram" style="color: ${sistema.cor || '#2C3E50'}"></i>
-                            ${sistema.nome}
+                            <i class="fas fa-tasks" style="color: ${tarefa.cor || '#2C3E50'}"></i>
+                            ${tarefa.nome}
                         </h2>
-                        <div class="system-status">
+                        <div class="task-status">
                             <div class="status-badges-container">
-                                ${this.getTextoStatusSistema(sistema)}
+                                ${this.getTextoStatusTarefa(tarefa)}
                             </div>
-                            <i class="fas fa-chevron-${estavaExpandido ? 'up' : 'down'}"></i>
-                            <div class="system-actions">
-                                <button class="btn-icon" onclick="event.stopPropagation(); editarSistema('${sistema.id}')">
+                            <i class="fas fa-chevron-${estavaExpandida ? 'up' : 'down'}"></i>
+                            <div class="task-actions">
+                                <button class="btn-icon" onclick="event.stopPropagation(); editarTarefa('${tarefa.id}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirSistema('${sistema.id}')">
+                                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirTarefa('${tarefa.id}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <!-- IMPORTANTE: Iniciar com display baseado no estado salvo -->
-                    <div class="system-body" id="sistema-${sistema.id}" style="display: ${estavaExpandido ? 'block' : 'none'};">
-                        <p class="system-desc">${sistema.descricao || 'Sem descrição'}</p>
+                    <div class="task-body" id="tarefa-${tarefa.id}" style="display: ${estavaExpandida ? 'block' : 'none'};">
+                        <p class="task-desc">${tarefa.descricao || 'Sem descrição'}</p>
                         <div class="activities-grid">
-                            ${this.renderizarAtividadesSistema(sistema)}
+                            ${this.renderizarAtividadesTarefa(tarefa)}
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
         
-        // Restaurar o estado de expansão (para garantir)
+        // Restaurar o estado de expansão
         setTimeout(() => {
-            restaurarEstadoExpansaoSistemas();
+            restaurarEstadoExpansaoTarefas();
         }, 10);
     }
 
-    calcularEstatisticasSistema(sistema) {
-        const atividades = sistema.atividades || [];
+    calcularEstatisticasTarefa(tarefa) {
+        const atividades = tarefa.atividades || [];
         const total = atividades.length;
         const naoIniciadas = atividades.filter(a => a.status === 'nao_iniciado').length;
         const pendentes = atividades.filter(a => a.status === 'pendente').length;
@@ -467,14 +434,14 @@ class SistemaMonitoramento {
         };
     }
         
-    renderizarAtividadesSistema(sistema) {
-        const atividades = sistema.atividades || [];
+    renderizarAtividadesTarefa(tarefa) {
+        const atividades = tarefa.atividades || [];
         
         if (atividades.length === 0) {
             return `
                 <div class="empty-activities">
-                    <p>Nenhuma atividade cadastrada para este sistema</p>
-                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${sistema.id}')">
+                    <p>Nenhuma atividade cadastrada para esta tarefa</p>
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
                         <i class="fas fa-plus"></i> Adicionar Atividade
                     </button>
                 </div>
@@ -496,19 +463,17 @@ class SistemaMonitoramento {
                 <div class="activity-section">
                     <div class="section-header">
                         <h3><i class="fas fa-list-check"></i> ${titulos[tipo]}</h3>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${sistema.id}', '${tipo}')">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
                             <i class="fas fa-plus"></i> Nova Atividade
                         </button>
                     </div>
                     <div class="checklist">
                         ${atividadesTipo.length > 0 ? 
                             atividadesTipo.map(atividade => {
-                                // Garantir que o status tenha um valor
                                 const status = atividade.status || 'nao_iniciado';
                                 const atividadesVinculadas = atividade.atividadesVinculadas || [];
                                 const temVinculos = atividadesVinculadas.length > 0;
                                 
-                                // Gerar opções do select com o status atual selecionado
                                 const opcoesStatus = [
                                     {value: 'nao_iniciado', label: 'Não Iniciado'},
                                     {value: 'pendente', label: 'Pendente'},
@@ -522,7 +487,6 @@ class SistemaMonitoramento {
                                     </option>
                                 `).join('');
                                 
-                                // IMPORTANTE: Escapar aspas no título para evitar erros
                                 const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                                 
                                 return `
@@ -553,7 +517,6 @@ class SistemaMonitoramento {
                                             </div>
                                         </div>
                                         <div class="item-actions">
-                                            <!-- NOVO: Seletor de Status -->
                                             <div class="status-selector">
                                                 <select class="status-select" 
                                                         data-id="${atividade.id}"
@@ -581,31 +544,14 @@ class SistemaMonitoramento {
         }).join('');
     }
 
-    
-    getStatusSistema(sistema) {
-        const stats = this.calcularEstatisticasSistema(sistema);
-        
-        if (stats.total === 0) return 'pendente'; // Sem atividades
-        
-        // Lógica para determinar o status principal do sistema
-        if (stats.concluidas === stats.total) return 'concluido';
-        if (stats.andamento > 0) return 'andamento';
-        if (stats.pendentes > 0) return 'pendente';
-        if (stats.naoIniciadas > 0) return 'nao_iniciado';
-        
-        return 'pendente';
-    }
-
-    getTextoStatusSistema(sistema) {
-        const stats = this.calcularEstatisticasSistema(sistema);
+    getTextoStatusTarefa(tarefa) {
+        const stats = this.calcularEstatisticasTarefa(tarefa);
         const total = stats.total;
         
-        // Se não houver atividades
         if (total === 0) {
             return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
         }
         
-        // Criar HTML para cada status que tem atividades
         const badges = [];
         
         if (stats.naoIniciadas > 0) {
@@ -621,7 +567,6 @@ class SistemaMonitoramento {
             badges.push(`<span class="status-mini-badge badge-concluido">Concluído (${stats.concluidas}/${total})</span>`);
         }
         
-        // Retornar todos os badges sem container externo
         return badges.join(' ');
     }
 
@@ -630,12 +575,20 @@ class SistemaMonitoramento {
         db.collection('atividades').onSnapshot(() => {
             console.log('🔄 Atualizando dados em tempo real...');
             this.carregarDados().then(() => {
-                this.renderizarSistemas();
+                this.renderizarTarefas();
                 this.atualizarGraficos();
             });
         });
         
-        // ========== LISTENER ESPECÍFICO PARA CONCLUSÕES ==========
+        // Listener para tarefas
+        db.collection('tarefas').onSnapshot(() => {
+            console.log('🔄 Atualizando tarefas em tempo real...');
+            this.carregarDados().then(() => {
+                this.renderizarTarefas();
+                this.atualizarGraficos();
+            });
+        });
+        
         this.configurarListenerConclusoes();
     }
     
@@ -648,19 +601,16 @@ class SistemaMonitoramento {
                     const atividadeAntiga = change.doc._previousData;
                     const atividadeNova = change.doc.data();
                     
-                    // Evitar processamento duplicado (se já foi feito pela função alterarStatusAtividade)
                     if (atividadeAntiga?.status === atividadeNova.status) {
-                        return; // Nada mudou
+                        return;
                     }
                     
-                    // Verificar se o status mudou para "concluido"
                     if (atividadeAntiga?.status !== 'concluido' && 
                         atividadeNova.status === 'concluido') {
                         
                         console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
                         console.log(`📋 Vínculos: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
                         
-                        // Processar atividades vinculadas
                         this.processarConclusaoAtividade(change.doc.id);
                     }
                 }
@@ -672,7 +622,6 @@ class SistemaMonitoramento {
         if (this.charts.status) {
             const dados = this.calcularEstatisticas();
             
-            // Atualizar dados do gráfico de status
             this.charts.status.data.datasets[0].data = [
                 dados.naoIniciadas,
                 dados.pendentes,
@@ -681,61 +630,45 @@ class SistemaMonitoramento {
                 dados.atrasadas
             ];
             
-            // Atualizar labels (opcional, se você quiser garantir que estão corretos)
-            this.charts.status.data.labels = [
-                'Não Iniciadas',
-                'Pendentes',
-                'Em Andamento',
-                'Concluídas',
-                'Atrasadas'
-            ];
-            
             this.charts.status.update();
         }
     
         if (this.charts.progress) {
-            const sistemasProgresso = this.sistemas.map(sistema => {
-                const atividades = sistema.atividades || [];
+            const tarefasProgresso = this.tarefas.map(tarefa => {
+                const atividades = tarefa.atividades || [];
                 if (atividades.length === 0) return 0;
                 const concluidas = atividades.filter(a => a.status === 'concluido').length;
-                const naoIniciadas = atividades.filter(a => a.status === 'nao_iniciado').length;
                 const andamento = atividades.filter(a => a.status === 'andamento').length;
-                const pendentes = atividades.filter(a => a.status === 'pendente').length;
-                
-                // Calcular progresso: (concluídas + em andamento) / total
                 const total = atividades.length;
                 const progresso = concluidas + andamento;
                 return (progresso / total) * 100;
             });
             
-            this.charts.progress.data.datasets[0].data = sistemasProgresso;
+            this.charts.progress.data.datasets[0].data = tarefasProgresso;
             this.charts.progress.update();
         }
     }
 
-    // NOVOS MÉTODOS PARA EDIÇÃO
-    abrirModalEditarSistema(sistemaId) {
-        this.sistemaEditando = sistemaId;
-        const sistema = this.sistemas.find(s => s.id === sistemaId);
+    abrirModalEditarTarefa(tarefaId) {
+        this.tarefaEditando = tarefaId;
+        const tarefa = this.tarefas.find(t => t.id === tarefaId);
         
-        if (!sistema) {
-            alert('Sistema não encontrado');
+        if (!tarefa) {
+            alert('Tarefa não encontrada');
             return;
         }
         
-        document.getElementById('modalSistema').style.display = 'flex';
-        document.getElementById('modalSistemaTitulo').textContent = 'Editar Sistema';
+        document.getElementById('modalTarefa').style.display = 'flex';
+        document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
         
-        // Preencher formulário
-        document.getElementById('sistemaNome').value = sistema.nome;
-        document.getElementById('sistemaDescricao').value = sistema.descricao || '';
-        document.getElementById('sistemaCor').value = sistema.cor || '#2C3E50';
+        document.getElementById('tarefaNome').value = tarefa.nome;
+        document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
+        document.getElementById('tarefaCor').value = tarefa.cor || '#2C3E50';
     }
 
     async editarAtividade(atividadeId) {
         this.atividadeEditando = atividadeId;
         
-        // Buscar atividade no Firebase
         const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
         
         if (!atividadeDoc.exists) {
@@ -744,38 +677,36 @@ class SistemaMonitoramento {
         }
         
         const atividade = atividadeDoc.data();
-        const sistema = this.sistemas.find(s => s.id === atividade.sistemaId);
+        const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
         
-        if (!sistema) {
-            alert('Sistema não encontrado');
+        if (!tarefa) {
+            alert('Tarefa não encontrada');
             return;
         }
         
-        this.abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
+        this.abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
     }
 }
 
 // ==================== fim da classe
 
-// ========== NOVA FUNÇÃO PARA CONTROLAR ESTADO DE EXPANSÃO ==========
-let sistemasExpandidos = new Set(); // Armazenar IDs dos sistemas expandidos
+// ========== CONTROLE DE ESTADO DE EXPANSÃO ==========
+let tarefasExpandidas = new Set();
 
-function manterEstadoExpansaoSistemas() {
-    // Salvar quais sistemas estão expandidos antes de recarregar
-    sistemasExpandidos.clear();
+function manterEstadoExpansaoTarefas() {
+    tarefasExpandidas.clear();
     
-    document.querySelectorAll('.system-body').forEach(sistema => {
-        if (sistema.style.display !== 'none') {
-            const id = sistema.id.replace('sistema-', '');
-            sistemasExpandidos.add(id);
+    document.querySelectorAll('.task-body').forEach(tarefa => {
+        if (tarefa.style.display !== 'none') {
+            const id = tarefa.id.replace('tarefa-', '');
+            tarefasExpandidas.add(id);
         }
     });
 }
 
-function restaurarEstadoExpansaoSistemas() {
-    // Restaurar estado dos sistemas expandidos após recarregar
-    sistemasExpandidos.forEach(id => {
-        const elemento = document.getElementById(`sistema-${id}`);
+function restaurarEstadoExpansaoTarefas() {
+    tarefasExpandidas.forEach(id => {
+        const elemento = document.getElementById(`tarefa-${id}`);
         const header = elemento ? elemento.previousElementSibling : null;
         const chevron = header ? header.querySelector('.fa-chevron-down, .fa-chevron-up') : null;
         
@@ -797,7 +728,7 @@ function getLabelStatus(status) {
     }
 }
 
-// ========== ADICIONE A FUNÇÃO AQUI ==========
+// ========== FUNÇÃO PARA ALTERAR STATUS ==========
 async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
     const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
     const statusAnterior = select ? select.value : 'nao_iniciado';
@@ -809,25 +740,21 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         para: novoStatus
     });
     
-    // Se for "concluido", pedir confirmação
     if (novoStatus === 'concluido') {
         const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
         
         if (!confirmar) {
-            // Reverter para status anterior
             if (select) select.value = statusAnterior;
             return;
         }
     }
     
-    // Feedback visual de processamento
     if (select) {
         select.classList.add('processing');
         select.disabled = true;
     }
     
     try {
-        // Atualizar no Firebase
         await db.collection('atividades').doc(atividadeId).update({
             status: novoStatus,
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
@@ -835,7 +762,6 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         
         console.log(`✅ Status da atividade "${tituloAtividade}" alterado para: ${novoStatus}`);
         
-        // Atualizar o badge localmente
         const checklistItem = select ? select.closest('.checklist-item') : null;
         if (checklistItem) {
             const badge = checklistItem.querySelector('.badge[class*="status-"]');
@@ -845,29 +771,25 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             }
         }
         
-        // Se foi marcado como concluído, processar atividades vinculadas
         if (novoStatus === 'concluido') {
             console.log(`🔗 Processando atividades vinculadas para "${tituloAtividade}"...`);
-            await monitoramento.processarConclusaoAtividade(atividadeId);
+            await gestorTarefas.processarConclusaoAtividade(atividadeId);
         }
         
-        // Atualizar estatísticas e gráficos
         setTimeout(() => {
-            monitoramento.calcularEstatisticas();
-            monitoramento.atualizarGraficos();
+            gestorTarefas.calcularEstatisticas();
+            gestorTarefas.atualizarGraficos();
         }, 500);
         
     } catch (error) {
         console.error('❌ Erro ao alterar status:', error);
         
-        // Reverter para status anterior em caso de erro
         if (select) {
             select.value = statusAnterior;
             alert('Erro ao alterar status: ' + error.message);
         }
         
     } finally {
-        // Restaurar estado do select
         if (select) {
             select.classList.remove('processing');
             select.disabled = false;
@@ -875,158 +797,145 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
     }
 }
     
-// Instanciar e inicializar o sistema
-const monitoramento = new SistemaMonitoramento();
+// Instanciar e inicializar o gestor
+const gestorTarefas = new GestorTarefas();
 
-// ========== FUNÇÕES GLOBAIS COMPLETAS ==========
+// ========== FUNÇÕES GLOBAIS ==========
 
 function logout() {
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
 
-function toggleSistema(sistemaId) {
-    const elemento = document.getElementById(`sistema-${sistemaId}`);
+function toggleTarefa(tarefaId) {
+    const elemento = document.getElementById(`tarefa-${tarefaId}`);
     const header = elemento.previousElementSibling;
     const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
     
     if (!elemento || !chevron) return;
     
     if (elemento.style.display === 'none') {
-        // Abrir
         elemento.style.display = 'block';
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-up');
-        sistemasExpandidos.add(sistemaId); // Adicionar ao conjunto
+        tarefasExpandidas.add(tarefaId);
     } else {
-        // Fechar
         elemento.style.display = 'none';
         chevron.classList.remove('fa-chevron-up');
         chevron.classList.add('fa-chevron-down');
-        sistemasExpandidos.delete(sistemaId); // Remover do conjunto
+        tarefasExpandidas.delete(tarefaId);
     }
     
-    // Prevenir propagação para não fechar imediatamente
     event.stopPropagation();
 }
 
-function abrirModalSistema() {
-    monitoramento.sistemaEditando = null;
-    document.getElementById('modalSistema').style.display = 'flex';
-    document.getElementById('modalSistemaTitulo').textContent = 'Novo Sistema';
-    document.getElementById('formSistema').reset();
-    document.getElementById('sistemaCor').value = '#2C3E50';
+function abrirModalTarefa() {
+    gestorTarefas.tarefaEditando = null;
+    document.getElementById('modalTarefa').style.display = 'flex';
+    document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
+    document.getElementById('formTarefa').reset();
+    document.getElementById('tarefaCor').value = '#2C3E50';
 }
 
-function fecharModalSistema() {
-    document.getElementById('modalSistema').style.display = 'none';
+function fecharModalTarefa() {
+    document.getElementById('modalTarefa').style.display = 'none';
 }
 
-async function editarSistema(sistemaId) {
-    monitoramento.sistemaEditando = sistemaId;
-    const sistema = monitoramento.sistemas.find(s => s.id === sistemaId);
+async function editarTarefa(tarefaId) {
+    gestorTarefas.tarefaEditando = tarefaId;
+    const tarefa = gestorTarefas.tarefas.find(t => t.id === tarefaId);
     
-    if (!sistema) {
-        alert('Sistema não encontrado');
+    if (!tarefa) {
+        alert('Tarefa não encontrada');
         return;
     }
     
-    document.getElementById('modalSistema').style.display = 'flex';
-    document.getElementById('modalSistemaTitulo').textContent = 'Editar Sistema';
+    document.getElementById('modalTarefa').style.display = 'flex';
+    document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
     
-    // Preencher formulário
-    document.getElementById('sistemaNome').value = sistema.nome;
-    document.getElementById('sistemaDescricao').value = sistema.descricao || '';
-    document.getElementById('sistemaCor').value = sistema.cor || '#2C3E50';
+    document.getElementById('tarefaNome').value = tarefa.nome;
+    document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
+    document.getElementById('tarefaCor').value = tarefa.cor || '#2C3E50';
 }
 
-async function salvarSistema() {
-    const nome = document.getElementById('sistemaNome').value;
-    const descricao = document.getElementById('sistemaDescricao').value;
-    const cor = document.getElementById('sistemaCor').value;
+async function salvarTarefa() {
+    const nome = document.getElementById('tarefaNome').value;
+    const descricao = document.getElementById('tarefaDescricao').value;
+    const cor = document.getElementById('tarefaCor').value;
     
     if (!nome) {
-        alert('Preencha o nome do sistema');
+        alert('Preencha o nome da tarefa');
         return;
     }
     
     try {
-        const sistemaData = {
+        const tarefaData = {
             nome: nome,
             descricao: descricao,
             cor: cor,
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        if (monitoramento.sistemaEditando) {
-            // EDITAR sistema existente
-            await db.collection('sistemas').doc(monitoramento.sistemaEditando).update(sistemaData);
-            alert('✅ Sistema atualizado com sucesso!');
+        if (gestorTarefas.tarefaEditando) {
+            await db.collection('tarefas').doc(gestorTarefas.tarefaEditando).update(tarefaData);
+            alert('✅ Tarefa atualizada com sucesso!');
         } else {
-            // CRIAR novo sistema
-            await db.collection('sistemas').add({
-                ...sistemaData,
+            await db.collection('tarefas').add({
+                ...tarefaData,
                 dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: monitoramento.usuario.usuario
+                criadoPor: gestorTarefas.usuario.usuario
             });
-            alert('✅ Sistema criado com sucesso!');
+            alert('✅ Tarefa criada com sucesso!');
         }
         
-        fecharModalSistema();
-        monitoramento.sistemaEditando = null;
+        fecharModalTarefa();
+        gestorTarefas.tarefaEditando = null;
         
-        // Recarregar dados
-        await monitoramento.carregarDados();
-        monitoramento.renderizarSistemas();
-        monitoramento.atualizarGraficos();
+        await gestorTarefas.carregarDados();
+        gestorTarefas.renderizarTarefas();
+        gestorTarefas.atualizarGraficos();
         
     } catch (error) {
-        console.error('❌ Erro ao salvar sistema:', error);
-        alert('Erro ao salvar sistema: ' + error.message);
+        console.error('❌ Erro ao salvar tarefa:', error);
+        alert('Erro ao salvar tarefa: ' + error.message);
     }
 }
 
-async function excluirSistema(sistemaId) {
-    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir este sistema? Todas as atividades vinculadas também serão excluídas!')) {
+async function excluirTarefa(tarefaId) {
+    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir esta tarefa? Todas as atividades vinculadas também serão excluídas!')) {
         return;
     }
     
     try {
-        // Buscar e excluir todas as atividades do sistema
         const atividadesSnapshot = await db.collection('atividades')
-            .where('sistemaId', '==', sistemaId)
+            .where('tarefaId', '==', tarefaId)
             .get();
         
-        // Excluir todas as atividades
         const batch = db.batch();
         atividadesSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
         await batch.commit();
         
-        // Excluir o sistema
-        await db.collection('sistemas').doc(sistemaId).delete();
+        await db.collection('tarefas').doc(tarefaId).delete();
         
-        alert('✅ Sistema e atividades excluídos com sucesso!');
+        alert('✅ Tarefa e atividades excluídas com sucesso!');
         
-        // Recarregar dados
-        await monitoramento.carregarDados();
-        monitoramento.renderizarSistemas();
-        monitoramento.atualizarGraficos();
+        await gestorTarefas.carregarDados();
+        gestorTarefas.renderizarTarefas();
+        gestorTarefas.atualizarGraficos();
         
     } catch (error) {
-        console.error('❌ Erro ao excluir sistema:', error);
-        alert('Erro ao excluir sistema: ' + error.message);
+        console.error('❌ Erro ao excluir tarefa:', error);
+        alert('Erro ao excluir tarefa: ' + error.message);
     }
 }
 
 function formatarDataRegistro(dataRegistro) {
     try {
         if (dataRegistro && dataRegistro.toDate) {
-            // Se for um timestamp do Firebase
             return dataRegistro.toDate().toLocaleString('pt-BR');
         } else if (dataRegistro) {
-            // Se for uma string ou outro formato
             return new Date(dataRegistro).toLocaleString('pt-BR');
         } else {
             return 'Não disponível';
@@ -1037,8 +946,8 @@ function formatarDataRegistro(dataRegistro) {
     }
 }
 
-function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = null) {
-    monitoramento.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
+function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+    gestorTarefas.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
     
     const modal = document.getElementById('modalAtividade');
     const titulos = {
@@ -1053,30 +962,24 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     
     document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
     
-    // Gerar opções de usuários
-    const usuariosOptions = monitoramento.usuarios.map(user => {
+    const usuariosOptions = gestorTarefas.usuarios.map(user => {
         const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
         return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
     }).join('');
     
-    // Formatação de data para input
     const formatarDataParaInput = (dataString) => {
         if (!dataString) return '';
         return dataString.split('T')[0];
     };
     
-    // Verificar qual status está selecionado
     const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
     
-    // Preparar lista de atividades disponíveis para vínculo
     let atividadesVinculadasHTML = '';
-    if (monitoramento.atividadesDisponiveis.length > 0) {
-        // Filtrar para não mostrar a própria atividade (se for edição)
-        const atividadesParaVincular = monitoramento.atividadesDisponiveis.filter(atv => 
+    if (gestorTarefas.atividadesDisponiveis.length > 0) {
+        const atividadesParaVincular = gestorTarefas.atividadesDisponiveis.filter(atv => 
             !atividadeExistente || atv.id !== atividadeExistente.id
         );
         
-        // Verificar quais atividades já estão vinculadas
         const atividadesVinculadasIds = atividadeExistente && atividadeExistente.atividadesVinculadas 
             ? atividadeExistente.atividadesVinculadas 
             : [];
@@ -1095,7 +998,7 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
                                 <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
                                 <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
                                     <strong>${atv.titulo}</strong>
-                                    <small class="text-muted"> (${atv.sistemaNome || 'Sistema'}) - ${getLabelStatus(atv.status)}</small>
+                                    <small class="text-muted"> (${atv.tarefaNome || 'Tarefa'}) - ${getLabelStatus(atv.status)}</small>
                                 </label>
                             </div>
                         `;
@@ -1108,7 +1011,7 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     }
     
     document.getElementById('modalAtividadeBody').innerHTML = `
-        <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${sistemaId}', '${tipo}');">
+        <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
             <div class="form-group">
                 <label for="tituloAtividade">Título *</label>
                 <input type="text" id="tituloAtividade" class="form-control" required 
@@ -1170,7 +1073,6 @@ function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = 
     
     modal.style.display = 'flex';
     
-    // Verificar se há alerta para mostrar
     verificarConclusaoVinculos();
 }
 
@@ -1190,10 +1092,10 @@ function verificarConclusaoVinculos() {
 
 function fecharModalAtividade() {
     document.getElementById('modalAtividade').style.display = 'none';
-    monitoramento.atividadeEditando = null;
+    gestorTarefas.atividadeEditando = null;
 }
 
-async function salvarAtividade(sistemaId, tipo) {
+async function salvarAtividade(tarefaId, tipo) {
     const titulo = document.getElementById('tituloAtividade').value;
     const responsavel = document.getElementById('responsavelAtividade').value;
     
@@ -1204,7 +1106,6 @@ async function salvarAtividade(sistemaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    // Coletar atividades vinculadas
     const atividadesVinculadas = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
@@ -1212,7 +1113,7 @@ async function salvarAtividade(sistemaId, tipo) {
     });
     
     const atividade = {
-        sistemaId: sistemaId,
+        tarefaId: tarefaId,
         tipo: tipo,
         titulo: titulo,
         descricao: document.getElementById('descricaoAtividade').value,
@@ -1227,43 +1128,34 @@ async function salvarAtividade(sistemaId, tipo) {
     try {
         let atividadeId;
         
-        if (monitoramento.atividadeEditando) {
-            // EDITAR atividade existente
-            atividadeId = monitoramento.atividadeEditando;
+        if (gestorTarefas.atividadeEditando) {
+            atividadeId = gestorTarefas.atividadeEditando;
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada com vínculos:`, atividadesVinculadas);
-            
-            // ❌ REMOVER O ALERTA EXTRA - manter apenas o alert de sucesso
-            // Não adicionar alerta específico para vínculos
-            
         } else {
-            // CRIAR nova atividade
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: monitoramento.usuario.usuario
+                criadoPor: gestorTarefas.usuario.usuario
             });
             atividadeId = docRef.id;
             console.log(`✅ Nova atividade ${atividadeId} criada com vínculos:`, atividadesVinculadas);
         }
         
-        // Processar se for concluída
         if (status === 'concluido' && atividadesVinculadas.length > 0) {
             console.log(`🔄 Atividade ${atividadeId} concluída com vínculos, processando...`);
-            await monitoramento.processarConclusaoAtividade(atividadeId);
+            await gestorTarefas.processarConclusaoAtividade(atividadeId);
         }
         
         fecharModalAtividade();
-        monitoramento.atividadeEditando = null;
+        gestorTarefas.atividadeEditando = null;
         
-        // Recarregar dados
-        await monitoramento.carregarDados();
-        await monitoramento.carregarAtividadesParaVinculo();
-        monitoramento.renderizarSistemas();
-        monitoramento.atualizarGraficos();
+        await gestorTarefas.carregarDados();
+        await gestorTarefas.carregarAtividadesParaVinculo();
+        gestorTarefas.renderizarTarefas();
+        gestorTarefas.atualizarGraficos();
         
-        // ✅ MANTENHA APENAS ESTE ALERTA (opcional)
-        alert(monitoramento.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
+        alert(gestorTarefas.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
         
     } catch (error) {
         console.error('❌ Erro ao salvar atividade:', error);
@@ -1273,10 +1165,8 @@ async function salvarAtividade(sistemaId, tipo) {
 
 async function editarAtividade(atividadeId) {
     try {
-        // Atualizar lista de atividades para vínculo
-        await monitoramento.carregarAtividadesParaVinculo();
+        await gestorTarefas.carregarAtividadesParaVinculo();
         
-        // Buscar atividade no Firebase
         const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
         
         if (!atividadeDoc.exists) {
@@ -1289,7 +1179,7 @@ async function editarAtividade(atividadeId) {
             ...atividadeDoc.data()
         };
         
-        abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
+        abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
         
     } catch (error) {
         console.error('❌ Erro ao buscar atividade:', error);
@@ -1297,7 +1187,6 @@ async function editarAtividade(atividadeId) {
     }
 }
 
-// Listener para monitorar mudanças de status
 function configurarListenerConclusoes() {
     db.collection('atividades').onSnapshot((snapshot) => {
         snapshot.docChanges().forEach((change) => {
@@ -1305,15 +1194,13 @@ function configurarListenerConclusoes() {
                 const atividadeAntiga = change.doc._previousData;
                 const atividadeNova = change.doc.data();
                 
-                // Verificar se o status mudou para "concluido"
                 if (atividadeAntiga.status !== 'concluido' && 
                     atividadeNova.status === 'concluido') {
                     
                     console.log(`🔄 Atividade ${change.doc.id} foi concluída!`);
                     
-                    // Processar atividades vinculadas
                     setTimeout(() => {
-                        monitoramento.processarConclusaoAtividade(change.doc.id);
+                        gestorTarefas.processarConclusaoAtividade(change.doc.id);
                     }, 500);
                 }
             }
@@ -1328,10 +1215,9 @@ async function excluirAtividade(atividadeId) {
         await db.collection('atividades').doc(atividadeId).delete();
         alert('✅ Atividade excluída com sucesso!');
         
-        // Recarregar dados
-        await monitoramento.carregarDados();
-        monitoramento.renderizarSistemas();
-        monitoramento.atualizarGraficos();
+        await gestorTarefas.carregarDados();
+        gestorTarefas.renderizarTarefas();
+        gestorTarefas.atualizarGraficos();
         
     } catch (error) {
         console.error('❌ Erro ao excluir atividade:', error);
@@ -1341,9 +1227,8 @@ async function excluirAtividade(atividadeId) {
 
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
-    monitoramento.init();
+    gestorTarefas.init();
 
-    // Iniciar listener para conclusões após um delay
     setTimeout(() => {
         configurarListenerConclusoes();
     }, 3000);
@@ -1351,11 +1236,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fechar modais clicando fora
 window.onclick = function(event) {
-    const modalSistema = document.getElementById('modalSistema');
+    const modalTarefa = document.getElementById('modalTarefa');
     const modalAtividade = document.getElementById('modalAtividade');
     
-    if (event.target === modalSistema) {
-        fecharModalSistema();
+    if (event.target === modalTarefa) {
+        fecharModalTarefa();
     }
     if (event.target === modalAtividade) {
         fecharModalAtividade();
