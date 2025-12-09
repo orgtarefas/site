@@ -1,6 +1,68 @@
-// dashboard.js - VERSÃO CORRIGIDA PARA USAR TITULO
+// dashboard.js - VERSÃO COMPLETA CORRIGIDA
 console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
+// ========== VARIÁVEIS GLOBAIS ==========
+let tarefasExpandidas = new Set();
+
+// ========== FUNÇÕES AUXILIARES ==========
+function manterEstadoExpansaoTarefas() {
+    tarefasExpandidas.clear();
+    
+    document.querySelectorAll('.task-body').forEach(tarefa => {
+        if (tarefa.style.display !== 'none') {
+            const id = tarefa.id.replace('tarefa-', '');
+            tarefasExpandidas.add(id);
+        }
+    });
+}
+
+function restaurarEstadoExpansaoTarefas() {
+    tarefasExpandidas.forEach(id => {
+        const elemento = document.getElementById(`tarefa-${id}`);
+        const header = elemento ? elemento.previousElementSibling : null;
+        const chevron = header ? header.querySelector('.fa-chevron-down, .fa-chevron-up') : null;
+        
+        if (elemento && header && chevron) {
+            elemento.style.display = 'block';
+            chevron.classList.remove('fa-chevron-down');
+            chevron.classList.add('fa-chevron-up');
+        }
+    });
+}
+
+function getLabelStatus(status) {
+    switch(status) {
+        case 'nao_iniciado': return 'Não Iniciado';
+        case 'pendente': return 'Pendente';
+        case 'andamento': return 'Em Andamento';
+        case 'concluido': return 'Concluído';
+        default: return status || 'Não definido';
+    }
+}
+
+function toggleTarefa(tarefaId) {
+    const elemento = document.getElementById(`tarefa-${tarefaId}`);
+    const header = elemento.previousElementSibling;
+    const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
+    
+    if (!elemento || !chevron) return;
+    
+    if (elemento.style.display === 'none') {
+        elemento.style.display = 'block';
+        chevron.classList.remove('fa-chevron-down');
+        chevron.classList.add('fa-chevron-up');
+        tarefasExpandidas.add(tarefaId);
+    } else {
+        elemento.style.display = 'none';
+        chevron.classList.remove('fa-chevron-up');
+        chevron.classList.add('fa-chevron-down');
+        tarefasExpandidas.delete(tarefaId);
+    }
+    
+    event.stopPropagation();
+}
+
+// ========== CLASSE PRINCIPAL ==========
 class GestorAtividades {
     constructor() {
         this.tarefas = [];
@@ -50,18 +112,14 @@ class GestorAtividades {
     }
 
     getNomeTarefa(tarefaId) {
-        console.log(`🔍 Buscando nome da tarefa: ${tarefaId}`);
         const tarefa = this.tarefas.find(t => t.id === tarefaId);
         
         if (!tarefa) {
-            console.log(`❌ Tarefa ${tarefaId} não encontrada na lista local`);
             return 'Tarefa não encontrada';
         }
         
         // Usar 'titulo' se existir, senão usar 'nome'
-        const nomeTarefa = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
-        console.log(`✅ Tarefa encontrada: ${nomeTarefa}`);
-        return nomeTarefa;
+        return tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
     }
 
     async verificarAutenticacao() {
@@ -101,19 +159,13 @@ class GestorAtividades {
             }));
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
 
-            // Carregar tarefas - IMPORTANTE: Agora da coleção 'tarefas'
+            // Carregar tarefas
             const tarefasSnapshot = await db.collection('tarefas').get();
             this.tarefas = tarefasSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log(`✅ ${this.tarefas.length} tarefas carregadas da coleção 'tarefas':`, 
-                this.tarefas.map(t => ({ 
-                    id: t.id, 
-                    titulo: t.titulo,
-                    nome: t.nome,
-                    descricao: t.descricao 
-                })));
+            console.log(`✅ ${this.tarefas.length} tarefas carregadas`);
 
             // Carregar atividades
             const atividadesSnapshot = await db.collection('atividades').get();
@@ -128,17 +180,9 @@ class GestorAtividades {
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
             
-            // Verificar atividades sem tarefa correspondente
-            const atividadesSemTarefa = todasAtividades.filter(a => a.tarefaNome === 'Tarefa não encontrada');
-            if (atividadesSemTarefa.length > 0) {
-                console.warn(`⚠️ ${atividadesSemTarefa.length} atividades sem tarefa correspondente:`, 
-                    atividadesSemTarefa.map(a => ({ id: a.id, tarefaId: a.tarefaId })));
-            }
-            
             // Agrupar atividades por tarefa
             this.tarefas.forEach(tarefa => {
                 tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
             });
 
             // Atualizar status
@@ -163,8 +207,6 @@ class GestorAtividades {
         try {
             const ctx = document.getElementById('statusChart').getContext('2d');
             const dados = this.calcularEstatisticas();
-            
-            console.log('Dados para gráfico de status:', dados);
             
             this.charts.status = new Chart(ctx, {
                 type: 'doughnut',
@@ -199,7 +241,6 @@ class GestorAtividades {
                     }
                 }
             });
-            console.log('✅ Gráfico de status inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de status:', error);
         }
@@ -244,7 +285,6 @@ class GestorAtividades {
                     }
                 }
             });
-            console.log('✅ Gráfico de progresso inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de progresso:', error);
         }
@@ -281,7 +321,6 @@ class GestorAtividades {
                     }
                 }
             });
-            console.log('✅ Gráfico de timeline inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de timeline:', error);
         }
@@ -299,7 +338,6 @@ class GestorAtividades {
             const atividades = tarefa.atividades || [];
             total += atividades.length;
             
-            // Verificar status CORRETAMENTE
             atividades.forEach(atividade => {
                 const status = atividade.status ? atividade.status.toLowerCase().trim() : '';
                 
@@ -365,7 +403,6 @@ class GestorAtividades {
                                 ${this.getTextoStatusTarefa(tarefa)}
                             </div>
                             <i class="fas fa-chevron-${estavaExpandida ? 'up' : 'down'}"></i>
-                            <!-- REMOVI os botões de ação da tarefa -->
                         </div>
                     </div>
                     <div class="task-body" id="tarefa-${tarefa.id}" style="display: ${estavaExpandida ? 'block' : 'none'};">
@@ -547,7 +584,7 @@ class GestorAtividades {
             });
         });
         
-        // Listener para tarefas (apenas para atualizar se houver mudanças)
+        // Listener para tarefas
         db.collection('tarefas').onSnapshot(() => {
             console.log('🔄 Atualizando lista de tarefas...');
             this.carregarDados().then(() => {
@@ -620,7 +657,6 @@ class GestorAtividades {
         try {
             console.log(`🔍 PROCESSAR: Buscando atividade ${atividadeId}...`);
             
-            // Buscar a atividade
             const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
             
             if (!atividadeDoc.exists) {
@@ -629,16 +665,10 @@ class GestorAtividades {
             }
     
             const atividade = atividadeDoc.data();
-            console.log(`📄 Dados da atividade:`, {
-                titulo: atividade.titulo,
-                status: atividade.status,
-                vinculos: atividade.atividadesVinculadas
-            });
             
             // Verificar se há atividades vinculadas
             if (atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0) {
                 console.log(`🔄 Processando conclusão da atividade ${atividadeId}`);
-                console.log(`📋 Atividades vinculadas: ${atividade.atividadesVinculadas.join(', ')}`);
                 
                 // Atualizar todas as atividades vinculadas para "pendente"
                 const batch = db.batch();
@@ -658,57 +688,27 @@ class GestorAtividades {
                             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         atualizadas++;
-                    } else {
-                        console.log(`⚠️ Atividade vinculada ${vinculadaId} não existe`);
                     }
                 }
                 
                 if (atualizadas > 0) {
                     await batch.commit();
                     console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
-                } else {
-                    console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
                 }
                 
                 // Recarregar dados após atualização
                 setTimeout(() => {
-                    // Atualizar apenas os dados necessários sem recolher
                     this.carregarDados().then(() => {
-                        // Manter tarefas expandidas
                         restaurarEstadoExpansaoTarefas();
                         this.renderizarTarefas();
                         this.atualizarGraficos();
                     });
                 }, 1000);
-                
-            } else {
-                console.log('ℹ️ Nenhuma atividade vinculada para processar');
             }
             
         } catch (error) {
             console.error('❌ Erro ao processar conclusão:', error);
         }
-    }
-
-    async editarAtividade(atividadeId) {
-        this.atividadeEditando = atividadeId;
-        
-        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-        
-        if (!atividadeDoc.exists) {
-            alert('Atividade não encontrada');
-            return;
-        }
-        
-        const atividade = atividadeDoc.data();
-        const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
-        
-        if (!tarefa) {
-            alert('Tarefa não encontrada');
-            return;
-        }
-        
-        this.abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
     }
 
     abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
@@ -842,14 +842,233 @@ class GestorAtividades {
     }
 }
 
-// ==================== fim da classe
+// ========== FUNÇÕES GLOBAIS ==========
 
-// ... (restante do código com as funções auxiliares)
+function logout() {
+    localStorage.removeItem('usuarioLogado');
+    window.location.href = 'login.html';
+}
 
-// Instanciar e inicializar o gestor
+function formatarDataRegistro(dataRegistro) {
+    try {
+        if (dataRegistro && dataRegistro.toDate) {
+            return dataRegistro.toDate().toLocaleString('pt-BR');
+        } else if (dataRegistro) {
+            return new Date(dataRegistro).toLocaleString('pt-BR');
+        } else {
+            return 'Não disponível';
+        }
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return 'Data inválida';
+    }
+}
+
+function verificarConclusaoVinculos() {
+    const statusSelecionado = document.getElementById('statusAtividade').value;
+    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
+    const alertDiv = document.getElementById('alertVinculos');
+    const alertText = document.getElementById('alertVinculosText');
+    
+    if (statusSelecionado === 'concluido' && checkboxes.length > 0) {
+        alertText.textContent = `Ao salvar, ${checkboxes.length} atividade(s) vinculada(s) será(ão) alterada(s) para "Pendente".`;
+        alertDiv.style.display = 'block';
+    } else {
+        alertDiv.style.display = 'none';
+    }
+}
+
+function fecharModalAtividade() {
+    document.getElementById('modalAtividade').style.display = 'none';
+    gestorAtividades.atividadeEditando = null;
+}
+
+async function salvarAtividade(tarefaId, tipo) {
+    const titulo = document.getElementById('tituloAtividade').value;
+    const responsavel = document.getElementById('responsavelAtividade').value;
+    
+    if (!titulo || !responsavel) {
+        alert('Preencha todos os campos obrigatórios');
+        return;
+    }
+    
+    const status = document.getElementById('statusAtividade').value;
+    
+    const atividadesVinculadas = [];
+    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
+    checkboxes.forEach(checkbox => {
+        atividadesVinculadas.push(checkbox.value);
+    });
+    
+    const atividade = {
+        tarefaId: tarefaId,
+        tipo: tipo,
+        titulo: titulo,
+        descricao: document.getElementById('descricaoAtividade').value,
+        responsavel: responsavel,
+        dataPrevista: document.getElementById('dataPrevista').value,
+        prioridade: document.getElementById('prioridadeAtividade').value,
+        status: status,
+        atividadesVinculadas: atividadesVinculadas,
+        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    try {
+        let atividadeId;
+        
+        if (gestorAtividades.atividadeEditando) {
+            atividadeId = gestorAtividades.atividadeEditando;
+            await db.collection('atividades').doc(atividadeId).update(atividade);
+        } else {
+            const docRef = await db.collection('atividades').add({
+                ...atividade,
+                dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: gestorAtividades.usuario.usuario
+            });
+            atividadeId = docRef.id;
+        }
+        
+        if (status === 'concluido' && atividadesVinculadas.length > 0) {
+            await gestorAtividades.processarConclusaoAtividade(atividadeId);
+        }
+        
+        fecharModalAtividade();
+        gestorAtividades.atividadeEditando = null;
+        
+        await gestorAtividades.carregarDados();
+        await gestorAtividades.carregarAtividadesParaVinculo();
+        gestorAtividades.renderizarTarefas();
+        gestorAtividades.atualizarGraficos();
+        
+        alert(gestorAtividades.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar atividade:', error);
+        alert('Erro ao salvar atividade: ' + error.message);
+    }
+}
+
+async function editarAtividade(atividadeId) {
+    try {
+        await gestorAtividades.carregarAtividadesParaVinculo();
+        
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = {
+            id: atividadeDoc.id,
+            ...atividadeDoc.data()
+        };
+        
+        gestorAtividades.abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividade:', error);
+        alert('Erro ao carregar atividade: ' + error.message);
+    }
+}
+
+function configurarListenerConclusoes() {
+    db.collection('atividades').onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'modified') {
+                const atividadeAntiga = change.doc._previousData;
+                const atividadeNova = change.doc.data();
+                
+                if (atividadeAntiga.status !== 'concluido' && 
+                    atividadeNova.status === 'concluido') {
+                    
+                    setTimeout(() => {
+                        gestorAtividades.processarConclusaoAtividade(change.doc.id);
+                    }, 500);
+                }
+            }
+        });
+    });
+}
+
+async function excluirAtividade(atividadeId) {
+    if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
+    
+    try {
+        await db.collection('atividades').doc(atividadeId).delete();
+        alert('✅ Atividade excluída com sucesso!');
+        
+        await gestorAtividades.carregarDados();
+        gestorAtividades.renderizarTarefas();
+        gestorAtividades.atualizarGraficos();
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir atividade:', error);
+        alert('Erro ao excluir atividade: ' + error.message);
+    }
+}
+
+async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
+    const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
+    const statusAnterior = select ? select.value : 'nao_iniciado';
+    
+    if (novoStatus === 'concluido') {
+        const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
+        
+        if (!confirmar) {
+            if (select) select.value = statusAnterior;
+            return;
+        }
+    }
+    
+    if (select) {
+        select.classList.add('processing');
+        select.disabled = true;
+    }
+    
+    try {
+        await db.collection('atividades').doc(atividadeId).update({
+            status: novoStatus,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        const checklistItem = select ? select.closest('.checklist-item') : null;
+        if (checklistItem) {
+            const badge = checklistItem.querySelector('.badge[class*="status-"]');
+            if (badge) {
+                badge.className = `badge status-${novoStatus}`;
+                badge.textContent = getLabelStatus(novoStatus);
+            }
+        }
+        
+        if (novoStatus === 'concluido') {
+            await gestorAtividades.processarConclusaoAtividade(atividadeId);
+        }
+        
+        setTimeout(() => {
+            gestorAtividades.calcularEstatisticas();
+            gestorAtividades.atualizarGraficos();
+        }, 500);
+        
+    } catch (error) {
+        console.error('❌ Erro ao alterar status:', error);
+        
+        if (select) {
+            select.value = statusAnterior;
+            alert('Erro ao alterar status: ' + error.message);
+        }
+        
+    } finally {
+        if (select) {
+            select.classList.remove('processing');
+            select.disabled = false;
+        }
+    }
+}
+
+// ========== INICIALIZAÇÃO ==========
 const gestorAtividades = new GestorAtividades();
 
-// Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
     gestorAtividades.init();
 
@@ -857,3 +1076,12 @@ document.addEventListener('DOMContentLoaded', () => {
         configurarListenerConclusoes();
     }, 3000);
 });
+
+// Fechar modais clicando fora
+window.onclick = function(event) {
+    const modalAtividade = document.getElementById('modalAtividade');
+    
+    if (event.target === modalAtividade) {
+        fecharModalAtividade();
+    }
+};
