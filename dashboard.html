@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Manager</title>
+    <title>Work Manager - Tarefas</title>
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,8 +21,8 @@
         <!-- Cabeçalho -->
         <header class="dashboard-header">
             <div class="header-left">
-                <i class="fas fa-chart-line"></i>
-                <h1>Work Manager</h1>
+                <i class="fas fa-tasks"></i>
+                <h1>Gestor de Tarefas</h1>
             </div>
             <div class="header-right">
                 <button class="btn btn-outline btn-sm" onclick="window.location.href='index.html'">
@@ -31,7 +31,7 @@
                 <button class="btn btn-outline btn-sm" onclick="window.location.href='workmanager.html'">
                     <i class="fas fa-users"></i> Grupos de Trabalho
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="abrirModalSistema()">
+                <button class="btn btn-primary btn-sm" onclick="abrirModalTarefa()">
                     <i class="fas fa-plus-circle"></i> Nova Tarefa
                 </button>
                 <span class="data-atual" id="data-atual"></span>
@@ -121,7 +121,7 @@
             </div>
             <div class="chart-card">
                 <div class="chart-header">
-                    <h3><i class="fas fa-chart-bar"></i> Progresso por Sistema</h3>
+                    <h3><i class="fas fa-chart-bar"></i> Progresso por Tarefa</h3>
                 </div>
                 <div class="chart-body">
                     <canvas id="progressChart"></canvas>
@@ -137,42 +137,42 @@
             </div>
         </div>
 
-        <!-- Sistemas/Projetos -->
-        <div class="systems-container" id="sistemas-container">
-            <!-- Sistemas serão carregados dinamicamente -->
-            <div class="loading-sistemas">
+        <!-- Tarefas -->
+        <div class="tasks-container" id="tarefas-container">
+            <!-- Tarefas serão carregadas dinamicamente -->
+            <div class="loading-tarefas">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Carregando sistemas...</p>
+                <p>Carregando tarefas...</p>
             </div>
         </div>
 
-        <!-- Modal para Sistema -->
-        <div id="modalSistema" class="modal">
+        <!-- Modal para Tarefa -->
+        <div id="modalTarefa" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 id="modalSistemaTitulo">Nova Tarefa</h2>
-                    <button class="close" onclick="fecharModalSistema()">&times;</button>
+                    <h2 id="modalTarefaTitulo">Nova Tarefa</h2>
+                    <button class="close" onclick="fecharModalTarefa()">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <form id="formSistema">
+                    <form id="formTarefa">
                         <div class="form-group">
-                            <label for="sistemaNome">Nome do Sistema *</label>
-                            <input type="text" id="sistemaNome" class="form-control" required placeholder="Ex: SISCRIAÇÃO">
+                            <label for="tarefaNome">Nome da Tarefa *</label>
+                            <input type="text" id="tarefaNome" class="form-control" required placeholder="Ex: Revisão de Documentação">
                         </div>
                         <div class="form-group">
-                            <label for="sistemaDescricao">Descrição</label>
-                            <textarea id="sistemaDescricao" class="form-control" placeholder="Descrição do sistema"></textarea>
+                            <label for="tarefaDescricao">Descrição</label>
+                            <textarea id="tarefaDescricao" class="form-control" placeholder="Descrição da tarefa"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="sistemaCor">Cor de Identificação</label>
-                            <input type="color" id="sistemaCor" class="form-control" value="#2C3E50">
+                            <label for="tarefaCor">Cor de Identificação</label>
+                            <input type="color" id="tarefaCor" class="form-control" value="#2C3E50">
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-outline" onclick="fecharModalSistema()">Cancelar</button>
-                    <button class="btn btn-primary" onclick="salvarSistema()">
-                        <i class="fas fa-save"></i> Salvar Sistema
+                    <button class="btn btn-outline" onclick="fecharModalTarefa()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="salvarTarefa()">
+                        <i class="fas fa-save"></i> Salvar Tarefa
                     </button>
                 </div>
             </div>
@@ -247,7 +247,7 @@
     <!-- Script de inicialização rápida -->
     <script>
         // Inicialização RÁPIDA do dashboard
-        console.log('=== DASHBOARD INICIANDO ===');
+        console.log('=== GESTOR DE TAREFAS INICIANDO ===');
         
         // Verificar autenticação
         const usuarioLogado = localStorage.getItem('usuarioLogado');
@@ -277,7 +277,7 @@
                         if (loadingScreen && mainContent) {
                             loadingScreen.style.display = 'none';
                             mainContent.style.display = 'block';
-                            console.log('✅ Dashboard carregado!');
+                            console.log('✅ Gestor de Tarefas carregado!');
                         }
                     }, 1000);
                     
