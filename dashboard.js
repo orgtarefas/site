@@ -1,20 +1,18 @@
-// dashboard.js - VERSÃO COMPLETA AJUSTADA PARA TAREFAS
-console.log('=== GESTOR DE TAREFAS INICIANDO ===');
+// dashboard.js - VERSÃO AJUSTADA (APENAS ATIVIDADES)
+console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
-// Sistema de Monitoramento Dinâmico para Tarefas
-class GestorTarefas {
+class GestorAtividades { // Mudei o nome da classe
     constructor() {
-        this.tarefas = []; // Alterado: sistemas → tarefas
+        this.tarefas = [];
         this.usuarios = [];
         this.usuario = null;
         this.charts = {};
-        this.tarefaEditando = null; // Alterado: sistemaEditando → tarefaEditando
         this.atividadeEditando = null;
-        this.atividadesDisponiveis = []; // Todas as atividades para vínculos
+        this.atividadesDisponiveis = [];
     }
 
     async init() {
-        console.log('🚀 Inicializando Gestor de Tarefas...');
+        console.log('🚀 Inicializando Gestor de Atividades...');
         
         // Verificar autenticação
         await this.verificarAutenticacao();
@@ -34,7 +32,7 @@ class GestorTarefas {
         // Configurar listeners
         this.configurarListeners();
         
-        console.log('✅ Gestor de Tarefas inicializado com sucesso!');
+        console.log('✅ Gestor de Atividades inicializado com sucesso!');
     }
 
     async carregarAtividadesParaVinculo() {
@@ -43,7 +41,7 @@ class GestorTarefas {
             this.atividadesDisponiveis = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                tarefaNome: this.getNomeTarefa(doc.data().tarefaId) // Alterado: sistemaId → tarefaId
+                tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
             console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
         } catch (error) {
@@ -51,7 +49,7 @@ class GestorTarefas {
         }
     }
 
-    getNomeTarefa(tarefaId) { // Alterado
+    getNomeTarefa(tarefaId) {
         const tarefa = this.tarefas.find(t => t.id === tarefaId);
         return tarefa ? tarefa.nome : 'Tarefa não encontrada';
     }
@@ -93,7 +91,7 @@ class GestorTarefas {
             }));
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
 
-            // Carregar tarefas (ANTIGOS SISTEMAS)
+            // Carregar tarefas
             const tarefasSnapshot = await db.collection('tarefas').get();
             this.tarefas = tarefasSnapshot.docs.map(doc => ({
                 id: doc.id,
@@ -106,7 +104,7 @@ class GestorTarefas {
             const todasAtividades = atividadesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                tarefaNome: this.getNomeTarefa(doc.data().tarefaId) // Alterado: sistemaId → tarefaId
+                tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
             
             // Agrupar atividades por tarefa
@@ -127,236 +125,7 @@ class GestorTarefas {
         }
     }
 
-    async processarConclusaoAtividade(atividadeId) {
-        try {
-            console.log(`🔍 PROCESSAR: Buscando atividade ${atividadeId}...`);
-            
-            // Buscar a atividade
-            const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-            
-            if (!atividadeDoc.exists) {
-                console.log(`❌ Atividade ${atividadeId} não encontrada`);
-                return;
-            }
-    
-            const atividade = atividadeDoc.data();
-            console.log(`📄 Dados da atividade:`, {
-                titulo: atividade.titulo,
-                status: atividade.status,
-                vinculos: atividade.atividadesVinculadas
-            });
-            
-            // Verificar se há atividades vinculadas
-            if (atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0) {
-                console.log(`🔄 Processando conclusão da atividade ${atividadeId}`);
-                console.log(`📋 Atividades vinculadas: ${atividade.atividadesVinculadas.join(', ')}`);
-                
-                // Atualizar todas as atividades vinculadas para "pendente"
-                const batch = db.batch();
-                let atualizadas = 0;
-                
-                for (const vinculadaId of atividade.atividadesVinculadas) {
-                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
-                    
-                    // Verificar se a atividade existe
-                    const vinculadaDoc = await atividadeVinculadaRef.get();
-                    if (vinculadaDoc.exists) {
-                        const atividadeVinculada = vinculadaDoc.data();
-                        console.log(`🔄 Atualizando ${vinculadaId}: ${atividadeVinculada.titulo}`);
-                        
-                        batch.update(atividadeVinculadaRef, {
-                            status: 'pendente',
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        atualizadas++;
-                    } else {
-                        console.log(`⚠️ Atividade vinculada ${vinculadaId} não existe`);
-                    }
-                }
-                
-                if (atualizadas > 0) {
-                    await batch.commit();
-                    console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
-                } else {
-                    console.log('ℹ️ Nenhuma atividade vinculada foi atualizada');
-                }
-                
-                // Recarregar dados após atualização
-                setTimeout(() => {
-                    // Atualizar apenas os dados necessários sem recolher
-                    this.carregarDados().then(() => {
-                        // Manter tarefas expandidas
-                        restaurarEstadoExpansaoTarefas();
-                        this.renderizarTarefas();
-                        this.atualizarGraficos();
-                    });
-                }, 1000);
-                
-            } else {
-                console.log('ℹ️ Nenhuma atividade vinculada para processar');
-            }
-            
-        } catch (error) {
-            console.error('❌ Erro ao processar conclusão:', error);
-        }
-    }
-
-    inicializarGraficos() {
-        this.inicializarGraficoStatus();
-        this.inicializarGraficoProgresso();
-        this.inicializarGraficoTimeline();
-    }
-
-    inicializarGraficoStatus() {
-        const ctx = document.getElementById('statusChart').getContext('2d');
-        const dados = this.calcularEstatisticas();
-        
-        console.log('Dados para gráfico:', dados);
-        
-        this.charts.status = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
-                datasets: [{
-                    data: [
-                        dados.naoIniciadas,
-                        dados.pendentes,  
-                        dados.andamento,
-                        dados.concluidas,
-                        dados.atrasadas
-                    ],
-                    backgroundColor: [
-                        '#6c757d',
-                        '#f39c12',
-                        '#3498db',
-                        '#27ae60',
-                        '#e74c3c'
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
-
-    inicializarGraficoProgresso() {
-        const ctx = document.getElementById('progressChart').getContext('2d');
-        
-        const tarefasNomes = this.tarefas.map(t => t.nome);
-        const tarefasProgresso = this.tarefas.map(tarefa => {
-            const atividades = tarefa.atividades || [];
-            if (atividades.length === 0) return 0;
-            const concluidas = atividades.filter(a => a.status === 'concluido').length;
-            return (concluidas / atividades.length) * 100;
-        });
-
-        this.charts.progress = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: tarefasNomes,
-                datasets: [{
-                    label: 'Progresso (%)',
-                    data: tarefasProgresso,
-                    backgroundColor: this.tarefas.map(t => t.cor || '#2C3E50')
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    inicializarGraficoTimeline() {
-        const ctx = document.getElementById('timelineChart').getContext('2d');
-        
-        // Dados de exemplo
-        const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-        const dadosTimeline = [5, 8, 12, 6, 15, 10, 7];
-
-        this.charts.timeline = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ultimos7Dias,
-                datasets: [{
-                    label: 'Atividades Concluídas',
-                    data: dadosTimeline,
-                    borderColor: '#27ae60',
-                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    calcularEstatisticas() {
-        let total = 0;
-        let naoIniciadas = 0;
-        let pendentes = 0;
-        let andamento = 0;
-        let concluidas = 0;
-        let atrasadas = 0;
-    
-        this.tarefas.forEach(tarefa => {
-            const atividades = tarefa.atividades || [];
-            total += atividades.length;
-            
-            // Verificar status CORRETAMENTE
-            atividades.forEach(atividade => {
-                const status = atividade.status ? atividade.status.toLowerCase().trim() : '';
-                
-                if (status === 'nao_iniciado' || status === 'não iniciado') {
-                    naoIniciadas++;
-                } else if (status === 'pendente') {
-                    pendentes++;
-                } else if (status === 'andamento') {
-                    andamento++;
-                } else if (status === 'concluido' || status === 'concluído') {
-                    concluidas++;
-                }
-            });
-        });
-    
-        // Atualizar interface
-        document.getElementById('total-atividades').textContent = total;
-        document.getElementById('nao-iniciadas').textContent = naoIniciadas;
-        document.getElementById('pendentes').textContent = pendentes;
-        document.getElementById('andamento').textContent = andamento;
-        document.getElementById('concluidas').textContent = concluidas;
-        document.getElementById('atrasadas').textContent = atrasadas;
-    
-        return { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas };
-    }
+    // ... (mantenha o resto das funções processarConclusaoAtividade, inicializarGraficos, etc)
 
     renderizarTarefas() {
         const container = document.getElementById('tarefas-container');
@@ -365,8 +134,11 @@ class GestorTarefas {
             container.innerHTML = `
                 <div class="empty-tarefas">
                     <i class="fas fa-tasks"></i>
-                    <h3>Nenhuma tarefa cadastrada</h3>
-                    <p>Clique em "Nova Tarefa" para começar</p>
+                    <h3>Nenhuma tarefa disponível</h3>
+                    <p>Crie tarefas na tela de configurações para começar</p>
+                    <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='index.html'">
+                        <i class="fas fa-cog"></i> Ir para Configurações
+                    </button>
                 </div>
             `;
             return;
@@ -391,14 +163,7 @@ class GestorTarefas {
                                 ${this.getTextoStatusTarefa(tarefa)}
                             </div>
                             <i class="fas fa-chevron-${estavaExpandida ? 'up' : 'down'}"></i>
-                            <div class="task-actions">
-                                <button class="btn-icon" onclick="event.stopPropagation(); editarTarefa('${tarefa.id}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-icon btn-danger" onclick="event.stopPropagation(); excluirTarefa('${tarefa.id}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                            <!-- REMOVI os botões de editar/excluir tarefa -->
                         </div>
                     </div>
                     <div class="task-body" id="tarefa-${tarefa.id}" style="display: ${estavaExpandida ? 'block' : 'none'};">
@@ -417,172 +182,21 @@ class GestorTarefas {
         }, 10);
     }
 
-    calcularEstatisticasTarefa(tarefa) {
-        const atividades = tarefa.atividades || [];
-        const total = atividades.length;
-        const naoIniciadas = atividades.filter(a => a.status === 'nao_iniciado').length;
-        const pendentes = atividades.filter(a => a.status === 'pendente').length;
-        const andamento = atividades.filter(a => a.status === 'andamento').length;
-        const concluidas = atividades.filter(a => a.status === 'concluido').length;
-        
-        return {
-            total,
-            naoIniciadas,
-            pendentes,
-            andamento,
-            concluidas
-        };
-    }
-        
-    renderizarAtividadesTarefa(tarefa) {
-        const atividades = tarefa.atividades || [];
-        
-        if (atividades.length === 0) {
-            return `
-                <div class="empty-activities">
-                    <p>Nenhuma atividade cadastrada para esta tarefa</p>
-                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
-                        <i class="fas fa-plus"></i> Adicionar Atividade
-                    </button>
-                </div>
-            `;
-        }
-    
-        // Agrupar por tipo
-        const tipos = ['execucao', 'monitoramento', 'conclusao'];
-        const titulos = {
-            'execucao': 'Execução das Atividades',
-            'monitoramento': 'Monitoramento',
-            'conclusao': 'Conclusão e Revisão'
-        };
-    
-        return tipos.map(tipo => {
-            const atividadesTipo = atividades.filter(a => a.tipo === tipo);
-            
-            return `
-                <div class="activity-section">
-                    <div class="section-header">
-                        <h3><i class="fas fa-list-check"></i> ${titulos[tipo]}</h3>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
-                            <i class="fas fa-plus"></i> Nova Atividade
-                        </button>
-                    </div>
-                    <div class="checklist">
-                        ${atividadesTipo.length > 0 ? 
-                            atividadesTipo.map(atividade => {
-                                const status = atividade.status || 'nao_iniciado';
-                                const atividadesVinculadas = atividade.atividadesVinculadas || [];
-                                const temVinculos = atividadesVinculadas.length > 0;
-                                
-                                const opcoesStatus = [
-                                    {value: 'nao_iniciado', label: 'Não Iniciado'},
-                                    {value: 'pendente', label: 'Pendente'},
-                                    {value: 'andamento', label: 'Em Andamento'},
-                                    {value: 'concluido', label: 'Concluído'}
-                                ];
-                                
-                                const selectHTML = opcoesStatus.map(opcao => `
-                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
-                                        ${opcao.label}
-                                    </option>
-                                `).join('');
-                                
-                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                                
-                                return `
-                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
-                                        <div class="item-info">
-                                            <div class="item-title">
-                                                ${atividade.titulo}
-                                                ${temVinculos ? 
-                                                    `<span class="vinculos-tooltip" title="${atividadesVinculadas.length} atividade(s) vinculada(s)">
-                                                        <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
-                                                    </span>` 
-                                                    : ''
-                                                }
-                                            </div>
-                                            ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                                            <div class="item-meta">
-                                                <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
-                                                <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                                <span class="badge status-${status}">
-                                                    ${getLabelStatus(status)}
-                                                </span>
-                                                ${temVinculos ? 
-                                                    `<span class="vinculos-badge">
-                                                        <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
-                                                    </span>` 
-                                                    : ''
-                                                }
-                                            </div>
-                                        </div>
-                                        <div class="item-actions">
-                                            <div class="status-selector">
-                                                <select class="status-select" 
-                                                        data-id="${atividade.id}"
-                                                        data-titulo="${tituloEscapado}"
-                                                        onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                                    ${selectHTML}
-                                                </select>
-                                            </div>
-                                            
-                                            <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('') :
-                            '<div class="checklist-item"><div class="item-desc">Nenhuma atividade cadastrada</div></div>'
-                        }
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    getTextoStatusTarefa(tarefa) {
-        const stats = this.calcularEstatisticasTarefa(tarefa);
-        const total = stats.total;
-        
-        if (total === 0) {
-            return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
-        }
-        
-        const badges = [];
-        
-        if (stats.naoIniciadas > 0) {
-            badges.push(`<span class="status-mini-badge badge-nao_iniciado">Não Iniciado (${stats.naoIniciadas}/${total})</span>`);
-        }
-        if (stats.pendentes > 0) {
-            badges.push(`<span class="status-mini-badge badge-pendente">Pendente (${stats.pendentes}/${total})</span>`);
-        }
-        if (stats.andamento > 0) {
-            badges.push(`<span class="status-mini-badge badge-andamento">Em Andamento (${stats.andamento}/${total})</span>`);
-        }
-        if (stats.concluidas > 0) {
-            badges.push(`<span class="status-mini-badge badge-concluido">Concluído (${stats.concluidas}/${total})</span>`);
-        }
-        
-        return badges.join(' ');
-    }
+    // ... (mantenha o resto das funções calcularEstatisticasTarefa, renderizarAtividadesTarefa, etc)
 
     configurarListeners() {
-        // Listener para atualizações gerais
+        // Listener para atualizações de atividades
         db.collection('atividades').onSnapshot(() => {
-            console.log('🔄 Atualizando dados em tempo real...');
+            console.log('🔄 Atualizando atividades em tempo real...');
             this.carregarDados().then(() => {
                 this.renderizarTarefas();
                 this.atualizarGraficos();
             });
         });
         
-        // Listener para tarefas
+        // Listener para tarefas (apenas para atualizar se houver mudanças)
         db.collection('tarefas').onSnapshot(() => {
-            console.log('🔄 Atualizando tarefas em tempo real...');
+            console.log('🔄 Atualizando lista de tarefas...');
             this.carregarDados().then(() => {
                 this.renderizarTarefas();
                 this.atualizarGraficos();
@@ -592,79 +206,7 @@ class GestorTarefas {
         this.configurarListenerConclusoes();
     }
     
-    configurarListenerConclusoes() {
-        console.log('🎯 Configurando listener para conclusões...');
-        
-        db.collection('atividades').onSnapshot((snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'modified') {
-                    const atividadeAntiga = change.doc._previousData;
-                    const atividadeNova = change.doc.data();
-                    
-                    if (atividadeAntiga?.status === atividadeNova.status) {
-                        return;
-                    }
-                    
-                    if (atividadeAntiga?.status !== 'concluido' && 
-                        atividadeNova.status === 'concluido') {
-                        
-                        console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
-                        console.log(`📋 Vínculos: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
-                        
-                        this.processarConclusaoAtividade(change.doc.id);
-                    }
-                }
-            });
-        });
-    }
-    
-    atualizarGraficos() {
-        if (this.charts.status) {
-            const dados = this.calcularEstatisticas();
-            
-            this.charts.status.data.datasets[0].data = [
-                dados.naoIniciadas,
-                dados.pendentes,
-                dados.andamento,
-                dados.concluidas,
-                dados.atrasadas
-            ];
-            
-            this.charts.status.update();
-        }
-    
-        if (this.charts.progress) {
-            const tarefasProgresso = this.tarefas.map(tarefa => {
-                const atividades = tarefa.atividades || [];
-                if (atividades.length === 0) return 0;
-                const concluidas = atividades.filter(a => a.status === 'concluido').length;
-                const andamento = atividades.filter(a => a.status === 'andamento').length;
-                const total = atividades.length;
-                const progresso = concluidas + andamento;
-                return (progresso / total) * 100;
-            });
-            
-            this.charts.progress.data.datasets[0].data = tarefasProgresso;
-            this.charts.progress.update();
-        }
-    }
-
-    abrirModalEditarTarefa(tarefaId) {
-        this.tarefaEditando = tarefaId;
-        const tarefa = this.tarefas.find(t => t.id === tarefaId);
-        
-        if (!tarefa) {
-            alert('Tarefa não encontrada');
-            return;
-        }
-        
-        document.getElementById('modalTarefa').style.display = 'flex';
-        document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
-        
-        document.getElementById('tarefaNome').value = tarefa.nome;
-        document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
-        document.getElementById('tarefaCor').value = tarefa.cor || '#2C3E50';
-    }
+    // ... (mantenha o resto das funções configurarListenerConclusoes, atualizarGraficos, etc)
 
     async editarAtividade(atividadeId) {
         this.atividadeEditando = atividadeId;
@@ -773,12 +315,12 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         
         if (novoStatus === 'concluido') {
             console.log(`🔗 Processando atividades vinculadas para "${tituloAtividade}"...`);
-            await gestorTarefas.processarConclusaoAtividade(atividadeId);
+            await gestorAtividades.processarConclusaoAtividade(atividadeId);
         }
         
         setTimeout(() => {
-            gestorTarefas.calcularEstatisticas();
-            gestorTarefas.atualizarGraficos();
+            gestorAtividades.calcularEstatisticas();
+            gestorAtividades.atualizarGraficos();
         }, 500);
         
     } catch (error) {
@@ -798,7 +340,7 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
 }
     
 // Instanciar e inicializar o gestor
-const gestorTarefas = new GestorTarefas();
+const gestorAtividades = new GestorAtividades(); // Mudei o nome da instância
 
 // ========== FUNÇÕES GLOBAIS ==========
 
@@ -829,107 +371,7 @@ function toggleTarefa(tarefaId) {
     event.stopPropagation();
 }
 
-function abrirModalTarefa() {
-    gestorTarefas.tarefaEditando = null;
-    document.getElementById('modalTarefa').style.display = 'flex';
-    document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
-    document.getElementById('formTarefa').reset();
-    document.getElementById('tarefaCor').value = '#2C3E50';
-}
-
-function fecharModalTarefa() {
-    document.getElementById('modalTarefa').style.display = 'none';
-}
-
-async function editarTarefa(tarefaId) {
-    gestorTarefas.tarefaEditando = tarefaId;
-    const tarefa = gestorTarefas.tarefas.find(t => t.id === tarefaId);
-    
-    if (!tarefa) {
-        alert('Tarefa não encontrada');
-        return;
-    }
-    
-    document.getElementById('modalTarefa').style.display = 'flex';
-    document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
-    
-    document.getElementById('tarefaNome').value = tarefa.nome;
-    document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
-    document.getElementById('tarefaCor').value = tarefa.cor || '#2C3E50';
-}
-
-async function salvarTarefa() {
-    const nome = document.getElementById('tarefaNome').value;
-    const descricao = document.getElementById('tarefaDescricao').value;
-    const cor = document.getElementById('tarefaCor').value;
-    
-    if (!nome) {
-        alert('Preencha o nome da tarefa');
-        return;
-    }
-    
-    try {
-        const tarefaData = {
-            nome: nome,
-            descricao: descricao,
-            cor: cor,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        
-        if (gestorTarefas.tarefaEditando) {
-            await db.collection('tarefas').doc(gestorTarefas.tarefaEditando).update(tarefaData);
-            alert('✅ Tarefa atualizada com sucesso!');
-        } else {
-            await db.collection('tarefas').add({
-                ...tarefaData,
-                dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: gestorTarefas.usuario.usuario
-            });
-            alert('✅ Tarefa criada com sucesso!');
-        }
-        
-        fecharModalTarefa();
-        gestorTarefas.tarefaEditando = null;
-        
-        await gestorTarefas.carregarDados();
-        gestorTarefas.renderizarTarefas();
-        gestorTarefas.atualizarGraficos();
-        
-    } catch (error) {
-        console.error('❌ Erro ao salvar tarefa:', error);
-        alert('Erro ao salvar tarefa: ' + error.message);
-    }
-}
-
-async function excluirTarefa(tarefaId) {
-    if (!confirm('ATENÇÃO: Tem certeza que deseja excluir esta tarefa? Todas as atividades vinculadas também serão excluídas!')) {
-        return;
-    }
-    
-    try {
-        const atividadesSnapshot = await db.collection('atividades')
-            .where('tarefaId', '==', tarefaId)
-            .get();
-        
-        const batch = db.batch();
-        atividadesSnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-        await batch.commit();
-        
-        await db.collection('tarefas').doc(tarefaId).delete();
-        
-        alert('✅ Tarefa e atividades excluídas com sucesso!');
-        
-        await gestorTarefas.carregarDados();
-        gestorTarefas.renderizarTarefas();
-        gestorTarefas.atualizarGraficos();
-        
-    } catch (error) {
-        console.error('❌ Erro ao excluir tarefa:', error);
-        alert('Erro ao excluir tarefa: ' + error.message);
-    }
-}
+// REMOVI as funções: abrirModalTarefa, fecharModalTarefa, editarTarefa, salvarTarefa, excluirTarefa
 
 function formatarDataRegistro(dataRegistro) {
     try {
@@ -947,7 +389,7 @@ function formatarDataRegistro(dataRegistro) {
 }
 
 function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
-    gestorTarefas.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
+    gestorAtividades.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
     
     const modal = document.getElementById('modalAtividade');
     const titulos = {
@@ -962,7 +404,7 @@ function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = n
     
     document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
     
-    const usuariosOptions = gestorTarefas.usuarios.map(user => {
+    const usuariosOptions = gestorAtividades.usuarios.map(user => {
         const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
         return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
     }).join('');
@@ -975,8 +417,8 @@ function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = n
     const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
     
     let atividadesVinculadasHTML = '';
-    if (gestorTarefas.atividadesDisponiveis.length > 0) {
-        const atividadesParaVincular = gestorTarefas.atividadesDisponiveis.filter(atv => 
+    if (gestorAtividades.atividadesDisponiveis.length > 0) {
+        const atividadesParaVincular = gestorAtividades.atividadesDisponiveis.filter(atv => 
             !atividadeExistente || atv.id !== atividadeExistente.id
         );
         
@@ -1092,7 +534,7 @@ function verificarConclusaoVinculos() {
 
 function fecharModalAtividade() {
     document.getElementById('modalAtividade').style.display = 'none';
-    gestorTarefas.atividadeEditando = null;
+    gestorAtividades.atividadeEditando = null;
 }
 
 async function salvarAtividade(tarefaId, tipo) {
@@ -1128,15 +570,15 @@ async function salvarAtividade(tarefaId, tipo) {
     try {
         let atividadeId;
         
-        if (gestorTarefas.atividadeEditando) {
-            atividadeId = gestorTarefas.atividadeEditando;
+        if (gestorAtividades.atividadeEditando) {
+            atividadeId = gestorAtividades.atividadeEditando;
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada com vínculos:`, atividadesVinculadas);
         } else {
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: gestorTarefas.usuario.usuario
+                criadoPor: gestorAtividades.usuario.usuario
             });
             atividadeId = docRef.id;
             console.log(`✅ Nova atividade ${atividadeId} criada com vínculos:`, atividadesVinculadas);
@@ -1144,18 +586,18 @@ async function salvarAtividade(tarefaId, tipo) {
         
         if (status === 'concluido' && atividadesVinculadas.length > 0) {
             console.log(`🔄 Atividade ${atividadeId} concluída com vínculos, processando...`);
-            await gestorTarefas.processarConclusaoAtividade(atividadeId);
+            await gestorAtividades.processarConclusaoAtividade(atividadeId);
         }
         
         fecharModalAtividade();
-        gestorTarefas.atividadeEditando = null;
+        gestorAtividades.atividadeEditando = null;
         
-        await gestorTarefas.carregarDados();
-        await gestorTarefas.carregarAtividadesParaVinculo();
-        gestorTarefas.renderizarTarefas();
-        gestorTarefas.atualizarGraficos();
+        await gestorAtividades.carregarDados();
+        await gestorAtividades.carregarAtividadesParaVinculo();
+        gestorAtividades.renderizarTarefas();
+        gestorAtividades.atualizarGraficos();
         
-        alert(gestorTarefas.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
+        alert(gestorAtividades.atividadeEditando ? '✅ Atividade atualizada!' : '✅ Atividade criada!');
         
     } catch (error) {
         console.error('❌ Erro ao salvar atividade:', error);
@@ -1165,7 +607,7 @@ async function salvarAtividade(tarefaId, tipo) {
 
 async function editarAtividade(atividadeId) {
     try {
-        await gestorTarefas.carregarAtividadesParaVinculo();
+        await gestorAtividades.carregarAtividadesParaVinculo();
         
         const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
         
@@ -1200,7 +642,7 @@ function configurarListenerConclusoes() {
                     console.log(`🔄 Atividade ${change.doc.id} foi concluída!`);
                     
                     setTimeout(() => {
-                        gestorTarefas.processarConclusaoAtividade(change.doc.id);
+                        gestorAtividades.processarConclusaoAtividade(change.doc.id);
                     }, 500);
                 }
             }
@@ -1215,9 +657,9 @@ async function excluirAtividade(atividadeId) {
         await db.collection('atividades').doc(atividadeId).delete();
         alert('✅ Atividade excluída com sucesso!');
         
-        await gestorTarefas.carregarDados();
-        gestorTarefas.renderizarTarefas();
-        gestorTarefas.atualizarGraficos();
+        await gestorAtividades.carregarDados();
+        gestorAtividades.renderizarTarefas();
+        gestorAtividades.atualizarGraficos();
         
     } catch (error) {
         console.error('❌ Erro ao excluir atividade:', error);
@@ -1227,7 +669,7 @@ async function excluirAtividade(atividadeId) {
 
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
-    gestorTarefas.init();
+    gestorAtividades.init();
 
     setTimeout(() => {
         configurarListenerConclusoes();
@@ -1236,12 +678,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Fechar modais clicando fora
 window.onclick = function(event) {
-    const modalTarefa = document.getElementById('modalTarefa');
     const modalAtividade = document.getElementById('modalAtividade');
     
-    if (event.target === modalTarefa) {
-        fecharModalTarefa();
-    }
     if (event.target === modalAtividade) {
         fecharModalAtividade();
     }
