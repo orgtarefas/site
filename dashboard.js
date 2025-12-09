@@ -45,7 +45,7 @@ class SistemaMonitoramento {
             this.atividadesDisponiveis = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                sistemaNome: this.getNomeSistema(doc.data().gruposAcesso)
+                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
             }));
             console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
         } catch (error) {
@@ -53,8 +53,8 @@ class SistemaMonitoramento {
         }
     }
 
-    getNomeSistema(gruposAcesso) {
-        const sistema = this.sistemas.find(s => s.id === gruposAcesso);
+    getNomeSistema(sistemaId) {
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
         return sistema ? sistema.nome : 'Sistema não encontrado';
     }
     
@@ -110,12 +110,12 @@ class SistemaMonitoramento {
             const todasAtividades = atividadesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                sistemaNome: this.getNomeSistema(doc.data().gruposAcesso)
+                sistemaNome: this.getNomeSistema(doc.data().sistemaId)
             }));
             
             // Agrupar atividades por sistema
             this.sistemas.forEach(sistema => {
-                sistema.atividades = todasAtividades.filter(a => a.gruposAcesso === sistema.id);
+                sistema.atividades = todasAtividades.filter(a => a.sistemaId === sistema.id);
             });
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
@@ -175,7 +175,7 @@ class SistemaMonitoramento {
                         });
                         atualizadas++;
                     } else {
-                        console.log(`⚠️ Atividade vinculada ${vinculadaId} não existe`);
+                        console.log(⚠️ Atividade vinculada ${vinculadaId} não existe`);
                     }
                 }
                 
@@ -714,9 +714,9 @@ class SistemaMonitoramento {
     }
 
     // NOVOS MÉTODOS PARA EDIÇÃO
-    abrirModalEditarSistema(gruposAcesso) {
-        this.sistemaEditando = gruposAcesso;
-        const sistema = this.sistemas.find(s => s.id === gruposAcesso);
+    abrirModalEditarSistema(sistemaId) {
+        this.sistemaEditando = sistemaId;
+        const sistema = this.sistemas.find(s => s.id === sistemaId);
         
         if (!sistema) {
             alert('Sistema não encontrado');
@@ -744,14 +744,14 @@ class SistemaMonitoramento {
         }
         
         const atividade = atividadeDoc.data();
-        const sistema = this.sistemas.find(s => s.id === atividade.gruposAcesso);
+        const sistema = this.sistemas.find(s => s.id === atividade.sistemaId);
         
         if (!sistema) {
             alert('Sistema não encontrado');
             return;
         }
         
-        this.abrirModalAtividade(atividade.gruposAcesso, atividade.tipo, atividade);
+        this.abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
     }
 }
 
@@ -885,8 +885,8 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-function toggleSistema(gruposAcesso) {
-    const elemento = document.getElementById(`sistema-${gruposAcesso}`);
+function toggleSistema(sistemaId) {
+    const elemento = document.getElementById(`sistema-${sistemaId}`);
     const header = elemento.previousElementSibling;
     const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
     
@@ -897,13 +897,13 @@ function toggleSistema(gruposAcesso) {
         elemento.style.display = 'block';
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-up');
-        sistemasExpandidos.add(gruposAcesso); // Adicionar ao conjunto
+        sistemasExpandidos.add(sistemaId); // Adicionar ao conjunto
     } else {
         // Fechar
         elemento.style.display = 'none';
         chevron.classList.remove('fa-chevron-up');
         chevron.classList.add('fa-chevron-down');
-        sistemasExpandidos.delete(gruposAcesso); // Remover do conjunto
+        sistemasExpandidos.delete(sistemaId); // Remover do conjunto
     }
     
     // Prevenir propagação para não fechar imediatamente
@@ -922,9 +922,9 @@ function fecharModalSistema() {
     document.getElementById('modalSistema').style.display = 'none';
 }
 
-async function editarSistema(gruposAcesso) {
-    monitoramento.sistemaEditando = gruposAcesso;
-    const sistema = monitoramento.sistemas.find(s => s.id === gruposAcesso);
+async function editarSistema(sistemaId) {
+    monitoramento.sistemaEditando = sistemaId;
+    const sistema = monitoramento.sistemas.find(s => s.id === sistemaId);
     
     if (!sistema) {
         alert('Sistema não encontrado');
@@ -986,7 +986,7 @@ async function salvarSistema() {
     }
 }
 
-async function excluirSistema(gruposAcesso) {
+async function excluirSistema(sistemaId) {
     if (!confirm('ATENÇÃO: Tem certeza que deseja excluir este sistema? Todas as atividades vinculadas também serão excluídas!')) {
         return;
     }
@@ -994,7 +994,7 @@ async function excluirSistema(gruposAcesso) {
     try {
         // Buscar e excluir todas as atividades do sistema
         const atividadesSnapshot = await db.collection('atividades')
-            .where('gruposAcesso', '==', gruposAcesso)
+            .where('sistemaId', '==', sistemaId)
             .get();
         
         // Excluir todas as atividades
@@ -1005,7 +1005,7 @@ async function excluirSistema(gruposAcesso) {
         await batch.commit();
         
         // Excluir o sistema
-        await db.collection('sistemas').doc(gruposAcesso).delete();
+        await db.collection('sistemas').doc(sistemaId).delete();
         
         alert('✅ Sistema e atividades excluídos com sucesso!');
         
@@ -1037,7 +1037,7 @@ function formatarDataRegistro(dataRegistro) {
     }
 }
 
-function abrirModalAtividade(gruposAcesso, tipo = 'execucao', atividadeExistente = null) {
+function abrirModalAtividade(sistemaId, tipo = 'execucao', atividadeExistente = null) {
     monitoramento.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
     
     const modal = document.getElementById('modalAtividade');
@@ -1108,7 +1108,7 @@ function abrirModalAtividade(gruposAcesso, tipo = 'execucao', atividadeExistente
     }
     
     document.getElementById('modalAtividadeBody').innerHTML = `
-        <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${gruposAcesso}', '${tipo}');">
+        <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${sistemaId}', '${tipo}');">
             <div class="form-group">
                 <label for="tituloAtividade">Título *</label>
                 <input type="text" id="tituloAtividade" class="form-control" required 
@@ -1193,7 +1193,7 @@ function fecharModalAtividade() {
     monitoramento.atividadeEditando = null;
 }
 
-async function salvarAtividade(gruposAcesso, tipo) {
+async function salvarAtividade(sistemaId, tipo) {
     const titulo = document.getElementById('tituloAtividade').value;
     const responsavel = document.getElementById('responsavelAtividade').value;
     
@@ -1212,7 +1212,7 @@ async function salvarAtividade(gruposAcesso, tipo) {
     });
     
     const atividade = {
-        gruposAcesso: gruposAcesso,
+        sistemaId: sistemaId,
         tipo: tipo,
         titulo: titulo,
         descricao: document.getElementById('descricaoAtividade').value,
@@ -1289,7 +1289,7 @@ async function editarAtividade(atividadeId) {
             ...atividadeDoc.data()
         };
         
-        abrirModalAtividade(atividade.gruposAcesso, atividade.tipo, atividade);
+        abrirModalAtividade(atividade.sistemaId, atividade.tipo, atividade);
         
     } catch (error) {
         console.error('❌ Erro ao buscar atividade:', error);
