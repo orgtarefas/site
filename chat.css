@@ -298,6 +298,42 @@ body {
 }
 
 /* ========== ITENS DE CONVERSA ========== */
+.conversations-list {
+    max-height: 300px; /* Altura máxima para a lista de conversas */
+    overflow-y: auto; /* Ativa rolagem vertical */
+    overflow-x: hidden; /* Remove rolagem horizontal */
+    padding-right: 5px; /* Espaço para a barra de rolagem */
+    
+    /* Estilização da barra de rolagem para Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #667eea #f0f2f5;
+}
+
+/* Estilização da barra de rolagem para WebKit (Chrome, Safari, Edge) */
+.conversations-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.conversations-list::-webkit-scrollbar-track {
+    background: #f0f2f5;
+    border-radius: 10px;
+}
+
+.conversations-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.conversations-list::-webkit-scrollbar-thumb:hover {
+    background: #667eea;
+}
+
+/* Ajuste para garantir que os itens não saiam da área visível */
+.conversation-item {
+    min-height: 60px; /* Altura mínima para cada item */
+    margin-bottom: 5px;
+}
+
 .conversation-item {
     display: flex;
     align-items: center;
@@ -314,6 +350,16 @@ body {
 
 .conversation-item.active {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+}
+
+/* Ajuste para quando a lista está vazia */
+.conversations-list .loading-state,
+.conversations-list .empty-state {
+    max-height: 200px; /* Limita altura do estado de carregamento/vazio */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .conversation-avatar {
