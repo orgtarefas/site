@@ -373,7 +373,7 @@ async function atualizarListaTarefasComAtividades() {
                         </div>
                     `;
                     
-                    // Buscar atividades do sistema (JÁ ORDENADAS)
+                    // Buscar atividades da tarefa (JÁ ORDENADAS)
                     const atividades = await buscarAtividadesDoSistema(tarefa.sistemaId);
                     
                     if (atividades.length > 0) {
@@ -381,7 +381,7 @@ async function atualizarListaTarefasComAtividades() {
                             <div class="atividades-sistema">
                                 <div class="atividades-header">
                                     <i class="fas fa-list-check"></i>
-                                    <strong>Atividades do Sistema (${atividades.length}):</strong>
+                                    <strong>Atividades da Tarefa (${atividades.length}):</strong>
                                 </div>
                                 <div class="atividades-lista">
                                     ${atividades.map((atividade, index) => {
