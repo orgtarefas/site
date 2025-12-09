@@ -283,34 +283,6 @@ function abrirModalTarefa(tarefaId = null) {
     modal.style.display = 'flex';
 }
 
-function ocultarCamposNovaTarefa() {
-    // Ocultar seção de atividades
-    const secaoAtividades = document.getElementById('secao-atividades');
-    if (secaoAtividades) {
-        secaoAtividades.style.display = 'none';
-    }
-    
-    // Ocultar campos Status e Responsável
-    const camposNovaTarefa = document.querySelectorAll('.campo-nova-tarefa');
-    camposNovaTarefa.forEach(campo => {
-        campo.style.display = 'none';
-    });
-}
-
-function mostrarCamposNovaTarefa() {
-    // Mostrar seção de atividades
-    const secaoAtividades = document.getElementById('secao-atividades');
-    if (secaoAtividades) {
-        secaoAtividades.style.display = 'block';
-    }
-    
-    // Mostrar campos Status e Responsável
-    const camposNovaTarefa = document.querySelectorAll('.campo-nova-tarefa');
-    camposNovaTarefa.forEach(campo => {
-        campo.style.display = 'block';
-    });
-}
-
 function fecharModalTarefa() {
     const modal = document.getElementById('modalTarefa');
     if (modal) {
