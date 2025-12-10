@@ -1068,7 +1068,7 @@ class WorkManagerV12 {
                 if (typeof membro === 'string' && membro === usuarioId) {
                     return { usuarioId: usuarioId, permissao: novaPermissao };
                 } else if (membro && typeof membro === 'object' && membro.usuarioId === usuarioId) {
-                    return { ...membro, permissao: novaPermissao };
+                    return { ...membro, permissao: novaPermissão };
                 }
                 return membro;
             });
@@ -1304,7 +1304,12 @@ class WorkManagerV12 {
             }
         });
     }
+} // FIM DA CLASSE WorkManagerV12
 
+// ========== FORA DA CLASSE - CRIAR INSTÂNCIA GLOBAL ==========
+
+// Criar instância global
+const workManager = new WorkManagerV12();
 
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
@@ -1319,10 +1324,6 @@ window.salvarGrupo = () => workManager.salvarGrupo();
 window.filtrarGrupos = (filtro) => {
     workManager.filtrarGrupos(filtro);
 };
-// Criar instância global
-const workManager = new WorkManagerV12();
-
-
 window.convidarUsuarioSelecionado = () => workManager.convidarUsuarioSelecionado();
 window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
 window.alterarPermissaoMembro = (grupoId, usuarioId, permissao) => workManager.alterarPermissaoMembro(grupoId, usuarioId, permissao);
