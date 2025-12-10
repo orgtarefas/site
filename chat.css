@@ -812,6 +812,92 @@ body {
     box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
 }
 
+/* ========== BARRA DE ROLAGEM PARA LISTAS ========== */
+
+/* Contêiner da lista de usuários */
+.users-list {
+    max-height: 250px; /* Ajuste conforme necessário */
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Contêiner da lista de conversas */
+.conversations-list {
+    max-height: 250px; /* Ajuste conforme necessário */
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Estilizando a barra de rolagem */
+.users-list::-webkit-scrollbar,
+.conversations-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.users-list::-webkit-scrollbar-track,
+.conversations-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.users-list::-webkit-scrollbar-thumb,
+.conversations-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.users-list::-webkit-scrollbar-thumb:hover,
+.conversations-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Para Firefox */
+.users-list,
+.conversations-list {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* ========== AJUSTES RESPONSIVOS ========== */
+
+/* Em telas maiores, aumentar a altura */
+@media (min-height: 768px) {
+    .users-list {
+        max-height: 300px;
+    }
+    
+    .conversations-list {
+        max-height: 300px;
+    }
+}
+
+@media (min-height: 900px) {
+    .users-list {
+        max-height: 350px;
+    }
+    
+    .conversations-list {
+        max-height: 350px;
+    }
+}
+
+/* ========== ALTERNATIVA: ALTURA FLEXÍVEL ========== */
+/* Se preferir que ocupe o espaço disponível: */
+
+/*
+.sidebar-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Importante para scroll funcionar
+}
+
+.users-list,
+.conversations-list {
+    flex: 1;
+    overflow-y: auto;
+}
+*/
 
 /* ========== DEIXAR O INPUT SEMPRE VISÍVEL ========== */
 .message-input-area.hidden {
