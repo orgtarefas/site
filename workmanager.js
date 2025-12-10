@@ -195,7 +195,7 @@ class WorkManagerV12 {
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             
-            this.atualizarStatusSincronizacao('✅ On line');
+            this.atualizarStatusSincronizacao('✅ Conectado');
             
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
