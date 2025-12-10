@@ -173,15 +173,43 @@ class GestorAtividades {
     async carregarAtividadesParaVinculo() {
         try {
             console.log('🔗 Carregando atividades para vínculo...');
-            const snapshot = await db.collection('atividades').get();
+            
+            // OBTER GRUPOS DO USUÁRIO para filtrar
+            const usuarioAtual = this.usuario.usuario;
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            const gruposIds = gruposSnapshot.docs.map(doc => doc.id);
+            
+            if (gruposIds.length === 0) {
+                this.atividadesDisponiveis = [];
+                console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
+                return;
+            }
+            
+            // Carregar tarefas dos grupos do usuário
+            const tarefasSnapshot = await db.collection('tarefas')
+                .where('grupoId', 'in', gruposIds)
+                .get();
+            
+            const tarefasIds = tarefasSnapshot.docs.map(doc => doc.id);
+            
+            // Carregar atividades APENAS das tarefas dos grupos do usuário
+            const snapshot = await db.collection('atividades')
+                .where('tarefaId', 'in', tarefasIds)
+                .get();
+                
             this.atividadesDisponiveis = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
-            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
+            
+            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
         } catch (error) {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
+            this.atividadesDisponiveis = [];
         }
     }
 
@@ -237,18 +265,64 @@ class GestorAtividades {
                 ...doc.data()
             }));
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
-
-            // Carregar tarefas
-            const tarefasSnapshot = await db.collection('tarefas').get();
+    
+            // OBTER GRUPOS DO USUÁRIO
+            const usuarioAtual = this.usuario.usuario;
+            console.log(`👤 Usuário atual: ${usuarioAtual}`);
+            
+            // Buscar grupos onde o usuário é membro
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            const gruposUsuario = gruposSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            console.log(`✅ Usuário faz parte de ${gruposUsuario.length} grupo(s):`, 
+                gruposUsuario.map(g => g.nome));
+            
+            // Se não pertence a nenhum grupo, mostrar mensagem
+            if (gruposUsuario.length === 0) {
+                console.log('⚠️ Usuário não pertence a nenhum grupo');
+                
+                // Mostrar mensagem na interface
+                const container = document.getElementById('tarefas-container');
+                container.innerHTML = `
+                    <div class="empty-tarefas">
+                        <i class="fas fa-users-slash"></i>
+                        <h3>Você não pertence a nenhum grupo</h3>
+                        <p>Para visualizar tarefas, você precisa ser membro de um grupo de trabalho.</p>
+                        <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Ir para Grupos de Trabalho
+                        </button>
+                    </div>
+                `;
+                
+                this.tarefas = [];
+                this.calcularEstatisticas();
+                return;
+            }
+            
+            // Obter IDs dos grupos
+            const gruposIds = gruposUsuario.map(g => g.id);
+            
+            // Carregar SOMENTE tarefas dos grupos do usuário
+            const tarefasSnapshot = await db.collection('tarefas')
+                .where('grupoId', 'in', gruposIds)
+                .get();
+            
             this.tarefas = tarefasSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log(`✅ ${this.tarefas.length} tarefas carregadas:`);
+            
+            console.log(`✅ ${this.tarefas.length} tarefas do(s) grupo(s) do usuário:`);
             this.tarefas.forEach(t => {
-                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'}`);
+                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'} (Grupo: ${t.grupoId})`);
             });
-
+    
             // Carregar atividades
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => {
@@ -262,16 +336,16 @@ class GestorAtividades {
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
             
-            // Agrupar atividades por tarefa
+            // Agrupar atividades por tarefa (apenas tarefas do usuário)
             this.tarefas.forEach(tarefa => {
                 tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
                 console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
             });
-
+    
             // Atualizar status
             document.getElementById('status-sincronizacao').innerHTML = 
                 '<i class="fas fa-check-circle"></i> Sincronizado';
-
+    
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
             document.getElementById('status-sincronizacao').innerHTML = 
@@ -796,6 +870,7 @@ class GestorAtividades {
         
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
         
+        // Filtrar usuários que são membros dos mesmos grupos
         const usuariosOptions = this.usuarios.map(user => {
             const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
             return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
@@ -823,6 +898,7 @@ class GestorAtividades {
                     <label for="vinculosAtividade">
                         <i class="fas fa-link"></i> Vincular Atividades (opcional)
                         <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
+                        <small class="form-text d-block mt-1">Apenas atividades do(s) seu(s) grupo(s) estão disponíveis</small>
                     </label>
                     <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
                         ${atividadesParaVincular.map(atv => {
@@ -839,7 +915,7 @@ class GestorAtividades {
                         }).join('')}
                     </div>
                     ${atividadesParaVincular.length === 0 ? 
-                        '<p class="text-muted small">Não há outras atividades disponíveis para vínculo</p>' : ''}
+                        '<p class="text-muted small">Não há outras atividades disponíveis para vínculo no(s) seu(s) grupo(s)</p>' : ''}
                 </div>
             `;
         }
