@@ -1315,47 +1315,133 @@ class WorkManagerV12 {
         const grupo = this.grupos.find(g => g.id === grupoId);
         if (!grupo) return;
         
-        const podeVerMembros = grupo.pertenceAoGrupo;
-        
+        // SEMPRE mostrar membros, mesmo quando não pertence ao grupo
         let membrosHTML = '';
-        if (podeVerMembros && grupo.membros && grupo.membros.length > 0) {
-            membrosHTML += '<h4 style="margin-top: 15px;">Membros:</h4>';
-            membrosHTML += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 5px;">';
+        if (grupo.membros && grupo.membros.length > 0) {
+            membrosHTML += '<h4 style="margin-top: 15px;">Membros do Grupo:</h4>';
+            membrosHTML += '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 5px; background: #f9f9f9;">';
             
-            // Contar membros sem mostrar detalhes completos
-            let contador = {};
-            grupo.membros.forEach(membro => {
+            // Processar e mostrar TODOS os membros
+            grupo.membros.forEach((membro, index) => {
+                let nomeUsuario, tipoUsuario, loginUsuario;
+                
                 if (typeof membro === 'string') {
-                    contador[membro] = (contador[membro] || 0) + 1;
+                    // Membro como string simples (apenas login)
+                    loginUsuario = membro;
+                    
+                    // Buscar informações completas do usuário
+                    const usuarioInfo = this.buscarUsuarioPorId(membro);
+                    nomeUsuario = usuarioInfo ? (usuarioInfo.displayName || usuarioInfo.nome || membro) : membro;
+                    tipoUsuario = 'Membro';
                 } else if (membro && typeof membro === 'object') {
-                    const tipo = membro.permissao || 'membro';
-                    contador[tipo] = (contador[tipo] || 0) + 1;
+                    // Membro como objeto
+                    loginUsuario = membro.usuarioId || 'Desconhecido';
+                    
+                    // Buscar informações completas do usuário
+                    const usuarioInfo = this.buscarUsuarioPorId(membro.usuarioId);
+                    nomeUsuario = usuarioInfo ? (usuarioInfo.displayName || usuarioInfo.nome || loginUsuario) : loginUsuario;
+                    tipoUsuario = membro.permissao === 'admin' ? 'Administrador' : 'Membro';
+                } else {
+                    loginUsuario = 'Desconhecido';
+                    nomeUsuario = 'Desconhecido';
+                    tipoUsuario = 'Membro';
                 }
+                
+                // Verificar se é o usuário atual
+                const isCurrentUser = this.usuarioAtual && 
+                                     ((typeof membro === 'string' && membro === this.usuarioAtual.usuario) ||
+                                      (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario));
+                
+                // Verificar se é o criador do grupo
+                const isCriador = loginUsuario === grupo.criador;
+                
+                membrosHTML += `
+                    <div style="padding: 8px; border-bottom: 1px solid #e0e0e0; ${isCurrentUser ? 'background-color: #e8f4ff;' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${nomeUsuario}</strong>
+                                <small style="display: block; color: #666; font-size: 12px;">${loginUsuario}</small>
+                            </div>
+                            <div>
+                                ${isCriador ? `
+                                    <span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">
+                                        Criador
+                                    </span>
+                                ` : ''}
+                                <span style="background: ${tipoUsuario === 'Administrador' ? '#e74c3c' : '#2ecc71'}; 
+                                    color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">
+                                    ${tipoUsuario}
+                                </span>
+                            </div>
+                        </div>
+                        ${isCurrentUser ? `
+                            <small style="color: #3498db; font-style: italic;">
+                                <i class="fas fa-user"></i> Você
+                            </small>
+                        ` : ''}
+                    </div>
+                `;
             });
             
-            membrosHTML += `<p>Total: ${grupo.membros.length} membros</p>`;
-            if (contador.admin) membrosHTML += `<p>Administradores: ${contador.admin}</p>`;
-            if (contador.membro) membrosHTML += `<p>Membros: ${contador.membro}</p>`;
-            if (contador.pendente) membrosHTML += `<p>Pendentes: ${contador.pendente}</p>`;
-            
             membrosHTML += '</div>';
-        } else if (!podeVerMembros) {
-            membrosHTML = `<p style="color: #666; font-style: italic;">Você precisa ser membro para ver a lista de participantes.</p>`;
+            
+            // Adicionar resumo
+            membrosHTML += `
+                <div style="margin-top: 10px; font-size: 13px; color: #666;">
+                    <i class="fas fa-info-circle"></i> Total: ${grupo.membros.length} membro${grupo.membros.length !== 1 ? 's' : ''}
+                </div>
+            `;
+        } else {
+            membrosHTML = `
+                <div style="padding: 20px; text-align: center; color: #999;">
+                    <i class="fas fa-users-slash" style="font-size: 24px; margin-bottom: 10px;"></i>
+                    <p>Nenhum membro neste grupo</p>
+                </div>
+            `;
         }
+        
+        // Informações do grupo
+        const criadorInfo = grupo.criador ? this.buscarUsuarioPorId(grupo.criador) : null;
+        const nomeCriador = criadorInfo ? (criadorInfo.displayName || criadorInfo.nome || grupo.criador) : grupo.criador;
         
         const detalhes = `
             <div style="padding: 20px;">
-                <h2 style="color: ${grupo.cor || '#4a6fa5'}; margin-top: 0;">${grupo.nome}</h2>
-                <p><strong>Descrição:</strong><br>${grupo.descricao || 'Não informada'}</p>
-                <p><strong>Criado em:</strong> ${this.formatarData(grupo.dataCriacao)}</p>
-                <p><strong>Criador:</strong> ${grupo.criadorNome || grupo.criador || 'Não informado'}</p>
-                <p><strong>Total de Membros:</strong> ${Array.isArray(grupo.membros) ? grupo.membros.length : 0}</p>
-                <p><strong>Total de Tarefas:</strong> ${Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0}</p>
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <div style="width: 40px; height: 40px; background: ${grupo.cor || '#4a6fa5'}; border-radius: 8px; margin-right: 15px;"></div>
+                    <h2 style="color: ${grupo.cor || '#4a6fa5'}; margin: 0;">${grupo.nome}</h2>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p><strong><i class="fas fa-align-left"></i> Descrição:</strong><br>${grupo.descricao || 'Sem descrição'}</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                        <div style="background: white; padding: 10px; border-radius: 6px; border-left: 4px solid #4a6fa5;">
+                            <small style="color: #666;">Criado em</small><br>
+                            <strong>${this.formatarData(grupo.dataCriacao)}</strong>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; border-left: 4px solid #27ae60;">
+                            <small style="color: #666;">Total de Tarefas</small><br>
+                            <strong>${Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0}</strong>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; background: white; padding: 10px; border-radius: 6px; border-left: 4px solid #e74c3c;">
+                        <small style="color: #666;">Criador do Grupo</small><br>
+                        <strong><i class="fas fa-crown" style="color: #f39c12;"></i> ${nomeCriador || grupo.criador || 'Não informado'}</strong>
+                    </div>
+                </div>
+                
                 ${membrosHTML}
-                <div style="margin-top: 20px; text-align: center;">
+                
+                <div style="margin-top: 20px; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
                     <button onclick="workManager.fecharDetalhes()" class="btn btn-outline">
-                        Fechar
+                        <i class="fas fa-times"></i> Fechar
                     </button>
+                    ${grupo.pertenceAoGrupo ? `
+                        <button onclick="workManager.gerenciarMembros('${grupo.id}')" class="btn btn-primary" style="margin-left: 10px;">
+                            <i class="fas fa-users-cog"></i> Gerenciar Membros
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -1365,9 +1451,9 @@ class WorkManagerV12 {
         modalDetalhes.className = 'modal';
         modalDetalhes.id = 'modalDetalhes';
         modalDetalhes.innerHTML = `
-            <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header">
-                    <h2>Detalhes do Grupo</h2>
+                    <h2><i class="fas fa-info-circle"></i> Detalhes do Grupo</h2>
                     <button class="close" onclick="workManager.fecharDetalhes()">&times;</button>
                 </div>
                 ${detalhes}
