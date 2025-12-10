@@ -296,18 +296,10 @@ function preencherFormulario(tarefaId) {
     const tarefa = tarefas.find(t => t.id === tarefaId);
     if (!tarefa) return;
     
-    // Remover o prefixo do grupo do título se existir
-    let tituloOriginal = tarefa.titulo;
-    if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso) && tarefa.gruposAcesso.length > 0) {
-        const primeiroGrupo = grupos.find(g => g.id === tarefa.gruposAcesso[0]);
-        if (primeiroGrupo) {
-            const prefixoGrupo = primeiroGrupo.nome + ' - ';
-            if (tituloOriginal.startsWith(prefixoGrupo)) {
-                tituloOriginal = tituloOriginal.substring(prefixoGrupo.length);
-            }
-        }
-    }
+    // USANDO A FUNÇÃO AUXILIAR para extrair título sem os grupos
+    const tituloOriginal = extrairTituloSemGrupos(tarefa.titulo, tarefa.gruposAcesso);
     
+    // Preencher os campos do formulário
     document.getElementById('tarefaTitulo').value = tituloOriginal;
     document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
     document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
@@ -316,16 +308,72 @@ function preencherFormulario(tarefaId) {
     
     // Preencher grupos (múltipla seleção)
     const selectGrupos = document.getElementById('tarefaGrupos');
-    if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
-        Array.from(selectGrupos.options).forEach(option => {
-            option.selected = tarefa.gruposAcesso.includes(option.value);
-        });
-    } else {
-        // Desmarcar tudo se não houver grupos
+    if (selectGrupos) {
+        // Desmarcar todos primeiro
         Array.from(selectGrupos.options).forEach(option => {
             option.selected = false;
         });
+        
+        // Marcar apenas os grupos da tarefa
+        if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
+            Array.from(selectGrupos.options).forEach(option => {
+                if (tarefa.gruposAcesso.includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+        }
     }
+    
+    console.log('📝 Formulário preenchido:', {
+        tituloOriginal: tituloOriginal,
+        gruposAcesso: tarefa.gruposAcesso,
+        nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
+        tituloCompleto: tarefa.titulo
+    });
+}
+
+// FUNÇÃO AUXILIAR: Extrair título sem os grupos (para formulário de edição)
+function extrairTituloSemGrupos(tituloCompleto, gruposIds) {
+    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
+        return tituloCompleto;
+    }
+    
+    const nomesGrupos = obterNomesTodosGrupos(gruposIds);
+    
+    if (nomesGrupos) {
+        // Primeiro tenta com todos os grupos
+        const prefixoComTodos = nomesGrupos + ' - ';
+        if (tituloCompleto.startsWith(prefixoComTodos)) {
+            return tituloCompleto.substring(prefixoComTodos.length);
+        }
+        
+        // Para compatibilidade com tarefas antigas que só tinham primeiro grupo
+        const primeiroGrupoId = gruposIds[0];
+        const primeiroGrupo = grupos.find(g => g.id === primeiroGrupoId);
+        if (primeiroGrupo) {
+            const prefixoIndividual = primeiroGrupo.nome + ' - ';
+            if (tituloCompleto.startsWith(prefixoIndividual)) {
+                return tituloCompleto.substring(prefixoIndividual.length);
+            }
+        }
+    }
+    
+    // Se não encontrar prefixo, retorna o título original
+    return tituloCompleto;
+}
+
+// FUNÇÃO: Obter nomes de TODOS os grupos separados por vírgula
+function obterNomesTodosGrupos(gruposIds) {
+    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
+        return '';
+    }
+    
+    const nomes = gruposIds.map(grupoId => {
+        const grupo = grupos.find(g => g.id === grupoId);
+        return grupo ? grupo.nome : grupoId;
+    });
+    
+    return nomes.join(', ');
 }
 
 function limparFormulario() {
@@ -350,16 +398,6 @@ function limparFormulario() {
     }
 }
 
-// FUNÇÃO: Obter nome do primeiro grupo
-function obterNomePrimeiroGrupo(gruposIds) {
-    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
-        return '';
-    }
-    
-    const primeiroGrupo = grupos.find(g => g.id === gruposIds[0]);
-    return primeiroGrupo ? primeiroGrupo.nome : '';
-}
-
 // CRUD Operations
 async function salvarTarefa() {
     console.log('💾 Salvando tarefa...');
@@ -375,13 +413,13 @@ async function salvarTarefa() {
         return;
     }
     
-    // Obter nome do primeiro grupo para adicionar ao título
-    const nomePrimeiroGrupo = obterNomePrimeiroGrupo(gruposSelecionados);
+    // USANDO A NOVA FUNÇÃO: Obter nomes de TODOS os grupos
+    const nomesTodosGrupos = obterNomesTodosGrupos(gruposSelecionados);
     const tituloDigitado = document.getElementById('tarefaTitulo').value.trim();
     
-    // Criar título com prefixo do grupo
-    const tituloCompleto = nomePrimeiroGrupo ? 
-        `${nomePrimeiroGrupo} - ${tituloDigitado}` : 
+    // Criar título com prefixo de todos os grupos
+    const tituloCompleto = nomesTodosGrupos ? 
+        `${nomesTodosGrupos} - ${tituloDigitado}` : 
         tituloDigitado;
     
     // Preparar objeto tarefa (sem Status e Responsável)
