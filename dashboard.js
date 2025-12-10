@@ -953,7 +953,7 @@ class GestorAtividades {
         }
     }
 
-    abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) { // ADICIONE async AQUI
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         
         // VALIDAÇÃO: Verificar se o usuário tem acesso a esta tarefa
@@ -1229,6 +1229,239 @@ class GestorAtividades {
         }, 200);
     }
     
+        
+        // Filtrar usuários que são membros dos mesmos grupos que o usuário atual
+        const usuariosFiltrados = this.usuarios.filter(user => {
+            // Se é o próprio usuário, sempre mostrar
+            if (user.usuario === usuarioAtual) return true;
+            
+            // Se não temos info dos grupos, mostrar todos (fallback)
+            if (gruposIdsUsuario.length === 0) return true;
+            
+            // Buscar grupos do usuário candidato
+            // Nota: Esta parte seria mais eficiente com cache de grupos por usuário
+            // Por enquanto, assumimos que todos os usuários podem ser selecionados
+            // para não tornar a query muito complexa
+            return true;
+        });
+        
+        const usuariosOptions = usuariosFiltrados.map(user => {
+            const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
+            const nomeExibicao = user.nome || user.usuario;
+            return `<option value="${user.usuario}" ${selected}>${nomeExibicao}</option>`;
+        }).join('');
+        
+        const formatarDataParaInput = (dataString) => {
+            if (!dataString) return '';
+            return dataString.split('T')[0];
+        };
+        
+        const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
+        
+        let atividadesVinculadasHTML = '';
+        if (this.atividadesDisponiveis.length > 0) {
+            const atividadesParaVincular = this.atividadesDisponiveis.filter(atv => {
+                // Não permitir vincular a si mesma
+                if (atividadeExistente && atv.id === atividadeExistente.id) {
+                    return false;
+                }
+                
+                // Filtrar atividades que pertencem às mesmas tarefas do usuário
+                // (já filtradas em carregarAtividadesParaVinculo)
+                return true;
+            });
+            
+            const atividadesVinculadasIds = atividadeExistente && atividadeExistente.atividadesVinculadas 
+                ? atividadeExistente.atividadesVinculadas 
+                : [];
+            
+            if (atividadesParaVincular.length > 0) {
+                atividadesVinculadasHTML = `
+                    <div class="form-group">
+                        <label for="vinculosAtividade">
+                            <i class="fas fa-link"></i> Vincular Atividades (opcional)
+                            <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
+                            <small class="form-text d-block mt-1">Apenas atividades do(s) seu(s) grupo(s) estão disponíveis</small>
+                        </label>
+                        <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                            ${atividadesParaVincular.map(atv => {
+                                const checked = atividadesVinculadasIds.includes(atv.id) ? 'checked' : '';
+                                const tarefaNome = atv.tarefaNome || 'Tarefa não encontrada';
+                                const statusLabel = getLabelStatus(atv.status);
+                                const statusClass = `status-${atv.status || 'nao_iniciado'}`;
+                                
+                                return `
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
+                                        <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
+                                            <strong>${atv.titulo || 'Sem título'}</strong>
+                                            <small class="text-muted d-block">
+                                                Tarefa: ${tarefaNome} | 
+                                                Status: <span class="badge ${statusClass}">${statusLabel}</span>
+                                            </small>
+                                        </label>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                atividadesVinculadasHTML = `
+                    <div class="form-group">
+                        <label><i class="fas fa-link"></i> Vincular Atividades</label>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Não há outras atividades disponíveis para vínculo no(s) seu(s) grupo(s)
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            atividadesVinculadasHTML = `
+                <div class="form-group">
+                    <label><i class="fas fa-link"></i> Vincular Atividades</label>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Não foi possível carregar atividades para vínculo
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Obter valor da data prevista (usar hoje se não existir)
+        let dataPrevistaValor = '';
+        if (atividadeExistente && atividadeExistente.dataPrevista) {
+            dataPrevistaValor = formatarDataParaInput(atividadeExistente.dataPrevista);
+        } else {
+            // Data padrão: 7 dias a partir de hoje
+            const dataPadrao = new Date();
+            dataPadrao.setDate(dataPadrao.getDate() + 7);
+            dataPrevistaValor = dataPadrao.toISOString().split('T')[0];
+        }
+        
+        document.getElementById('modalAtividadeBody').innerHTML = `
+            <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
+                <div class="form-group">
+                    <label for="tituloAtividade">
+                        <i class="fas fa-heading"></i> Título *
+                    </label>
+                    <input type="text" id="tituloAtividade" class="form-control" required 
+                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}"
+                           placeholder="Digite o título da atividade">
+                </div>
+                
+                <div class="form-group">
+                    <label for="descricaoAtividade">
+                        <i class="fas fa-align-left"></i> Descrição
+                    </label>
+                    <textarea id="descricaoAtividade" class="form-control" rows="3" 
+                              placeholder="Descreva os detalhes da atividade...">${atividadeExistente ? this.escapeHtml(atividadeExistente.descricao || '') : ''}</textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="responsavelAtividade">
+                            <i class="fas fa-user"></i> Responsável *
+                        </label>
+                        <select id="responsavelAtividade" class="form-control" required>
+                            <option value="">Selecione um responsável</option>
+                            ${usuariosOptions}
+                        </select>
+                        <small class="form-text text-muted">Membros dos seus grupos de trabalho</small>
+                    </div>
+                    
+                    <div class="form-group col-md-6">
+                        <label for="dataPrevista">
+                            <i class="fas fa-calendar-day"></i> Data Prevista
+                        </label>
+                        <input type="date" id="dataPrevista" class="form-control" 
+                               value="${dataPrevistaValor}">
+                        <small class="form-text text-muted">Data limite para conclusão</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="prioridadeAtividade">
+                            <i class="fas fa-flag"></i> Prioridade
+                        </label>
+                        <select id="prioridadeAtividade" class="form-control">
+                            <option value="baixa" ${atividadeExistente && atividadeExistente.prioridade === 'baixa' ? 'selected' : ''}>
+                                Baixa
+                            </option>
+                            <option value="media" ${(!atividadeExistente || atividadeExistente.prioridade === 'media' || !atividadeExistente.prioridade) ? 'selected' : ''}>
+                                Média
+                            </option>
+                            <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>
+                                Alta
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group col-md-6">
+                        <label for="statusAtividade">
+                            <i class="fas fa-tasks"></i> Status
+                        </label>
+                        <select id="statusAtividade" class="form-control" onchange="verificarConclusaoVinculos()">
+                            <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>
+                                Não Iniciado
+                            </option>
+                            <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>
+                                Pendente
+                            </option>
+                            <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>
+                                Em Andamento
+                            </option>
+                            <option value="concluido" ${statusAtividade === 'concluido' ? 'selected' : ''}>
+                                Concluído
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                
+                ${atividadesVinculadasHTML}
+                
+                <div class="alert alert-info" id="alertVinculos" style="display: none; margin-top: 15px;">
+                    <i class="fas fa-info-circle"></i> 
+                    <span id="alertVinculosText"></span>
+                    <br><small>Esta alteração ocorrerá automaticamente ao salvar.</small>
+                </div>
+                
+                <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                    <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> ${atividadeExistente ? 'Atualizar' : 'Salvar'} Atividade
+                    </button>
+                </div>
+            </form>
+        `;
+        
+        modal.style.display = 'flex';
+        
+        // Se for edição, garantir que o responsável seja selecionado
+        if (atividadeExistente && atividadeExistente.responsavel) {
+            setTimeout(() => {
+                const selectResponsavel = document.getElementById('responsavelAtividade');
+                if (selectResponsavel) {
+                    selectResponsavel.value = atividadeExistente.responsavel;
+                }
+            }, 100);
+        }
+        
+        verificarConclusaoVinculos();
+        
+        // Adicionar classe de validação ao formulário
+        setTimeout(() => {
+            const form = document.getElementById('formAtividade');
+            if (form) {
+                form.classList.add('was-validated');
+            }
+        }, 200);
+    }
+    
     // Adicione esta função auxiliar para escape de HTML (segurança)
     escapeHtml(text) {
         if (!text) return '';
@@ -1246,9 +1479,9 @@ class GestorAtividades {
 
 // ========== FUNÇÕES RESTANTES ==========
 
-function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
     if (gestorAtividades) {
-        gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
+        await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
     }
 }
 
@@ -1342,7 +1575,7 @@ async function editarAtividade(atividadeId) {
             ...atividadeDoc.data()
         };
         
-        abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
+        await abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade); // ADICIONE await AQUI
         
     } catch (error) {
         console.error('❌ Erro ao buscar atividade:', error);
