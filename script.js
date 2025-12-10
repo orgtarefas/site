@@ -153,7 +153,7 @@ function configurarFirebase() {
                 // Finalizar carregamento
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Tempo Real';
+                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Conectado';
                 
                 atualizarInterface();
                 console.log('🎉 Sistema carregado com sucesso!');
