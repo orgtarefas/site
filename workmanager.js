@@ -206,42 +206,76 @@ class WorkManagerV12 {
 
     async carregarUsuariosLogins() {
         try {
-            console.log('🔍 Carregando usuários do banco LOGINS...');
+            console.log('🔍 Carregando usuários do documento LOGINS_ORGTAREFAS...');
             
-            // Coleção CORRETA: "logins" (minúsculo)
-            const loginsRef = this.modules.collection(this.dbLogins, 'logins');
-            const usuariosSnapshot = await this.modules.getDocs(loginsRef);
+            // Acessar especificamente o documento LOGINS_ORGTAREFAS
+            const docRef = this.modules.doc(this.dbLogins, 'logins', 'LOGINS_ORGTAREFAS');
+            const docSnap = await this.modules.getDoc(docRef);
             
             this.usuarios = [];
             
-            usuariosSnapshot.docs.forEach(doc => {
-                console.log(`📄 Documento encontrado: ${doc.id}`);
-                const data = doc.data();
+            if (docSnap.exists()) {
+                console.log('✅ Documento LOGINS_ORGTAREFAS encontrado!');
+                const data = docSnap.data();
                 
-                // Debug: mostrar estrutura do documento
-                console.log('Estrutura do documento:', Object.keys(data));
+                // DEBUG: Mostrar estrutura do documento
+                console.log('📊 Campos do documento:', Object.keys(data));
+                console.log('📊 Conteúdo do documento:', data);
                 
-                // Processar diferentes estruturas de documentos
-                if (doc.id === 'LOGINS_ORGTAREFAS') {
-                    // Estrutura com objetos userX_uid
-                    this.processarEstruturaUid(data);
-                } else if (doc.id === 'LOGINS_AVERBSYS') {
-                    // Estrutura com campos individuais (user_1_logiin, user_2_logiin, etc.)
-                    this.processarEstruturaIndivual(data);
-                } else {
-                    console.log('⚠️ Documento com formato desconhecido:', doc.id);
+                // Processar cada userX_uid no documento
+                Object.keys(data).forEach(key => {
+                    // Verificar se é um campo userX_uid (ex: user1_uid, user2_uid, etc.)
+                    if (key.startsWith('user') && key.includes('_uid')) {
+                        const userData = data[key];
+                        
+                        if (userData && userData.login) {
+                            const usuario = {
+                                id: key, // user1_uid, user2_uid, etc.
+                                login: userData.login,
+                                nome: userData.displayName || userData.login,
+                                displayName: userData.displayName || userData.login,
+                                email: userData.email || '',
+                                senha: userData.senha || '',
+                                perfil: userData.perfil || '',
+                                isOnline: userData.isOnline || false,
+                                // Adicionar dados brutos para debug
+                                rawData: userData
+                            };
+                            
+                            console.log(`👤 Usuário extraído: ${usuario.displayName} (${usuario.login})`);
+                            
+                            // Não adicionar o usuário atual se estiver logado
+                            if (this.usuarioAtual && 
+                                (usuario.login === this.usuarioAtual.usuario || 
+                                 usuario.id === this.usuarioAtual.usuario)) {
+                                console.log('⚠️ Filtrando usuário atual:', usuario.login);
+                            } else {
+                                this.usuarios.push(usuario);
+                            }
+                        } else {
+                            console.warn(`⚠️ Campo ${key} não possui login válido:`, userData);
+                        }
+                    } else {
+                        console.log(`ℹ️ Campo ignorado: ${key} (não é userX_uid)`);
+                    }
+                });
+                
+                console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS_ORGTAREFAS`);
+                
+                // Se nenhum usuário for carregado, mostrar alerta
+                if (this.usuarios.length === 0) {
+                    console.warn('⚠️ Nenhum usuário carregado. Verificando estrutura do documento...');
+                    this.debugEstruturaDocumento(data);
                 }
-            });
-            
-            console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS`);
-            
-            // Se nenhum usuário for carregado, mostrar alerta
-            if (this.usuarios.length === 0) {
-                console.warn('⚠️ Nenhum usuário carregado. Verifique a estrutura do banco LOGINS.');
+                
+            } else {
+                console.error('❌ Documento LOGINS_ORGTAREFAS não encontrado!');
+                this.mostrarNotificacao('❌ Erro: Documento de usuários não encontrado', 'error');
             }
             
         } catch (error) {
-            console.error('❌ Erro ao carregar usuários do LOGINS:', error);
+            console.error('❌ Erro ao carregar usuários do LOGINS_ORGTAREFAS:', error);
+            this.mostrarNotificacao(`❌ Erro ao carregar usuários: ${error.message}`, 'error');
             this.usuarios = [];
         }
     }
