@@ -762,6 +762,57 @@ body {
     margin-top: 5px;
 }
 
+/* ==========/* Estilo para conversas offline */
+/* Estilo para status offline */
+.user-status.offline {
+    background-color: #ccc;
+}
+
+/* Texto de status do usuário */
+.user-status-text {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.user-status-text.online {
+    color: #4CAF50;
+}
+
+.user-status-text.offline {
+    color: #999;
+}
+
+/* Ajuste no badge */
+.badge {
+    background: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+/* Ajuste no header para mostrar status offline */
+#active-conversation .user-status.offline {
+    background-color: #999;
+}
+
+/* Melhorar visualização dos usuários offline */
+.user-item:hover {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+
+/* Destaque para usuários online */
+.user-item .user-status.online {
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+}
+
+
 /* ========== DEIXAR O INPUT SEMPRE VISÍVEL ========== */
 .message-input-area.hidden {
     display: none !important;
