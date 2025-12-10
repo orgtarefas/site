@@ -744,7 +744,7 @@ class GestorAtividades {
     configurarListeners() {
         console.log('🎧 Configurando listeners...');
         
-        // Listener para atualizações de atividades
+        // Listener para atualizações de atividades (apenas do grupo)
         db.collection('atividades').onSnapshot(() => {
             console.log('🔄 Atualizando atividades em tempo real...');
             this.carregarDados().then(() => {
@@ -753,7 +753,7 @@ class GestorAtividades {
             });
         });
         
-        // Listener para tarefas
+        // Listener para tarefas (apenas do grupo)
         db.collection('tarefas').onSnapshot(() => {
             console.log('🔄 Atualizando lista de tarefas...');
             this.carregarDados().then(() => {
@@ -762,9 +762,32 @@ class GestorAtividades {
             });
         });
         
+        // Listener para grupos (para detectar se usuário foi adicionado/removido)
+        db.collection('grupos').onSnapshot(() => {
+            console.log('🔄 Atualizando grupos do usuário...');
+            this.carregarDados().then(() => {
+                this.renderizarTarefas();
+                this.atualizarGraficos();
+            });
+        });
+        
         configurarListenerConclusoes();
     }
-    
+
+    async verificarPermissaoGrupos() {
+        try {
+            const usuarioAtual = this.usuario.usuario;
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            return gruposSnapshot.size > 0;
+        } catch (error) {
+            console.error('❌ Erro ao verificar permissão:', error);
+            return false;
+        }
+    }    
+        
     atualizarGraficos() {
         console.log('📈 Atualizando gráficos...');
         
