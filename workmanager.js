@@ -6,7 +6,7 @@ class WorkManagerV12 {
     constructor() {
         this.modules = null;
         this.db = null;
-        this.dbLogins = null;
+        this.dblogins = null;
         this.grupos = [];
         this.usuarios = [];
         this.tarefasGrupo = [];
@@ -32,7 +32,7 @@ class WorkManagerV12 {
         console.log('🔥 Inicializando módulos Firebase v12...');
         this.modules = window.firebaseModules;
         this.db = this.modules.db; // Banco ORGTAREFAS
-        this.dbLogins = this.modules.dbLogins; // Banco LOGINS
+        this.dblogins = this.modules.dblogins; // Banco LOGINS
         
         // Iniciar o sistema
         this.init();
@@ -208,7 +208,7 @@ class WorkManagerV12 {
         try {
             console.log('🔍 Carregando usuários do banco LOGINS...');
             
-            const loginsRef = this.modules.collection(this.dbLogins, 'Logins/logins/LOGINS_ORGTAREFAS');
+            const loginsRef = this.modules.collection(this.dblogins, 'Logins/logins/LOGINS_ORGTAREFAS');
             const usuariosSnapshot = await this.modules.getDocs(loginsRef);
             
             this.usuarios = [];
@@ -277,7 +277,7 @@ class WorkManagerV12 {
             console.log('🔍 Tentando método alternativo para carregar usuários...');
             
             // Tente carregar de uma coleção diferente ou caminho alternativo
-            const usuariosRef = this.modules.collection(this.dbLogins, 'usuarios');
+            const usuariosRef = this.modules.collection(this.dblogins, 'usuarios');
             const snapshot = await this.modules.getDocs(usuariosRef);
             
             if (!snapshot.empty) {
