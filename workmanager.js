@@ -1305,8 +1305,6 @@ class WorkManagerV12 {
         });
     }
 
-// Criar instância global
-const workManager = new WorkManagerV12();
 
 // Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
@@ -1321,6 +1319,10 @@ window.salvarGrupo = () => workManager.salvarGrupo();
 window.filtrarGrupos = (filtro) => {
     workManager.filtrarGrupos(filtro);
 };
+// Criar instância global
+const workManager = new WorkManagerV12();
+
+
 window.convidarUsuarioSelecionado = () => workManager.convidarUsuarioSelecionado();
 window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
 window.alterarPermissaoMembro = (grupoId, usuarioId, permissao) => workManager.alterarPermissaoMembro(grupoId, usuarioId, permissao);
