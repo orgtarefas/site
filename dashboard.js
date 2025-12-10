@@ -953,6 +953,8 @@ class GestorAtividades {
         }
     }
 
+
+    
     async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         
@@ -1088,10 +1090,10 @@ class GestorAtividades {
             atividadesVinculadasHTML = `
                 <div class="form-group">
                     <label><i class="fas fa-link"></i> Vincular Atividades</label>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Não foi possível carregar atividades para vínculo
-                    </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Não foi possível carregar atividades para vínculo
+                        </div>
                 </div>
             `;
         }
