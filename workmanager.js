@@ -283,9 +283,10 @@ class WorkManagerV12 {
     configurarEventos() {
         // Busca em tempo real
         document.getElementById('searchGroups').addEventListener('input', (e) => {
-            this.filtrarGrupos(this.filtroAtual, e.target.value);
+            const gruposFiltrados = this.filtrarGruposPorFiltroEBusca(this.filtroAtual, e.target.value);
+            this.atualizarInterfaceComGrupos(gruposFiltrados);
         });
-
+    
         // Fechar modais clicando fora
         window.onclick = (event) => {
             const modals = ['modalGrupo', 'modalMembros', 'modalDetalhesGrupo', 'modalConfirmacao'];
@@ -299,6 +300,24 @@ class WorkManagerV12 {
             });
         };
     }
+
+    atualizarInterfaceComGrupos(gruposFiltrados) {
+        const container = document.getElementById('groupsContainer');
+        
+        if (gruposFiltrados.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <h3>Nenhum grupo encontrado</h3>
+                    <p>Nenhum grupo corresponde à busca</p>
+                </div>
+            `;
+            return;
+        }
+    
+        container.innerHTML = this.renderizarGrupos(gruposFiltrados);
+    }    
+
 
     processarGrupos(snapshot) {
         this.grupos = snapshot.docs.map(doc => {
@@ -331,7 +350,7 @@ class WorkManagerV12 {
 
     atualizarInterfaceGrupos() {
         const container = document.getElementById('groupsContainer');
-        const gruposFiltrados = this.filtrarGrupos(this.filtroAtual);
+        const gruposFiltrados = this.filtrarGruposPorFiltroEBusca(this.filtroAtual);
         
         if (gruposFiltrados.length === 0) {
             container.innerHTML = `
@@ -343,8 +362,46 @@ class WorkManagerV12 {
             `;
             return;
         }
+    
+        container.innerHTML = this.renderizarGrupos(gruposFiltrados);
+    }
 
-        container.innerHTML = gruposFiltrados.map(grupo => {
+    filtrarGruposPorFiltroEBusca(filtro, termoBusca = '') {
+        let gruposFiltrados = this.grupos;
+        
+        // Aplicar filtro principal
+        switch(filtro) {
+            case 'meus':
+                gruposFiltrados = gruposFiltrados.filter(g => 
+                    g.minhaPermissao !== 'pendente' && 
+                    g.minhaPermissao !== undefined
+                );
+                break;
+            case 'convidados':
+                gruposFiltrados = gruposFiltrados.filter(g => 
+                    g.minhaPermissao === 'pendente'
+                );
+                break;
+            case 'todos':
+                // Mostra todos os grupos onde é membro
+                break;
+        }
+        
+        // Aplicar busca
+        if (termoBusca) {
+            const termo = termoBusca.toLowerCase();
+            gruposFiltrados = gruposFiltrados.filter(g => 
+                g.nome.toLowerCase().includes(termo) ||
+                (g.descricao && g.descricao.toLowerCase().includes(termo))
+            );
+        }
+        
+        return gruposFiltrados;
+    }
+
+    // Adicionar método auxiliar para renderizar grupos
+    renderizarGrupos(gruposFiltrados) {
+        return gruposFiltrados.map(grupo => {
             const permissaoClass = grupo.minhaPermissao === 'pendente' ? 'convite-pendente' : grupo.minhaPermissao;
             const membrosCount = Array.isArray(grupo.membros) ? grupo.membros.length : 0;
             const tarefasCount = Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0;
@@ -407,38 +464,6 @@ class WorkManagerV12 {
         }).join('');
     }
 
-    filtrarGrupos(filtro, termoBusca = '') {
-        let gruposFiltrados = this.grupos;
-        
-        // Aplicar filtro principal
-        switch(filtro) {
-            case 'meus':
-                gruposFiltrados = gruposFiltrados.filter(g => 
-                    g.minhaPermissao !== 'pendente' && 
-                    g.minhaPermissao !== undefined
-                );
-                break;
-            case 'convidados':
-                gruposFiltrados = gruposFiltrados.filter(g => 
-                    g.minhaPermissao === 'pendente'
-                );
-                break;
-            case 'todos':
-                // Mostra todos os grupos onde é membro
-                break;
-        }
-        
-        // Aplicar busca
-        if (termoBusca) {
-            const termo = termoBusca.toLowerCase();
-            gruposFiltrados = gruposFiltrados.filter(g => 
-                g.nome.toLowerCase().includes(termo) ||
-                (g.descricao && g.descricao.toLowerCase().includes(termo))
-            );
-        }
-        
-        return gruposFiltrados;
-    }
 
     // ========== FUNÇÕES PARA MODAL DE GRUPO ==========
     
@@ -1244,17 +1269,14 @@ class WorkManagerV12 {
     }
 
     // ========== FILTRAR GRUPOS ==========
-    
     filtrarGrupos(filtro) {
         this.filtroAtual = filtro;
         
-        // Atualizar tabs ativas
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        event.target.classList.add('active');
+        // Obter o termo de busca do input
+        const termo = document.getElementById('searchGroups').value;
         
         // Filtrar e atualizar interface
-        const termo = document.getElementById('searchGroups').value;
-        const gruposFiltrados = this.filtrarGrupos(filtro, termo);
+        const gruposFiltrados = this.filtrarGruposPorFiltroEBusca(filtro, termo);
         
         if (gruposFiltrados.length === 0) {
             document.getElementById('groupsContainer').innerHTML = `
@@ -1265,10 +1287,23 @@ class WorkManagerV12 {
                 </div>
             `;
         } else {
-            this.atualizarInterfaceGrupos();
+            // Atualizar interface com grupos filtrados
+            const container = document.getElementById('groupsContainer');
+            container.innerHTML = this.renderizarGrupos(gruposFiltrados);
         }
+        
+        // Atualizar tabs ativas
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        // Não podemos usar event.target aqui porque pode ser chamado sem evento
+        // Em vez disso, vamos encontrar o botão pelo filtro
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            const text = tab.textContent.toLowerCase().trim();
+            if (text.includes(filtro)) {
+                tab.classList.add('active');
+            }
+        });
     }
-}
 
 // Criar instância global
 const workManager = new WorkManagerV12();
@@ -1283,7 +1318,9 @@ window.workManager = workManager;
 window.abrirModalGrupo = (grupoId) => workManager.abrirModalGrupo(grupoId);
 window.fecharModalGrupo = () => workManager.fecharModalGrupo();
 window.salvarGrupo = () => workManager.salvarGrupo();
-window.filtrarGrupos = (filtro) => workManager.filtrarGrupos(filtro);
+window.filtrarGrupos = (filtro) => {
+    workManager.filtrarGrupos(filtro);
+};
 window.convidarUsuarioSelecionado = () => workManager.convidarUsuarioSelecionado();
 window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
 window.alterarPermissaoMembro = (grupoId, usuarioId, permissao) => workManager.alterarPermissaoMembro(grupoId, usuarioId, permissao);
