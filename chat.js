@@ -48,7 +48,7 @@ async function init() {
     console.log('🚀 Inicializando Chat...');
     
     try {
-        // Inicializar Firebase
+        // ========== 1. INICIALIZAR FIREBASE ==========
         const loginsApp = initializeApp(loginsConfig, 'loginsApp');
         const chatApp = initializeApp(chatConfig, 'chatApp');
         
@@ -57,15 +57,35 @@ async function init() {
         
         console.log('✅ Firebase inicializado');
         
-        // Fazer auto-login
+        // ========== 2. LOGIN DO USUÁRIO ==========
         await autoLogin();
         
-        // Configurar eventos
+        // ========== 3. CONFIGURAR INTERAÇÃO ==========
         setupEventListeners();
+        
+        // ========== 4. CONFIGURAR CACHE EM TEMPO REAL ==========
+        setupUsersCache();
+        
+        // ========== 5. CARREGAR DADOS INICIAIS ==========
+        loadOnlineUsers();       // Lista de usuários online
+        loadAllUsers();          // Cache completo + lista todos usuários
+        loadConversations();     // Conversas anteriores
+        setupUsersStatusUpdates(); // ATUALIZAR STATUS EM TEMPO REAL
+        
+        // ========== 6. CONFIGURAR ATUALIZAÇÕES ==========
+        setupUsersStatusUpdates(); // Status online/offline em tempo real
+        
+        console.log('✅ Chat inicializado com sucesso');
         
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
         showNotification('Erro ao conectar', 'error');
+        
+        // Tentar recarregar após 5 segundos se houver erro
+        setTimeout(() => {
+            console.log('🔄 Tentando reconectar...');
+            init();
+        }, 5000);
     }
 }
 
@@ -213,6 +233,34 @@ function getUserInfo(userId) {
     };
 }
 
+// ========== CARREGAR TODOS OS USUÁRIOS ==========
+function loadAllUsersList() {
+    const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+    
+    onSnapshot(loginsRef, (doc) => {
+        if (doc.exists()) {
+            const loginsData = doc.data();
+            const allUsersList = [];
+            
+            for (const [uid, userData] of Object.entries(loginsData)) {
+                if (userData && uid !== currentUser.uid) {
+                    const userInfo = getUserInfo(uid);
+                    allUsersList.push({
+                        uid: uid,
+                        nome: userInfo.nome,
+                        login: userInfo.login,
+                        perfil: userInfo.perfil,
+                        isOnline: userData.isOnline || false,
+                        lastSeen: userData.lastSeen || Date.now()
+                    });
+                }
+            }
+            
+            renderAllUsers(allUsersList);
+        }
+    });
+}
+
 // ========== ATUALIZAR CACHE DE USUÁRIOS EM TEMPO REAL ==========
 async function setupUsersCache() {
     const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
@@ -258,6 +306,72 @@ function loadOnlineUsers() {
     });
 }
 
+// ========== RENDERIZAR TODOS OS USUÁRIOS ==========
+function renderAllUsers(users) {
+    const container = document.getElementById('all-users');
+    const count = document.getElementById('all-users-count');
+    
+    count.textContent = users.length;
+    count.style.display = 'flex';
+    
+    if (users.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhum usuário encontrado</div>';
+        return;
+    }
+    
+    // Ordenar: online primeiro, depois offline por nome
+    users.sort((a, b) => {
+        if (a.isOnline && !b.isOnline) return -1;
+        if (!a.isOnline && b.isOnline) return 1;
+        return a.nome.localeCompare(b.nome);
+    });
+    
+    let html = '';
+    users.forEach(user => {
+        const lastSeen = user.lastSeen ? formatLastSeen(user.lastSeen) : 'Nunca';
+        const statusClass = user.isOnline ? 'online' : 'offline';
+        const statusText = user.isOnline ? 'Online' : `Visto ${lastSeen}`;
+        
+        html += `
+            <div class="user-item" onclick="startConversation('${user.uid}')">
+                <div class="user-avatar">${user.nome.charAt(0).toUpperCase()}</div>
+                <div class="user-info">
+                    <div class="user-name">${user.nome}</div>
+                    <div class="user-details">
+                        <span class="user-login">@${user.login}</span>
+                        <span class="user-perfil">${user.perfil}</span>
+                    </div>
+                    <div class="user-status-text ${statusClass}">${statusText}</div>
+                </div>
+                <div class="user-status ${statusClass}"></div>
+            </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ========== FORMATAR "ÚLTIMA VEZ VISTO" ==========
+function formatLastSeen(timestamp) {
+    if (!timestamp) return 'nunca';
+    
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (minutes < 1) return 'agora mesmo';
+    if (minutes < 60) return `há ${minutes} min`;
+    if (hours < 24) return `há ${hours} h`;
+    if (days < 7) return `há ${days} d`;
+    
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit' 
+    });
+}
+
 // ========== RENDERIZAR USUÁRIOS ONLINE ==========
 function renderOnlineUsers(users) {
     const container = document.getElementById('online-users');
@@ -297,6 +411,31 @@ function loadConversations() {
     onValue(conversationsRef, (snapshot) => {
         const conversations = snapshot.val();
         renderConversations(conversations);
+    });
+}
+
+// ========== ATUALIZAR STATUS EM TEMPO REAL ==========
+function setupUsersStatusUpdates() {
+    const usersRef = ref(chatDb, 'users');
+    
+    onValue(usersRef, (snapshot) => {
+        const usersData = snapshot.val();
+        
+        if (!usersData) return;
+        
+        // Atualizar status no cache
+        Object.entries(usersData).forEach(([uid, userData]) => {
+            if (allUsers[uid] && userData) {
+                allUsers[uid].isOnline = userData.isOnline || false;
+                allUsers[uid].lastSeen = userData.lastSeen || Date.now();
+            }
+        });
+        
+        // Recarregar listas se necessário
+        if (currentUser) {
+            loadOnlineUsers();
+            loadAllUsersList();
+        }
     });
 }
 
@@ -366,6 +505,16 @@ window.startConversation = async function(otherUserId) {
     
     // Atualizar interface
     document.getElementById('other-user-name').textContent = userInfo.nome;
+    
+    // Atualizar status no header
+    const userData = allUsers[otherUserId];
+    const isOnline = userData ? (userData.isOnline || false) : false;
+    
+    const statusElement = document.querySelector('#active-conversation .user-status');
+    if (statusElement) {
+        statusElement.className = `user-status ${isOnline ? 'online' : 'offline'}`;
+    }
+    
     document.getElementById('no-conversation').classList.add('hidden');
     document.getElementById('active-conversation').classList.remove('hidden');
     
