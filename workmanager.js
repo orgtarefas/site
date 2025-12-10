@@ -1,4 +1,4 @@
-// workmanager.js - Sistema com Firebase v12 - VERSÃO ATUALIZADA
+// workmanager.js - Sistema com Firebase v12 - VERSÃO ATUALIZADA COM LOGINS
 console.log('=== WORK MANAGER v12 INICIANDO ===');
 
 // Sistema de Gerenciamento de Grupos com Firebase v12
@@ -6,6 +6,7 @@ class WorkManagerV12 {
     constructor() {
         this.modules = null;
         this.db = null;
+        this.dbLogins = null;
         this.grupos = [];
         this.usuarios = [];
         this.tarefasGrupo = [];
@@ -17,6 +18,7 @@ class WorkManagerV12 {
         this.usuarioParaConvitar = null;
         this.acaoConfirmacao = null;
         this.dadosConfirmacao = null;
+        this.membrosSelecionados = new Set();
         
         // Inicializar quando o Firebase estiver pronto
         if (window.firebaseModules) {
@@ -29,7 +31,8 @@ class WorkManagerV12 {
     initModules() {
         console.log('🔥 Inicializando módulos Firebase v12...');
         this.modules = window.firebaseModules;
-        this.db = this.modules.db;
+        this.db = this.modules.db; // Banco ORGTAREFAS
+        this.dbLogins = this.modules.dbLogins; // Banco LOGINS
         
         // Iniciar o sistema
         this.init();
@@ -78,7 +81,6 @@ class WorkManagerV12 {
             
             this.usuarioAtual = JSON.parse(usuarioLogado);
             console.log('👤 Usuário autenticado:', this.usuarioAtual.usuario);
-            console.log('👥 Grupos do usuário:', this.usuarioAtual.grupos);
             
             // Atualizar interface
             if (document.getElementById('userName')) {
@@ -184,16 +186,10 @@ class WorkManagerV12 {
         console.log('📊 Carregando dados iniciais v12...');
         
         try {
-            // 1. Carregar todos os usuários
-            const usuariosRef = this.modules.collection(this.db, 'usuarios');
-            const usuariosSnapshot = await this.modules.getDocs(usuariosRef);
+            // 1. Carregar todos os usuários do banco LOGINS
+            await this.carregarUsuariosLogins();
             
-            this.usuarios = usuariosSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            console.log(`✅ ${this.usuarios.length} usuários carregados`);
+            console.log(`✅ ${this.usuarios.length} usuários carregados do banco LOGINS`);
             
             // 2. Esconder loading e mostrar interface
             document.getElementById('loadingScreen').style.display = 'none';
@@ -205,6 +201,53 @@ class WorkManagerV12 {
             console.error('❌ Erro ao carregar dados:', error);
             this.atualizarStatusSincronizacao('❌ Erro de conexão');
             throw error;
+        }
+    }
+
+    async carregarUsuariosLogins() {
+        try {
+            console.log('🔍 Carregando usuários do banco LOGINS...');
+            
+            const loginsRef = this.modules.collection(this.dbLogins, 'Logins/logins/LOGINS_ORGTAREFAS');
+            const usuariosSnapshot = await this.modules.getDocs(loginsRef);
+            
+            this.usuarios = [];
+            
+            usuariosSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                console.log('📄 Documento LOGINS:', data);
+                
+                // A estrutura contém um map com vários usuários
+                Object.keys(data).forEach(userKey => {
+                    const userData = data[userKey];
+                    
+                    if (userData && userData.login) {
+                        const usuario = {
+                            id: userKey, // user1_uid, user2_uid, etc.
+                            login: userData.login,
+                            nome: userData.displayName || userData.login,
+                            displayName: userData.displayName || userData.login
+                        };
+                        
+                        // Filtrar o usuário atual se estiver logado
+                        if (this.usuarioAtual) {
+                            // Comparar login ou ID
+                            if (usuario.login !== this.usuarioAtual.usuario && 
+                                usuario.id !== this.usuarioAtual.usuario) {
+                                this.usuarios.push(usuario);
+                            }
+                        } else {
+                            this.usuarios.push(usuario);
+                        }
+                    }
+                });
+            });
+            
+            console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS:`, this.usuarios);
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar usuários do LOGINS:', error);
+            this.usuarios = [];
         }
     }
 
@@ -397,6 +440,227 @@ class WorkManagerV12 {
         return gruposFiltrados;
     }
 
+    // ========== FUNÇÕES PARA MODAL DE GRUPO ==========
+    
+    async abrirModalGrupo(grupoId = null) {
+        this.grupoEditando = grupoId;
+        this.membrosSelecionados.clear();
+        
+        const modal = document.getElementById('modalGrupo');
+        const titulo = document.getElementById('modalGrupoTitulo');
+        const btnSalvar = document.querySelector('#modalGrupo .btn-primary');
+        
+        if (grupoId) {
+            // Modo edição
+            const grupo = this.grupos.find(g => g.id === grupoId);
+            if (!grupo) return;
+            
+            titulo.textContent = 'Editar Grupo';
+            btnSalvar.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+            
+            document.getElementById('grupoNome').value = grupo.nome || '';
+            document.getElementById('grupoDescricao').value = grupo.descricao || '';
+            document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
+            
+            // Carregar membros já existentes
+            if (grupo.membros && Array.isArray(grupo.membros)) {
+                for (const membro of grupo.membros) {
+                    if (typeof membro === 'string' && membro !== this.usuarioAtual.usuario) {
+                        this.membrosSelecionados.add(membro);
+                    } else if (membro && typeof membro === 'object' && membro.usuarioId !== this.usuarioAtual.usuario) {
+                        this.membrosSelecionados.add(membro.usuarioId);
+                    }
+                }
+            }
+            
+        } else {
+            // Modo criação
+            titulo.textContent = 'Novo Grupo de Trabalho';
+            btnSalvar.innerHTML = '<i class="fas fa-save"></i> Criar Grupo';
+            
+            document.getElementById('grupoNome').value = '';
+            document.getElementById('grupoDescricao').value = '';
+            document.getElementById('grupoCor').value = '#4a6fa5';
+        }
+        
+        // Atualizar lista de usuários e membros selecionados
+        await this.carregarUsuariosLogins();
+        this.exibirUsuarios();
+        this.atualizarListaMembrosSelecionados();
+        
+        modal.style.display = 'flex';
+    }
+
+    fecharModalGrupo() {
+        document.getElementById('modalGrupo').style.display = 'none';
+        this.grupoEditando = null;
+        this.membrosSelecionados.clear();
+    }
+
+    async salvarGrupo() {
+        try {
+            const modules = this.modules;
+            if (!modules || !modules.db) {
+                throw new Error('Firebase não disponível');
+            }
+            
+            const nome = document.getElementById('grupoNome').value.trim();
+            if (!nome) {
+                this.mostrarNotificacao('⚠️ Por favor, informe um nome para o grupo', 'warning');
+                return;
+            }
+            
+            const descricao = document.getElementById('grupoDescricao').value.trim();
+            const cor = document.getElementById('grupoCor').value;
+            
+            if (this.grupoEditando) {
+                // Editar grupo existente
+                await this.editarGrupoFirebase(this.grupoEditando, nome, descricao, cor);
+                this.mostrarNotificacao('✅ Grupo atualizado com sucesso!', 'success');
+            } else {
+                // Criar novo grupo
+                const grupoData = {
+                    nome: nome,
+                    descricao: descricao || '',
+                    cor: cor,
+                    criador: this.usuarioAtual.usuario,
+                    criadorNome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
+                    dataCriacao: modules.serverTimestamp(),
+                    dataAtualizacao: modules.serverTimestamp(),
+                    membros: [
+                        this.usuarioAtual.usuario // Criador como primeiro membro (string simples)
+                    ],
+                    tarefas: []
+                };
+                
+                // Adicionar outros membros selecionados
+                for (const usuarioId of this.membrosSelecionados) {
+                    grupoData.membros.push(usuarioId);
+                }
+                
+                console.log('📝 Salvando grupo:', grupoData);
+                
+                const gruposRef = modules.collection(this.db, 'grupos');
+                const docRef = await modules.addDoc(gruposRef, grupoData);
+                
+                console.log('✅ Grupo criado com ID:', docRef.id);
+                this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
+            }
+            
+            this.fecharModalGrupo();
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar grupo:', error);
+            this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
+        }
+    }
+    
+    async editarGrupoFirebase(grupoId, nome, descricao, cor) {
+        const modules = this.modules;
+        const grupoRef = modules.doc(this.db, 'grupos', grupoId);
+        
+        await modules.updateDoc(grupoRef, {
+            nome: nome,
+            descricao: descricao || '',
+            cor: cor,
+            dataAtualizacao: modules.serverTimestamp()
+        });
+    }
+
+    // ========== FUNÇÕES PARA USUÁRIOS ==========
+    
+    exibirUsuarios(termoBusca = '') {
+        const container = document.getElementById('usuariosLista');
+        if (!container) return;
+        
+        let usuariosFiltrados = this.usuarios;
+        
+        if (termoBusca) {
+            const termo = termoBusca.toLowerCase();
+            usuariosFiltrados = usuariosFiltrados.filter(usuario =>
+                (usuario.nome && usuario.nome.toLowerCase().includes(termo)) ||
+                (usuario.displayName && usuario.displayName.toLowerCase().includes(termo)) ||
+                (usuario.login && usuario.login.toLowerCase().includes(termo)) ||
+                usuario.id.toLowerCase().includes(termo)
+            );
+        }
+        
+        if (usuariosFiltrados.length === 0) {
+            container.innerHTML = `
+                <div class="empty-membros">
+                    <i class="fas fa-search"></i>
+                    <span>Nenhum usuário encontrado</span>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = usuariosFiltrados.map(usuario => {
+            const estaSelecionado = this.membrosSelecionados.has(usuario.id);
+            
+            return `
+                <div class="usuario-item ${estaSelecionado ? 'selecionado' : ''}" 
+                     onclick="workManager.toggleSelecaoUsuario('${usuario.id}')">
+                    <i class="fas fa-user${estaSelecionado ? '-check' : ''}"></i>
+                    <div class="usuario-info">
+                        <strong>${usuario.displayName || usuario.nome || usuario.login || usuario.id}</strong>
+                        <small>${usuario.login || usuario.id}</small>
+                    </div>
+                    ${estaSelecionado ? '<i class="fas fa-check-circle" style="color: #28a745;"></i>' : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    toggleSelecaoUsuario(usuarioId) {
+        if (this.membrosSelecionados.has(usuarioId)) {
+            this.membrosSelecionados.delete(usuarioId);
+        } else {
+            this.membrosSelecionados.add(usuarioId);
+        }
+        
+        this.exibirUsuarios(document.getElementById('buscarUsuario')?.value || '');
+        this.atualizarListaMembrosSelecionados();
+    }
+
+    atualizarListaMembrosSelecionados() {
+        const container = document.getElementById('listaMembrosSelecionados');
+        if (!container) return;
+        
+        if (this.membrosSelecionados.size === 0) {
+            container.innerHTML = `
+                <div class="empty-membros">
+                    <i class="fas fa-users"></i>
+                    <span>Nenhum membro selecionado</span>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = Array.from(this.membrosSelecionados).map(usuarioId => {
+            const usuario = this.usuarios.find(u => u.id === usuarioId);
+            return `
+                <div class="membro-selecionado-item">
+                    <i class="fas fa-user"></i>
+                    <span>${usuario ? (usuario.displayName || usuario.nome || usuario.login) : usuarioId}</span>
+                    <button type="button" class="btn-remover" onclick="workManager.removerMembroSelecionado('${usuarioId}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    removerMembroSelecionado(usuarioId) {
+        this.membrosSelecionados.delete(usuarioId);
+        this.exibirUsuarios(document.getElementById('buscarUsuario')?.value || '');
+        this.atualizarListaMembrosSelecionados();
+    }
+
+    filtrarUsuarios(termo) {
+        this.exibirUsuarios(termo);
+    }
+
     // ========== CONVIDAR USUÁRIOS ==========
     
     async convidarUsuarioSelecionado() {
@@ -425,7 +689,7 @@ class WorkManagerV12 {
                     if (typeof membro === 'string' && membro === this.usuarioParaConvitar) {
                         jaEstaNoGrupo = true;
                         break;
-                    } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioParaConvitar) {
+                    } else if (membro && membro.usuarioId === this.usuarioParaConvitar) {
                         jaEstaNoGrupo = true;
                         break;
                     }
@@ -437,14 +701,11 @@ class WorkManagerV12 {
                 return;
             }
             
-            // Adicionar usuário como membro pendente
+            // Adicionar usuário como membro pendente (string simples)
             await modules.updateDoc(grupoRef, {
-                membros: modules.arrayUnion(this.usuarioParaConvitar), // String simples
+                membros: modules.arrayUnion(this.usuarioParaConvitar),
                 dataAtualizacao: modules.serverTimestamp()
             });
-            
-            // ATUALIZAR O DOCUMENTO DO USUÁRIO COM O GRUPO
-            await this.atualizarUsuarioComGrupo(this.usuarioParaConvitar, this.grupoSelecionado);
             
             this.mostrarNotificacao('✅ Convite enviado com sucesso!', 'success');
             
@@ -459,32 +720,6 @@ class WorkManagerV12 {
         } catch (error) {
             console.error('❌ Erro ao convidar usuário:', error);
             this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
-        }
-    }
-    
-    async atualizarUsuarioComGrupo(usuarioId, grupoId) {
-        try {
-            const modules = this.modules;
-            const usuarioRef = modules.doc(this.db, 'usuarios', usuarioId);
-            const usuarioDoc = await modules.getDoc(usuarioRef);
-            
-            if (usuarioDoc.exists()) {
-                const usuarioData = usuarioDoc.data();
-                const gruposAtuais = usuarioData.grupos || [];
-                
-                // Adicionar o grupo apenas se ainda não estiver na lista
-                if (!gruposAtuais.includes(grupoId)) {
-                    await modules.updateDoc(usuarioRef, {
-                        grupos: [...gruposAtuais, grupoId]
-                    });
-                    console.log(`✅ Usuário ${usuarioId} atualizado com o grupo ${grupoId}`);
-                }
-            } else {
-                console.warn(`⚠️ Usuário ${usuarioId} não encontrado no Firestore`);
-            }
-        } catch (error) {
-            console.error('❌ Erro ao atualizar usuário:', error);
-            // Continuar mesmo se falhar
         }
     }
 
@@ -545,9 +780,6 @@ class WorkManagerV12 {
                             dataAtualizacao: modules.serverTimestamp()
                         });
                         
-                        // ATUALIZAR O USUÁRIO COM O GRUPO
-                        await this.atualizarUsuarioComGrupo(this.usuarioAtual.usuario, grupoId);
-                        
                         this.mostrarNotificacao('✅ Convite aceito! Bem-vindo ao grupo!', 'success');
                     } else {
                         // Remover o usuário da lista de membros
@@ -564,9 +796,6 @@ class WorkManagerV12 {
                             });
                         }
                         
-                        // REMOVER O GRUPO DO USUÁRIO SE RECUSOU
-                        await this.removerGrupoDoUsuario(this.usuarioAtual.usuario, grupoId);
-                        
                         await modules.updateDoc(grupoRef, {
                             membros: membrosAtualizados,
                             dataAtualizacao: modules.serverTimestamp()
@@ -582,29 +811,6 @@ class WorkManagerV12 {
             }
         );
     }
-    
-    async removerGrupoDoUsuario(usuarioId, grupoId) {
-        try {
-            const modules = this.modules;
-            const usuarioRef = modules.doc(this.db, 'usuarios', usuarioId);
-            const usuarioDoc = await modules.getDoc(usuarioRef);
-            
-            if (usuarioDoc.exists()) {
-                const usuarioData = usuarioDoc.data();
-                const gruposAtuais = usuarioData.grupos || [];
-                const gruposAtualizados = gruposAtuais.filter(g => g !== grupoId);
-                
-                if (gruposAtuais.length !== gruposAtualizados.length) {
-                    await modules.updateDoc(usuarioRef, {
-                        grupos: gruposAtualizados
-                    });
-                    console.log(`✅ Grupo ${grupoId} removido do usuário ${usuarioId}`);
-                }
-            }
-        } catch (error) {
-            console.error('❌ Erro ao remover grupo do usuário:', error);
-        }
-    }
 
     // ========== GERENCIAR MEMBROS ==========
     
@@ -614,11 +820,6 @@ class WorkManagerV12 {
         
         if (!grupo) {
             this.mostrarNotificacao('❌ Grupo não encontrado', 'error');
-            return;
-        }
-        
-        if (grupo.minhaPermissao !== 'admin') {
-            this.mostrarNotificacao('❌ Apenas administradores podem gerenciar membros', 'error');
             return;
         }
         
@@ -641,25 +842,27 @@ class WorkManagerV12 {
                     permissao = membro.permissao || 'membro';
                 }
                 
-                const usuarioInfo = this.usuarios.find(u => u.id === usuarioId);
-                const nome = usuarioInfo ? (usuarioInfo.nome || usuarioInfo.usuario || usuarioId) : usuarioId;
+                const usuarioInfo = this.buscarUsuarioPorId(usuarioId);
+                const nome = usuarioInfo ? usuarioInfo.displayName || usuarioInfo.nome || usuarioInfo.login : usuarioId;
                 const isCurrentUser = usuarioId === this.usuarioAtual.usuario;
                 
                 membrosHTML += `
                     <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
-                        <i class="fas fa-user${permissao === 'admin' ? '-shield' : ''}"></i>
+                        <i class="fas fa-user${permissao === 'admin' ? '-shield' : permissao === 'pendente' ? '-clock' : ''}"></i>
                         <div class="membro-info">
                             <strong>${nome}</strong>
                             <small>${usuarioId}</small>
                         </div>
                         <span class="permissao-badge ${permissao}">
-                            ${permissao === 'admin' ? 'Administrador' : 'Membro'}
+                            ${permissao === 'admin' ? 'Administrador' : permissao === 'pendente' ? 'Pendente' : 'Membro'}
                         </span>
-                        ${!isCurrentUser ? `
+                        ${!isCurrentUser && grupo.minhaPermissao === 'admin' ? `
                             <div class="membro-acoes">
-                                <button class="btn-icon" onclick="workManager.alterarPermissaoMembro('${grupoId}', '${usuarioId}', '${permissao === 'admin' ? 'membro' : 'admin'}')">
-                                    <i class="fas fa-${permissao === 'admin' ? 'user' : 'user-shield'}"></i>
-                                </button>
+                                ${permissao !== 'pendente' ? `
+                                    <button class="btn-icon" onclick="workManager.alterarPermissaoMembro('${grupoId}', '${usuarioId}', '${permissao === 'admin' ? 'membro' : 'admin'}')">
+                                        <i class="fas fa-${permissao === 'admin' ? 'user' : 'user-shield'}"></i>
+                                    </button>
+                                ` : ''}
                                 <button class="btn-icon btn-danger" onclick="workManager.removerMembroGrupo('${grupoId}', '${usuarioId}')">
                                     <i class="fas fa-user-times"></i>
                                 </button>
@@ -680,6 +883,10 @@ class WorkManagerV12 {
         this.exibirUsuariosParaConvite('');
         
         modal.style.display = 'flex';
+    }
+    
+    buscarUsuarioPorId(usuarioId) {
+        return this.usuarios.find(u => u.id === usuarioId || u.login === usuarioId);
     }
     
     exibirUsuariosParaConvite(termoBusca = '') {
@@ -703,14 +910,16 @@ class WorkManagerV12 {
         
         // Filtrar usuários que não são membros
         let usuariosFiltrados = this.usuarios.filter(usuario => 
-            !membrosAtuais.has(usuario.id) && usuario.id !== this.usuarioAtual.usuario
+            !membrosAtuais.has(usuario.id) && 
+            usuario.id !== this.usuarioAtual.usuario
         );
         
         if (termoBusca) {
             const termo = termoBusca.toLowerCase();
             usuariosFiltrados = usuariosFiltrados.filter(usuario =>
                 (usuario.nome && usuario.nome.toLowerCase().includes(termo)) ||
-                (usuario.email && usuario.email.toLowerCase().includes(termo)) ||
+                (usuario.displayName && usuario.displayName.toLowerCase().includes(termo)) ||
+                (usuario.login && usuario.login.toLowerCase().includes(termo)) ||
                 usuario.id.toLowerCase().includes(termo)
             );
         }
@@ -733,8 +942,8 @@ class WorkManagerV12 {
                      onclick="workManager.selecionarUsuarioParaConvite('${usuario.id}')">
                     <i class="fas fa-user-plus"></i>
                     <div class="usuario-info">
-                        <strong>${usuario.nome || usuario.id}</strong>
-                        <small>${usuario.email || usuario.id}</small>
+                        <strong>${usuario.displayName || usuario.nome || usuario.login || usuario.id}</strong>
+                        <small>${usuario.login || usuario.id}</small>
                     </div>
                     ${estaSelecionado ? '<i class="fas fa-check-circle" style="color: #28a745;"></i>' : ''}
                 </div>
@@ -747,7 +956,7 @@ class WorkManagerV12 {
         const input = document.getElementById('buscarUsuarioParaConvite');
         if (input) {
             const usuario = this.usuarios.find(u => u.id === usuarioId);
-            input.value = usuario ? (usuario.nome || usuario.email || usuarioId) : usuarioId;
+            input.value = usuario ? (usuario.displayName || usuario.nome || usuario.login) : usuarioId;
         }
         
         // Atualizar visualização
@@ -756,53 +965,6 @@ class WorkManagerV12 {
 
     // ========== FUNÇÕES DE GRUPOS ==========
     
-    async salvarGrupo() {
-        const nome = document.getElementById('grupoNome').value;
-        const descricao = document.getElementById('grupoDescricao').value;
-        const cor = document.getElementById('grupoCor').value;
-        
-        if (!nome) {
-            this.mostrarNotificacao('Preencha o nome do grupo', 'error');
-            return;
-        }
-        
-        try {
-            const grupoData = {
-                nome,
-                descricao,
-                cor,
-                criador: this.usuarioAtual.usuario,
-                criadorNome: this.usuarioAtual.nome || this.usuarioAtual.usuario,
-                dataCriacao: this.modules.serverTimestamp(),
-                dataAtualizacao: this.modules.serverTimestamp(),
-                membros: [this.usuarioAtual.usuario], // Criador como primeiro membro
-                tarefas: []
-            };
-            
-            if (this.grupoEditando) {
-                // Editar grupo existente
-                const grupoRef = this.modules.doc(this.db, 'grupos', this.grupoEditando);
-                await this.modules.updateDoc(grupoRef, grupoData);
-                this.mostrarNotificacao('✅ Grupo atualizado com sucesso!', 'success');
-            } else {
-                // Criar novo grupo
-                const gruposRef = this.modules.collection(this.db, 'grupos');
-                const docRef = await this.modules.addDoc(gruposRef, grupoData);
-                
-                // ATUALIZAR O CRIADOR COM O GRUPO
-                await this.atualizarUsuarioComGrupo(this.usuarioAtual.usuario, docRef.id);
-                
-                this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
-            }
-            
-            this.fecharModalGrupo();
-            
-        } catch (error) {
-            console.error('❌ Erro ao salvar grupo:', error);
-            this.mostrarNotificacao('Erro ao salvar grupo: ' + error.message, 'error');
-        }
-    }
-    
     async excluirGrupo(grupoId) {
         this.mostrarConfirmacao(
             'Excluir Grupo',
@@ -810,21 +972,6 @@ class WorkManagerV12 {
             async () => {
                 try {
                     const grupoRef = this.modules.doc(this.db, 'grupos', grupoId);
-                    
-                    // Primeiro, remover o grupo de todos os membros
-                    const grupoDoc = await this.modules.getDoc(grupoRef);
-                    const grupoData = grupoDoc.data();
-                    
-                    if (grupoData.membros) {
-                        for (const membro of grupoData.membros) {
-                            const usuarioId = typeof membro === 'string' ? membro : membro.usuarioId;
-                            if (usuarioId) {
-                                await this.removerGrupoDoUsuario(usuarioId, grupoId);
-                            }
-                        }
-                    }
-                    
-                    // Depois excluir o grupo
                     await this.modules.deleteDoc(grupoRef);
                     
                     this.mostrarNotificacao('✅ Grupo excluído com sucesso', 'success');
@@ -860,9 +1007,6 @@ class WorkManagerV12 {
                             return true;
                         });
                     }
-                    
-                    // REMOVER O GRUPO DO USUÁRIO
-                    await this.removerGrupoDoUsuario(this.usuarioAtual.usuario, grupoId);
                     
                     // Se não houver mais membros, excluir o grupo
                     if (membrosAtualizados.length === 0) {
@@ -909,7 +1053,7 @@ class WorkManagerV12 {
                 dataAtualizacao: this.modules.serverTimestamp()
             });
             
-            this.mostrarNotificacao(`✅ Permissão alterada para ${novaPermissao}`, 'success');
+            this.mostrarNotificacao(`✅ Permissão alterada para ${novaPermissao === 'admin' ? 'administrador' : 'membro'}`, 'success');
             
             // Atualizar a lista de membros
             this.gerenciarMembros(grupoId);
@@ -943,9 +1087,6 @@ class WorkManagerV12 {
                             return true;
                         });
                     }
-                    
-                    // REMOVER O GRUPO DO USUÁRIO REMOVIDO
-                    await this.removerGrupoDoUsuario(usuarioId, grupoId);
                     
                     await this.modules.updateDoc(grupoRef, {
                         membros: membrosAtualizados,
@@ -1043,33 +1184,6 @@ class WorkManagerV12 {
 
     // ========== MODAIS ==========
     
-    abrirModalGrupo(grupoId = null) {
-        this.grupoEditando = grupoId;
-        const modal = document.getElementById('modalGrupo');
-        const titulo = document.getElementById('modalGrupoTitulo');
-        
-        if (grupoId) {
-            titulo.textContent = 'Editar Grupo';
-            const grupo = this.grupos.find(g => g.id === grupoId);
-            if (grupo) {
-                document.getElementById('grupoNome').value = grupo.nome;
-                document.getElementById('grupoDescricao').value = grupo.descricao || '';
-                document.getElementById('grupoCor').value = grupo.cor || '#4a6fa5';
-            }
-        } else {
-            titulo.textContent = 'Novo Grupo de Trabalho';
-            document.getElementById('formGrupo').reset();
-            document.getElementById('grupoCor').value = '#4a6fa5';
-        }
-        
-        modal.style.display = 'flex';
-    }
-
-    fecharModalGrupo() {
-        document.getElementById('modalGrupo').style.display = 'none';
-        this.grupoEditando = null;
-    }
-
     fecharModalMembros() {
         document.getElementById('modalMembros').style.display = 'none';
         this.grupoSelecionado = null;
@@ -1182,5 +1296,9 @@ window.sairGrupo = (grupoId) => workManager.sairGrupo(grupoId);
 window.fecharModalMembros = () => workManager.fecharModalMembros();
 window.fecharModalConfirmacao = () => workManager.fecharModalConfirmacao();
 window.confirmarAcao = () => workManager.confirmarAcao();
+window.filtrarUsuarios = (termo) => workManager.filtrarUsuarios(termo);
 window.filtrarUsuariosParaConvite = (termo) => workManager.exibirUsuariosParaConvite(termo);
+window.carregarUsuarios = () => workManager.carregarUsuariosLogins().then(() => workManager.exibirUsuarios());
+window.toggleSelecaoUsuario = (usuarioId) => workManager.toggleSelecaoUsuario(usuarioId);
 window.selecionarUsuarioParaConvite = (usuarioId) => workManager.selecionarUsuarioParaConvite(usuarioId);
+window.removerMembroSelecionado = (usuarioId) => workManager.removerMembroSelecionado(usuarioId);
