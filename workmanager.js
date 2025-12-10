@@ -405,7 +405,7 @@ class WorkManagerV12 {
     processarGrupos(snapshot) {
         this.grupos = snapshot.docs.map(doc => {
             const data = doc.data();
-            let minhaPermissao = 'pendente';
+            let minhaPermissao = 'membro'; // Padrão é membro
             let pertenceAoGrupo = false;
             
             // Verificar se o usuário está no grupo
@@ -432,7 +432,7 @@ class WorkManagerV12 {
         });
         
         this.atualizarInterfaceGrupos();
-        this.atualizarBadgeConvites();
+        // Remova a chamada para atualizarBadgeConvites
     }
 
     atualizarInterfaceGrupos() {
@@ -459,13 +459,9 @@ class WorkManagerV12 {
         // Aplicar filtro principal
         switch(filtro) {
             case 'meus':
+                // Mostrar apenas grupos onde o usuário é membro
                 gruposFiltrados = gruposFiltrados.filter(g => 
                     g.pertenceAoGrupo
-                );
-                break;
-            case 'convidados':
-                gruposFiltrados = gruposFiltrados.filter(g => 
-                    g.minhaPermissao === 'pendente' && g.pertenceAoGrupo
                 );
                 break;
             case 'todos':
@@ -489,12 +485,9 @@ class WorkManagerV12 {
     // Adicionar método auxiliar para renderizar grupos
     renderizarGrupos(gruposFiltrados) {
         return gruposFiltrados.map(grupo => {
-            const permissaoClass = grupo.minhaPermissao === 'pendente' ? 'convite-pendente' : grupo.minhaPermissao;
+            const permissaoClass = grupo.pertenceAoGrupo ? grupo.minhaPermissao : 'externo';
             const membrosCount = Array.isArray(grupo.membros) ? grupo.membros.length : 0;
             const tarefasCount = Array.isArray(grupo.tarefas) ? grupo.tarefas.length : 0;
-            
-            // Determinar se deve mostrar apenas o botão "Ver"
-            const mostrarApenasVer = !grupo.pertenceAoGrupo && grupo.minhaPermissao !== 'pendente';
             
             return `
                 <div class="group-card permissao-${permissaoClass}">
@@ -503,7 +496,7 @@ class WorkManagerV12 {
                             <h3>${grupo.nome}</h3>
                             ${grupo.pertenceAoGrupo ? `
                                 <span class="permissao-badge ${grupo.minhaPermissao}">
-                                    ${grupo.minhaPermissao === 'pendente' ? 'Convite' : grupo.minhaPermissao}
+                                    ${grupo.minhaPermissao === 'admin' ? 'Admin' : 'Membro'}
                                 </span>
                             ` : `
                                 <span class="permissao-badge externo">
@@ -527,41 +520,32 @@ class WorkManagerV12 {
                         </div>
                     </div>
                     <div class="group-actions">
-                        ${mostrarApenasVer ? `
+                        ${grupo.pertenceAoGrupo ? `
+                            <!-- Botões completos para membros do grupo -->
+                            <button class="btn btn-outline btn-sm" onclick="workManager.verDetalhesGrupo('${grupo.id}')">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="workManager.gerenciarMembros('${grupo.id}')">
+                                <i class="fas fa-users-cog"></i> Membros
+                            </button>
+                            ${grupo.minhaPermissao === 'admin' ? `
+                                <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </button>
+                            ` : `
+                                <button class="btn btn-danger btn-sm" onclick="workManager.sairGrupo('${grupo.id}')">
+                                    <i class="fas fa-sign-out-alt"></i> Sair
+                                </button>
+                            `}
+                        ` : `
                             <!-- Apenas botão VER para grupos externos -->
                             <button class="btn btn-outline btn-sm" onclick="workManager.verDetalhesGrupo('${grupo.id}')">
                                 <i class="fas fa-eye"></i> Ver
                             </button>
-                        ` : (
-                            grupo.minhaPermissao === 'pendente' ? `
-                                <button class="btn btn-success btn-sm" onclick="workManager.responderConvite('${grupo.id}', 'aceitar')">
-                                    <i class="fas fa-check"></i> Aceitar
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="workManager.responderConvite('${grupo.id}', 'recusar')">
-                                    <i class="fas fa-times"></i> Recusar
-                                </button>
-                            ` : `
-                                <!-- Botões completos para membros do grupo -->
-                                <button class="btn btn-outline btn-sm" onclick="workManager.verDetalhesGrupo('${grupo.id}')">
-                                    <i class="fas fa-eye"></i> Ver
-                                </button>
-                                <button class="btn btn-primary btn-sm" onclick="workManager.gerenciarMembros('${grupo.id}')">
-                                    <i class="fas fa-users-cog"></i> Membros
-                                </button>
-                                ${grupo.minhaPermissao === 'admin' ? `
-                                    <button class="btn btn-warning btn-sm" onclick="workManager.editarGrupo('${grupo.id}')">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="workManager.excluirGrupo('${grupo.id}')">
-                                        <i class="fas fa-trash"></i> Excluir
-                                    </button>
-                                ` : `
-                                    <button class="btn btn-danger btn-sm" onclick="workManager.sairGrupo('${grupo.id}')">
-                                        <i class="fas fa-sign-out-alt"></i> Sair
-                                    </button>
-                                `}
-                            `
-                        )}
+                        `}
                     </div>
                 </div>
             `;
@@ -851,94 +835,7 @@ class WorkManagerV12 {
         }
     }
 
-    // ========== RESPONDER CONVITE ==========
-    
-    async responderConvite(grupoId, resposta) {
-        this.mostrarConfirmacao(
-            resposta === 'aceitar' ? 'Aceitar Convite' : 'Recusar Convite',
-            resposta === 'aceitar' 
-                ? 'Tem certeza que deseja aceitar o convite e entrar neste grupo?'
-                : 'Tem certeza que deseja recusar este convite?',
-            async () => {
-                try {
-                    const modules = this.modules;
-                    const grupoRef = modules.doc(this.db, 'grupos', grupoId);
-                    const grupoDoc = await modules.getDoc(grupoRef);
-                    const grupoData = grupoDoc.data();
-                    
-                    if (resposta === 'aceitar') {
-                        // Converter de pendente para membro
-                        let membrosAtualizados = [];
-                        
-                        if (grupoData.membros) {
-                            membrosAtualizados = grupoData.membros.map(membro => {
-                                if (typeof membro === 'string' && membro === this.usuarioAtual.usuario) {
-                                    return { 
-                                        usuarioId: this.usuarioAtual.usuario, 
-                                        permissao: 'membro'
-                                    };
-                                } else if (membro && typeof membro === 'object' && membro.usuarioId === this.usuarioAtual.usuario) {
-                                    return { 
-                                        ...membro, 
-                                        permissao: 'membro'
-                                    };
-                                }
-                                return membro;
-                            });
-                            
-                            // Se não encontrou, adicionar como novo membro
-                            if (!membrosAtualizados.some(m => 
-                                (typeof m === 'string' && m === this.usuarioAtual.usuario) ||
-                                (m && typeof m === 'object' && m.usuarioId === this.usuarioAtual.usuario)
-                            )) {
-                                membrosAtualizados.push({ 
-                                    usuarioId: this.usuarioAtual.usuario, 
-                                    permissao: 'membro'
-                                });
-                            }
-                        } else {
-                            membrosAtualizados = [{ 
-                                usuarioId: this.usuarioAtual.usuario, 
-                                permissao: 'membro'
-                            }];
-                        }
-                        
-                        await modules.updateDoc(grupoRef, {
-                            membros: membrosAtualizados,
-                            dataAtualizacao: modules.serverTimestamp()
-                        });
-                        
-                        this.mostrarNotificacao('✅ Convite aceito! Bem-vindo ao grupo!', 'success');
-                    } else {
-                        // Remover o usuário da lista de membros
-                        let membrosAtualizados = [];
-                        
-                        if (grupoData.membros) {
-                            membrosAtualizados = grupoData.membros.filter(membro => {
-                                if (typeof membro === 'string') {
-                                    return membro !== this.usuarioAtual.usuario;
-                                } else if (membro && typeof membro === 'object') {
-                                    return membro.usuarioId !== this.usuarioAtual.usuario;
-                                }
-                                return true;
-                            });
-                        }
-                        
-                        await modules.updateDoc(grupoRef, {
-                            membros: membrosAtualizados,
-                            dataAtualizacao: modules.serverTimestamp()
-                        });
-                        
-                        this.mostrarNotificacao('✅ Convite recusado', 'success');
-                    }
-                    
-                } catch (error) {
-                    console.error(`❌ Erro ao ${resposta} convite:`, error);
-                    this.mostrarNotificacao(`❌ Erro: ${error.message}`, 'error');
-                }
-            }
-        );
-    }
+
 
     // ========== GERENCIAR MEMBROS ==========
     
@@ -1554,7 +1451,6 @@ window.filtrarGrupos = (filtro) => {
     workManager.filtrarGrupos(filtro);
 };
 window.convidarUsuarioSelecionado = () => workManager.convidarUsuarioSelecionado();
-window.responderConvite = (grupoId, resposta) => workManager.responderConvite(grupoId, resposta);
 window.alterarPermissaoMembro = (grupoId, usuarioId, permissao) => workManager.alterarPermissaoMembro(grupoId, usuarioId, permissao);
 window.removerMembroGrupo = (grupoId, usuarioId) => workManager.removerMembroGrupo(grupoId, usuarioId);
 window.verDetalhesGrupo = (grupoId) => workManager.verDetalhesGrupo(grupoId);
