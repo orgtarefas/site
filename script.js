@@ -1,17 +1,13 @@
-// script.js - VERSÃO COMPLETA COM BANCO DE LOGINS SEPARADO
+// script.js - VERSÃO COMPLETA COM MODAL ÚNICO E CONTROLE DE VISIBILIDADE
 console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
 let tarefas = [];
-let logins = []; // Agora chamamos de logins em vez de usuarios
+let usuarios = [];
 let grupos = [];
 let atividadesPorTarefa = {};
 let editandoTarefaId = null;
 let modoEdicao = false;
-
-// Variáveis para os bancos
-let dbTarefas; // Banco das tarefas
-let dbLogins;  // Banco dos logins
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
@@ -38,67 +34,21 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarSistema();
 });
 
-// Configuração dos bancos Firebase
-function configurarBancosFirebase() {
-    console.log('🔥 Configurando bancos Firebase...');
-    
-    // Configuração do PRIMEIRO banco (tarefas - orgtarefas)
-    const firebaseConfigTarefas = {
-        apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-        authDomain: "orgtarefas-85358.firebaseapp.com",
-        projectId: "orgtarefas-85358",
-        storageBucket: "orgtarefas-85358.firebasestorage.app",
-        messagingSenderId: "1023569488575",
-        appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
-    };
-
-    // Configuração do SEGUNDO banco (logins - logins-c3407)
-    const firebaseConfigLogins = {
-        apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
-        authDomain: "logins-c3407.firebaseapp.com",
-        projectId: "logins-c3407",
-        storageBucket: "logins-c3407.firebasestorage.app",
-        messagingSenderId: "809861558230",
-        appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
-    };
-
-    try {
-        // Inicializar PRIMEIRO banco (tarefas)
-        const appTarefas = firebase.initializeApp(firebaseConfigTarefas, "tarefas");
-        dbTarefas = firebase.firestore(appTarefas);
-        
-        // Inicializar SEGUNDO banco (logins)
-        const appLogins = firebase.initializeApp(firebaseConfigLogins, "logins");
-        dbLogins = firebase.firestore(appLogins);
-        
-        console.log('✅ Bancos Firebase inicializados!');
-        console.log('   - Banco Tarefas:', firebaseConfigTarefas.projectId);
-        console.log('   - Banco Logins:', firebaseConfigLogins.projectId);
-        
-        // Para manter compatibilidade com código existente
-        window.db = dbTarefas;
-        window.dbTarefas = dbTarefas;
-        window.dbLogins = dbLogins;
-        
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao configurar bancos Firebase:', error);
-        return false;
-    }
-}
-
 function inicializarSistema() {
-    console.log('🔥 Inicializando sistema...');
-    document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
+    console.log('🔥 Inicializando Firebase...');
+    document.getElementById('loadingText').textContent = 'Conectando ao banco de dados...';
     
-    // Configurar bancos Firebase
-    if (!configurarBancosFirebase()) {
-        mostrarErro('Erro ao conectar com os bancos de dados');
+    // Aguardar Firebase carregar
+    if (!window.db) {
+        console.log('⏳ Aguardando Firebase...');
+        setTimeout(inicializarSistema, 500);
         return;
     }
+
+    console.log('✅ Firebase carregado!');
     
     try {
-        carregarLogins();
+        carregarUsuarios();
         carregarGrupos();
         configurarFirebase();
         
@@ -118,12 +68,12 @@ function configurarDataMinima() {
     if (dataFim) dataFim.min = hoje;
 }
 
-// FUNÇÃO: Carregar grupos (do banco de tarefas)
+// FUNÇÃO: Carregar grupos
 async function carregarGrupos() {
     console.log('👥 Carregando grupos...');
     
     try {
-        const snapshot = await dbTarefas.collection("grupos").get();
+        const snapshot = await db.collection("grupos").get();
         
         grupos = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -151,94 +101,43 @@ async function carregarGrupos() {
     }
 }
 
-// FUNÇÃO: Carregar logins (do banco de logins)
-async function carregarLogins() {
-    console.log('👥 Carregando logins...');
+// FUNÇÃO: Carregar usuários
+async function carregarUsuarios() {
+    console.log('👥 Carregando usuários...');
     
     try {
-        // Acessar: Logins -> logins -> LOGINS_ORGTAREFAS
-        const loginsRef = dbLogins.collection("logins").doc("LOGINS_ORGTAREFAS");
-        const doc = await loginsRef.get();
+        const snapshot = await db.collection("usuarios").get();
         
-        if (!doc.exists) {
-            console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado');
-            return;
-        }
-        
-        const dados = doc.data();
-        logins = [];
-        
-        // Iterar sobre todos os campos do documento (que são os logins)
-        Object.keys(dados).forEach(key => {
-            const loginData = dados[key];
-            
-            if (loginData && typeof loginData === 'object') {
-                logins.push({
-                    id: key, // user1_uid, user2_uid, etc.
-                    uid: key,
-                    nome: loginData.displayName || '',
-                    login: loginData.login || '',
-                    displayName: loginData.displayName || '',
-                    ...loginData
-                });
-            }
-        });
-        
-        console.log('✅ Logins carregados:', logins.length);
-        console.log('📋 Exemplo de logins:', logins.slice(0, 3)); // Mostra apenas 3 para não poluir
+        usuarios = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
 
-        // Preencher select de responsável para FILTRO
+        console.log('✅ Usuários carregados:', usuarios.length);
+
+        // Apenas preencher select de responsável para FILTRO
         const selectFiltro = document.getElementById('filterResponsavel');
         if (selectFiltro) {
             selectFiltro.innerHTML = '<option value="">Todos</option>';
-            logins.forEach(login => {
+            usuarios.forEach(usuario => {
                 const option = document.createElement('option');
-                option.value = login.login || login.id;
-                option.textContent = login.nome || login.displayName || login.login || login.id;
+                option.value = usuario.usuario || usuario.id;
+                option.textContent = usuario.nome || usuario.usuario || usuario.id;
                 selectFiltro.appendChild(option);
             });
         }
         
     } catch (error) {
-        console.error('❌ Erro ao carregar logins:', error);
-        mostrarErro('Erro ao carregar lista de logins');
+        console.error('❌ Erro ao carregar usuários:', error);
     }
-}
-
-// FUNÇÃO: Buscar login por login (username)
-function buscarLoginPorLogin(loginUsuario) {
-    if (!loginUsuario) return { nome: 'Não definido', login: '' };
-    
-    const login = logins.find(l => l.login === loginUsuario);
-    if (login) {
-        return {
-            nome: login.nome || login.displayName || login.login,
-            login: login.login
-        };
-    }
-    return { nome: loginUsuario, login: loginUsuario };
-}
-
-// FUNÇÃO: Buscar login por ID (uid)
-function buscarLoginPorId(uid) {
-    if (!uid) return { nome: 'Não definido', login: '' };
-    
-    const login = logins.find(l => l.id === uid || l.uid === uid);
-    if (login) {
-        return {
-            nome: login.nome || login.displayName || login.login,
-            login: login.login
-        };
-    }
-    return { nome: uid, login: uid };
 }
 
 function configurarFirebase() {
     console.log('📡 Configurando listener do Firestore...');
     document.getElementById('loadingText').textContent = 'Carregando tarefas...';
     
-    // Listener em tempo real para tarefas (do banco de tarefas)
-    dbTarefas.collection("tarefas")
+    // Listener em tempo real para tarefas
+    db.collection("tarefas")
         .orderBy("dataCriacao", "desc")
         .onSnapshot(
             async (snapshot) => {
@@ -273,8 +172,8 @@ async function carregarAtividadesParaTodasTarefas() {
     console.log('📋 Carregando atividades para todas as tarefas...');
     
     try {
-        // Buscar todas as atividades (do banco de tarefas)
-        const snapshot = await dbTarefas.collection("atividades").get();
+        // Buscar todas as atividades
+        const snapshot = await db.collection("atividades").get();
         const todasAtividades = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
@@ -309,7 +208,7 @@ async function carregarAtividadesParaTodasTarefas() {
 // FUNÇÃO: Buscar atividades específicas de uma tarefa
 async function buscarAtividadesDaTarefa(tarefaId) {
     try {
-        const snapshot = await dbTarefas.collection("atividades")
+        const snapshot = await db.collection("atividades")
             .where("tarefaId", "==", tarefaId)
             .get();
         
@@ -550,11 +449,11 @@ async function salvarTarefa() {
         if (modoEdicao && editandoTarefaId) {
             console.log('✏️ Editando tarefa:', editandoTarefaId);
             // Na edição, mantém o Status existente (não atualiza)
-            await dbTarefas.collection("tarefas").doc(editandoTarefaId).update(tarefa);
+            await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
         } else {
             console.log('🆕 Criando nova tarefa');
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            await dbTarefas.collection("tarefas").add({
+            await db.collection("tarefas").add({
                 ...tarefa,
                 dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
                 criadoPor: usuarioLogado.usuario
@@ -575,7 +474,7 @@ async function excluirTarefa(tarefaId) {
     console.log('🗑️ Excluindo tarefa:', tarefaId);
     
     try {
-        await dbTarefas.collection("tarefas").doc(tarefaId).delete();
+        await db.collection("tarefas").doc(tarefaId).delete();
         mostrarNotificacao('Tarefa excluída com sucesso!', 'success');
     } catch (error) {
         console.error('❌ Erro ao excluir tarefa:', error);
@@ -739,17 +638,6 @@ function atualizarListaTarefas() {
             }
         }
         
-        // Buscar informações do responsável (se houver)
-        let responsavelInfo = '';
-        if (tarefa.responsavel) {
-            const loginInfo = buscarLoginPorLogin(tarefa.responsavel);
-            responsavelInfo = `
-                <span class="task-responsavel">
-                    <i class="fas fa-user"></i> ${loginInfo.nome} (${loginInfo.login})
-                </span>
-            `;
-        }
-        
         // Buscar atividades da tarefa
         const atividadesDaTarefa = atividadesPorTarefa[tarefa.id] || [];
         let atividadesHTML = '';
@@ -811,7 +699,11 @@ function atualizarListaTarefas() {
                 <span class="badge status-${tarefa.status}">
                     ${getLabelStatus(tarefa.status)}
                 </span>
-                ${responsavelInfo}
+                ${tarefa.responsavel ? `
+                    <span class="task-responsavel">
+                        <i class="fas fa-user"></i> ${tarefa.responsavel}
+                    </span>
+                ` : ''}
             </div>
 
             ${atividadesHTML}
@@ -1018,36 +910,6 @@ async function recarregarAtividades() {
     atualizarListaTarefas();
 }
 
-// Função para testar conexão com bancos
-async function testarConexaoBancos() {
-    console.log('🧪 Testando conexão com bancos...');
-    
-    try {
-        // Testar banco de tarefas
-        const tarefasTeste = await dbTarefas.collection("tarefas").limit(1).get();
-        console.log('✅ Banco de tarefas conectado:', !tarefasTeste.empty ? 'Com dados' : 'Vazio');
-        
-        // Testar banco de logins
-        const loginsDoc = await dbLogins.collection("logins").doc("LOGINS_ORGTAREFAS").get();
-        console.log('✅ Banco de logins conectado:', loginsDoc.exists ? 'Documento encontrado' : 'Documento não encontrado');
-        
-        if (loginsDoc.exists) {
-            const dados = loginsDoc.data();
-            console.log('📋 Total de logins carregados:', Object.keys(dados).length);
-            console.log('👤 Primeiro login:', {
-                chave: Object.keys(dados)[0],
-                dados: dados[Object.keys(dados)[0]]
-            });
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro no teste de conexão:', error);
-    }
-}
-
-// Chame esta função para testar (pode remover depois)
-// setTimeout(() => testarConexaoBancos(), 3000);
-
 // Torna as funções globais
 window.adicionarAtividade = adicionarAtividade;
 window.alternarAtividade = alternarAtividade;
@@ -1058,5 +920,3 @@ window.fecharModalTarefa = fecharModalTarefa;
 window.salvarTarefa = salvarTarefa;
 window.excluirTarefa = excluirTarefa;
 window.logout = logout;
-window.buscarLoginPorLogin = buscarLoginPorLogin;
-window.buscarLoginPorId = buscarLoginPorId;
