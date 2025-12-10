@@ -953,7 +953,7 @@ class GestorAtividades {
         }
     }
 
-    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) { // ADICIONE async AQUI
+    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         
         // VALIDAÇÃO: Verificar se o usuário tem acesso a esta tarefa
@@ -1229,21 +1229,6 @@ class GestorAtividades {
         }, 200);
     }
     
-        
-        // Filtrar usuários que são membros dos mesmos grupos que o usuário atual
-        const usuariosFiltrados = this.usuarios.filter(user => {
-            // Se é o próprio usuário, sempre mostrar
-            if (user.usuario === usuarioAtual) return true;
-            
-            // Se não temos info dos grupos, mostrar todos (fallback)
-            if (gruposIdsUsuario.length === 0) return true;
-            
-            // Buscar grupos do usuário candidato
-            // Nota: Esta parte seria mais eficiente com cache de grupos por usuário
-            // Por enquanto, assumimos que todos os usuários podem ser selecionados
-            // para não tornar a query muito complexa
-            return true;
-        });
         
         const usuariosOptions = usuariosFiltrados.map(user => {
             const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
