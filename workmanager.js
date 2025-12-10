@@ -195,7 +195,7 @@ class WorkManagerV12 {
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             
-            this.atualizarStatusSincronizacao('✅ Conectado ao Firebase');
+            this.atualizarStatusSincronizacao('✅ On line');
             
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
