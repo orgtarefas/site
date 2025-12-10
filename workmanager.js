@@ -218,64 +218,63 @@ class WorkManagerV12 {
                 console.log('✅ Documento LOGINS_ORGTAREFAS encontrado!');
                 const data = docSnap.data();
                 
-                // DEBUG: Mostrar estrutura do documento
-                console.log('📊 Campos do documento:', Object.keys(data));
-                console.log('📊 Conteúdo do documento:', data);
-                
                 // Processar cada userX_uid no documento
                 Object.keys(data).forEach(key => {
                     // Verificar se é um campo userX_uid (ex: user1_uid, user2_uid, etc.)
-                    if (key.startsWith('user') && key.includes('_uid')) {
+                    if (key.startsWith('user') && (key.includes('_uid') || /\d/.test(key))) {
                         const userData = data[key];
                         
                         if (userData && userData.login) {
+                            // IMPORTANTE: Usar displayName com D maiúsculo (correto do Firebase)
+                            // O Firebase diferencia maiúsculas/minúsculas nos nomes dos campos
+                            const displayName = userData.displayName || userData.login;
+                            
                             const usuario = {
-                                id: key, // user1_uid, user2_uid, etc.
+                                id: key,
                                 login: userData.login,
-                                nome: userData.displayName || userData.login,
-                                displayName: userData.displayName || userData.login,
+                                // Garantir que usamos o campo correto
+                                nome: displayName,
+                                displayName: displayName,
                                 email: userData.email || '',
                                 senha: userData.senha || '',
                                 perfil: userData.perfil || '',
                                 isOnline: userData.isOnline || false,
-                                // Adicionar dados brutos para debug
-                                rawData: userData
+                                // Manter os dados originais completos
+                                dadosCompletos: userData
                             };
                             
-                            console.log(`👤 Usuário extraído: ${usuario.displayName} (${usuario.login})`);
+                            // DEBUG: Mostrar dados do usuário específico
+                            if (userData.login === 'luides.matheus') {
+                                console.log('🔍 Dados completos de luides.matheus:', userData);
+                                console.log('🔍 Campo displayName:', userData.displayName);
+                            }
                             
                             // Não adicionar o usuário atual se estiver logado
-                            if (this.usuarioAtual && 
-                                (usuario.login === this.usuarioAtual.usuario || 
-                                 usuario.id === this.usuarioAtual.usuario)) {
-                                console.log('⚠️ Filtrando usuário atual:', usuario.login);
+                            if (this.usuarioAtual && usuario.login === this.usuarioAtual.usuario) {
+                                console.log(`⚠️ Filtrando usuário atual: ${usuario.login}`);
+                                console.log(`⚠️ DisplayName do usuário atual: "${usuario.displayName}"`);
                             } else {
                                 this.usuarios.push(usuario);
                             }
-                        } else {
-                            console.warn(`⚠️ Campo ${key} não possui login válido:`, userData);
                         }
-                    } else {
-                        console.log(`ℹ️ Campo ignorado: ${key} (não é userX_uid)`);
                     }
                 });
                 
                 console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS_ORGTAREFAS`);
                 
-                // Se nenhum usuário for carregado, mostrar alerta
-                if (this.usuarios.length === 0) {
-                    console.warn('⚠️ Nenhum usuário carregado. Verificando estrutura do documento...');
-                    this.debugEstruturaDocumento(data);
-                }
+                // Verificar se os nomes estão completos
+                this.usuarios.forEach(u => {
+                    if (u.displayName && u.displayName.length < 20) {
+                        console.warn(`⚠️ Nome curto para ${u.login}: "${u.displayName}"`);
+                    }
+                });
                 
             } else {
                 console.error('❌ Documento LOGINS_ORGTAREFAS não encontrado!');
-                this.mostrarNotificacao('❌ Erro: Documento de usuários não encontrado', 'error');
             }
             
         } catch (error) {
-            console.error('❌ Erro ao carregar usuários do LOGINS_ORGTAREFAS:', error);
-            this.mostrarNotificacao(`❌ Erro ao carregar usuários: ${error.message}`, 'error');
+            console.error('❌ Erro ao carregar usuários:', error);
             this.usuarios = [];
         }
     }
@@ -950,8 +949,8 @@ class WorkManagerV12 {
             return;
         }
         
-        // Carregar usuários do LOGINS_ORGTAREFAS para garantir que temos os dados atualizados
-        await this.carregarUsuariosLogins();
+        // DEBUG: Verificar dados
+        console.log('=== DEBUG: GERENCIAR MEMBROS ===');
         
         const modal = document.getElementById('modalMembros');
         
@@ -972,44 +971,32 @@ class WorkManagerV12 {
                     permissao = membro.permissao || 'membro';
                 }
                 
-                let nome = usuarioId; // fallback inicial
-                let usuarioInfo = null;
-                
                 // Buscar o usuário na lista carregada
-                usuarioInfo = this.buscarUsuarioPorId(usuarioId);
+                const usuarioInfo = this.buscarUsuarioPorId(usuarioId);
                 
-                // Se encontrou o usuário na lista
+                // DEBUG específico para cada usuário
+                console.log(`🔍 Buscando usuário: ${usuarioId}`);
+                console.log(`🔍 Informações encontradas:`, usuarioInfo);
+                
+                let nomeCompleto = usuarioId; // Fallback
+                
                 if (usuarioInfo) {
-                    nome = usuarioInfo.displayName || usuarioInfo.nome || usuarioInfo.login;
-                    console.log(`Usuário ${usuarioId} encontrado como: ${nome}`);
-                }
-                // Se não encontrou, mas é o usuário atual
-                else if (usuarioId === this.usuarioAtual?.usuario) {
-                    // Verificar se temos dados do usuário atual no localStorage
-                    const usuarioLogado = localStorage.getItem('usuarioLogado');
-                    if (usuarioLogado) {
-                        const usuarioData = JSON.parse(usuarioLogado);
-                        nome = usuarioData.nome || usuarioData.displayName || usuarioId;
-                        console.log(`Usuário atual encontrado no localStorage: ${nome}`);
-                    } else {
-                        // Tentar buscar em outras fontes
-                        nome = this.usuarioAtual.nome || usuarioId;
+                    // Usar displayName direto do Firebase (campo correto)
+                    nomeCompleto = usuarioInfo.displayName || usuarioInfo.nome || usuarioId;
+                    
+                    // DEBUG: Verificar qual campo está sendo usado
+                    console.log(`🔍 Nome definido para ${usuarioId}: "${nomeCompleto}"`);
+                    console.log(`🔍 Campo displayName: "${usuarioInfo.displayName}"`);
+                    console.log(`🔍 Campo nome: "${usuarioInfo.nome}"`);
+                    
+                    // Verificar dados completos se disponíveis
+                    if (usuarioInfo.dadosCompletos) {
+                        console.log(`🔍 Dados completos do Firebase:`, usuarioInfo.dadosCompletos);
+                        console.log(`🔍 Campo displayName nos dados: "${usuarioInfo.dadosCompletos.displayName}"`);
                     }
-                }
-                // Se é o criador do grupo e temos o nome do criador
-                else if (grupo.criadorNome && usuarioId === grupo.criador) {
-                    nome = grupo.criadorNome;
-                }
-                
-                // Formatando o nome: garantir que o login não apareça como nome
-                if (nome === usuarioId) {
-                    // Se o nome ainda for igual ao login, tentar extrair nome do formato "nome.sobrenome"
-                    const partes = usuarioId.split('.');
-                    if (partes.length >= 2) {
-                        nome = partes.map(parte => 
-                            parte.charAt(0).toUpperCase() + parte.slice(1)
-                        ).join(' ');
-                    }
+                } else if (usuarioId === this.usuarioAtual?.usuario) {
+                    // Para o usuário atual
+                    nomeCompleto = this.usuarioAtual.nome || usuarioId;
                 }
                 
                 const isCurrentUser = usuarioId === this.usuarioAtual?.usuario;
@@ -1018,7 +1005,7 @@ class WorkManagerV12 {
                     <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
                         <i class="fas fa-user${permissao === 'admin' ? '-shield' : permissao === 'pendente' ? '-clock' : ''}"></i>
                         <div class="membro-info">
-                            <strong>${nome}</strong>
+                            <strong>${nomeCompleto}</strong>
                             <small>${usuarioId}</small>
                         </div>
                         <span class="permissao-badge ${permissao}">
@@ -1052,7 +1039,8 @@ class WorkManagerV12 {
         
         modal.style.display = 'flex';
     }
-    
+
+        
     buscarUsuarioPorId(usuarioId) {
         return this.usuarios.find(u => u.id === usuarioId || u.login === usuarioId);
     }
