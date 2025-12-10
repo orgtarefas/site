@@ -668,6 +668,15 @@ input[type="color"].form-control {
     background: #fee;
 }
 
+.permissao-badge.externo {
+    background-color: #95a5a6;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
 /* Lista de Membros */
 .lista-membros {
     margin-top: 15px;
