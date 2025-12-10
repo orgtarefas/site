@@ -950,11 +950,8 @@ class WorkManagerV12 {
             return;
         }
         
-        // DEBUG: mostrar informações
-        console.log('=== GERENCIAR MEMBROS ===');
-        console.log('Grupo:', grupo.nome);
-        console.log('Membros do grupo:', grupo.membros);
-        console.log('Usuários carregados:', this.usuarios.length);
+        // Carregar usuários do LOGINS_ORGTAREFAS para garantir que temos os dados atualizados
+        await this.carregarUsuariosLogins();
         
         const modal = document.getElementById('modalMembros');
         
@@ -975,9 +972,47 @@ class WorkManagerV12 {
                     permissao = membro.permissao || 'membro';
                 }
                 
-                const usuarioInfo = this.buscarUsuarioPorId(usuarioId);
-                const nome = usuarioInfo ? usuarioInfo.displayName || usuarioInfo.nome || usuarioInfo.login : usuarioId;
-                const isCurrentUser = usuarioId === this.usuarioAtual.usuario;
+                let nome = usuarioId; // fallback inicial
+                let usuarioInfo = null;
+                
+                // Buscar o usuário na lista carregada
+                usuarioInfo = this.buscarUsuarioPorId(usuarioId);
+                
+                // Se encontrou o usuário na lista
+                if (usuarioInfo) {
+                    nome = usuarioInfo.displayName || usuarioInfo.nome || usuarioInfo.login;
+                    console.log(`Usuário ${usuarioId} encontrado como: ${nome}`);
+                }
+                // Se não encontrou, mas é o usuário atual
+                else if (usuarioId === this.usuarioAtual?.usuario) {
+                    // Verificar se temos dados do usuário atual no localStorage
+                    const usuarioLogado = localStorage.getItem('usuarioLogado');
+                    if (usuarioLogado) {
+                        const usuarioData = JSON.parse(usuarioLogado);
+                        nome = usuarioData.nome || usuarioData.displayName || usuarioId;
+                        console.log(`Usuário atual encontrado no localStorage: ${nome}`);
+                    } else {
+                        // Tentar buscar em outras fontes
+                        nome = this.usuarioAtual.nome || usuarioId;
+                    }
+                }
+                // Se é o criador do grupo e temos o nome do criador
+                else if (grupo.criadorNome && usuarioId === grupo.criador) {
+                    nome = grupo.criadorNome;
+                }
+                
+                // Formatando o nome: garantir que o login não apareça como nome
+                if (nome === usuarioId) {
+                    // Se o nome ainda for igual ao login, tentar extrair nome do formato "nome.sobrenome"
+                    const partes = usuarioId.split('.');
+                    if (partes.length >= 2) {
+                        nome = partes.map(parte => 
+                            parte.charAt(0).toUpperCase() + parte.slice(1)
+                        ).join(' ');
+                    }
+                }
+                
+                const isCurrentUser = usuarioId === this.usuarioAtual?.usuario;
                 
                 membrosHTML += `
                     <div class="membro-item ${isCurrentUser ? 'membro-atual' : ''}">
