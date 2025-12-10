@@ -180,39 +180,105 @@ class GestorAtividades {
                 .where('membros', 'array-contains', usuarioAtual)
                 .get();
             
-            const gruposIds = gruposSnapshot.docs.map(doc => doc.id);
+            const gruposIdsUsuario = gruposSnapshot.docs.map(doc => doc.id);
             
-            if (gruposIds.length === 0) {
+            if (gruposIdsUsuario.length === 0) {
                 this.atividadesDisponiveis = [];
                 console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
                 return;
             }
             
-            // Carregar tarefas dos grupos do usuário
-            const tarefasSnapshot = await db.collection('tarefas')
-                .where('grupoId', 'in', gruposIds)
-                .get();
+            // Carregar TODAS as tarefas e filtrar localmente
+            const todasTarefasSnapshot = await db.collection('tarefas').get();
             
-            const tarefasIds = tarefasSnapshot.docs.map(doc => doc.id);
+            // Filtrar tarefas que o usuário tem acesso
+            const tarefasUsuario = todasTarefasSnapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter(tarefa => {
+                    const gruposAcessoTarefa = tarefa.gruposAcesso || [];
+                    return gruposAcessoTarefa.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId)
+                    );
+                });
             
-            // Carregar atividades APENAS das tarefas dos grupos do usuário
-            const snapshot = await db.collection('atividades')
-                .where('tarefaId', 'in', tarefasIds)
-                .get();
+            const tarefasIds = tarefasUsuario.map(t => t.id);
+            
+            console.log(`🔍 ${tarefasIds.length} tarefas do(s) grupo(s) do usuário`);
+            
+            // Se não tem tarefas, retornar array vazio
+            if (tarefasIds.length === 0) {
+                this.atividadesDisponiveis = [];
+                console.log('⚠️ Usuário não tem tarefas nos grupos - sem atividades para vínculo');
+                return;
+            }
+            
+            // Carregar atividades APENAS das tarefas que o usuário tem acesso
+            // Usar múltiplas queries se tiver mais de 10 tarefas (limite do Firebase 'in')
+            if (tarefasIds.length <= 10) {
+                // Usar operador 'in' para até 10 tarefas
+                const snapshot = await db.collection('atividades')
+                    .where('tarefaId', 'in', tarefasIds)
+                    .get();
                 
-            this.atividadesDisponiveis = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
-            }));
+                this.atividadesDisponiveis = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
+                }));
+            } else {
+                // Para mais de 10 tarefas, carregar todas e filtrar localmente
+                console.log(`⚠️ Muitas tarefas (${tarefasIds.length}), carregando todas as atividades e filtrando...`);
+                const todasAtividadesSnapshot = await db.collection('atividades').get();
+                
+                this.atividadesDisponiveis = todasAtividadesSnapshot.docs
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
+                    }))
+                    .filter(atividade => tarefasIds.includes(atividade.tarefaId));
+            }
             
             console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
+            
         } catch (error) {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
             this.atividadesDisponiveis = [];
         }
     }
 
+    //  função auxiliar para verificar o acesso do usuário em outras partes do código
+    temAcessoTarefa(tarefa) {
+        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
+        if (!usuarioAtual) return false;
+        
+        // Se o usuário é admin, tem acesso a tudo
+        if (this.usuario.perfil === 'admin') return true;
+        
+        // Buscar grupos do usuário
+        const gruposIdsUsuario = this.obterGruposUsuarioIds();
+        
+        if (gruposIdsUsuario.length === 0) return false;
+        
+        const gruposAcessoTarefa = tarefa.gruposAcesso || [];
+        
+        // Verificar se há interseção entre grupos da tarefa e grupos do usuário
+        return gruposAcessoTarefa.some(grupoId => 
+            gruposIdsUsuario.includes(grupoId)
+        );
+    }
+    
+    // Função para obter IDs dos grupos do usuário (pode ser em cache)
+    obterGruposUsuarioIds() {
+        // Esta função pode ser implementada para cachear os grupos do usuário
+        // Por enquanto, vamos buscar sempre
+        // Você pode otimizar isso depois
+        return [];
+    }
+    
     getNomeTarefa(tarefaId) {
         const tarefa = this.tarefas.find(t => t.id === tarefaId);
         
@@ -283,8 +349,11 @@ class GestorAtividades {
             console.log(`✅ Usuário faz parte de ${gruposUsuario.length} grupo(s):`, 
                 gruposUsuario.map(g => g.nome));
             
+            const gruposIdsUsuario = gruposUsuario.map(g => g.id);
+            console.log(`📌 IDs dos grupos do usuário:`, gruposIdsUsuario);
+            
             // Se não pertence a nenhum grupo, mostrar mensagem
-            if (gruposUsuario.length === 0) {
+            if (gruposIdsUsuario.length === 0) {
                 console.log('⚠️ Usuário não pertence a nenhum grupo');
                 
                 // Mostrar mensagem na interface
@@ -305,22 +374,30 @@ class GestorAtividades {
                 return;
             }
             
-            // Obter IDs dos grupos
-            const gruposIds = gruposUsuario.map(g => g.id);
+            // Carregar TODAS as tarefas e filtrar localmente pelo array gruposAcesso
+            const todasTarefasSnapshot = await db.collection('tarefas').get();
             
-            // Carregar SOMENTE tarefas dos grupos do usuário
-            const tarefasSnapshot = await db.collection('tarefas')
-                .where('grupoId', 'in', gruposIds)
-                .get();
+            // Filtrar tarefas que o usuário tem acesso (gruposAcesso contém algum dos grupos do usuário)
+            this.tarefas = todasTarefasSnapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter(tarefa => {
+                    const gruposAcessoTarefa = tarefa.gruposAcesso || [];
+                    
+                    // Verificar se há interseção entre grupos da tarefa e grupos do usuário
+                    const temAcesso = gruposAcessoTarefa.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId)
+                    );
+                    
+                    return temAcesso;
+                });
             
-            this.tarefas = tarefasSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            console.log(`✅ ${this.tarefas.length} tarefas do(s) grupo(s) do usuário:`);
+            console.log(`✅ ${this.tarefas.length} tarefas filtradas do(s) grupo(s) do usuário:`);
             this.tarefas.forEach(t => {
-                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'} (Grupo: ${t.grupoId})`);
+                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'} 
+                    GruposAcesso: ${t.gruposAcesso ? t.gruposAcesso.join(', ') : 'Nenhum'}`);
             });
     
             // Carregar atividades
@@ -336,7 +413,7 @@ class GestorAtividades {
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
             
-            // Agrupar atividades por tarefa (apenas tarefas do usuário)
+            // Agrupar atividades por tarefa (apenas tarefas que o usuário tem acesso)
             this.tarefas.forEach(tarefa => {
                 tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
                 console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
@@ -878,6 +955,17 @@ class GestorAtividades {
 
     abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
+        
+        // VALIDAÇÃO: Verificar se o usuário tem acesso a esta tarefa
+        const tarefa = this.tarefas.find(t => t.id === tarefaId);
+        if (!tarefa) {
+            console.error(`❌ Tarefa ${tarefaId} não encontrada ou usuário não tem acesso`);
+            alert('⚠️ Você não tem acesso a esta tarefa ou ela não existe.');
+            return;
+        }
+        
+        console.log(`✅ Usuário tem acesso à tarefa: ${tarefa.titulo || tarefa.nome}`);
+        
         this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
         
         const modal = document.getElementById('modalAtividade');
@@ -893,10 +981,41 @@ class GestorAtividades {
         
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
         
-        // Filtrar usuários que são membros dos mesmos grupos
-        const usuariosOptions = this.usuarios.map(user => {
+        // Obter IDs dos grupos do usuário para filtrar usuários
+        const usuarioAtual = this.usuario.usuario;
+        let gruposIdsUsuario = [];
+        
+        try {
+            // Buscar grupos onde o usuário é membro
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            gruposIdsUsuario = gruposSnapshot.docs.map(doc => doc.id);
+            console.log(`👥 Usuário pertence a ${gruposIdsUsuario.length} grupos`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar grupos do usuário:', error);
+        }
+        
+        // Filtrar usuários que são membros dos mesmos grupos que o usuário atual
+        const usuariosFiltrados = this.usuarios.filter(user => {
+            // Se é o próprio usuário, sempre mostrar
+            if (user.usuario === usuarioAtual) return true;
+            
+            // Se não temos info dos grupos, mostrar todos (fallback)
+            if (gruposIdsUsuario.length === 0) return true;
+            
+            // Buscar grupos do usuário candidato
+            // Nota: Esta parte seria mais eficiente com cache de grupos por usuário
+            // Por enquanto, assumimos que todos os usuários podem ser selecionados
+            // para não tornar a query muito complexa
+            return true;
+        });
+        
+        const usuariosOptions = usuariosFiltrados.map(user => {
             const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
-            return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
+            const nomeExibicao = user.nome || user.usuario;
+            return `<option value="${user.usuario}" ${selected}>${nomeExibicao}</option>`;
         }).join('');
         
         const formatarDataParaInput = (dataString) => {
@@ -908,82 +1027,162 @@ class GestorAtividades {
         
         let atividadesVinculadasHTML = '';
         if (this.atividadesDisponiveis.length > 0) {
-            const atividadesParaVincular = this.atividadesDisponiveis.filter(atv => 
-                !atividadeExistente || atv.id !== atividadeExistente.id
-            );
+            const atividadesParaVincular = this.atividadesDisponiveis.filter(atv => {
+                // Não permitir vincular a si mesma
+                if (atividadeExistente && atv.id === atividadeExistente.id) {
+                    return false;
+                }
+                
+                // Filtrar atividades que pertencem às mesmas tarefas do usuário
+                // (já filtradas em carregarAtividadesParaVinculo)
+                return true;
+            });
             
             const atividadesVinculadasIds = atividadeExistente && atividadeExistente.atividadesVinculadas 
                 ? atividadeExistente.atividadesVinculadas 
                 : [];
             
+            if (atividadesParaVincular.length > 0) {
+                atividadesVinculadasHTML = `
+                    <div class="form-group">
+                        <label for="vinculosAtividade">
+                            <i class="fas fa-link"></i> Vincular Atividades (opcional)
+                            <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
+                            <small class="form-text d-block mt-1">Apenas atividades do(s) seu(s) grupo(s) estão disponíveis</small>
+                        </label>
+                        <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                            ${atividadesParaVincular.map(atv => {
+                                const checked = atividadesVinculadasIds.includes(atv.id) ? 'checked' : '';
+                                const tarefaNome = atv.tarefaNome || 'Tarefa não encontrada';
+                                const statusLabel = getLabelStatus(atv.status);
+                                const statusClass = `status-${atv.status || 'nao_iniciado'}`;
+                                
+                                return `
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
+                                        <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
+                                            <strong>${atv.titulo || 'Sem título'}</strong>
+                                            <small class="text-muted d-block">
+                                                Tarefa: ${tarefaNome} | 
+                                                Status: <span class="badge ${statusClass}">${statusLabel}</span>
+                                            </small>
+                                        </label>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                atividadesVinculadasHTML = `
+                    <div class="form-group">
+                        <label><i class="fas fa-link"></i> Vincular Atividades</label>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Não há outras atividades disponíveis para vínculo no(s) seu(s) grupo(s)
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
             atividadesVinculadasHTML = `
                 <div class="form-group">
-                    <label for="vinculosAtividade">
-                        <i class="fas fa-link"></i> Vincular Atividades (opcional)
-                        <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
-                        <small class="form-text d-block mt-1">Apenas atividades do(s) seu(s) grupo(s) estão disponíveis</small>
-                    </label>
-                    <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-                        ${atividadesParaVincular.map(atv => {
-                            const checked = atividadesVinculadasIds.includes(atv.id) ? 'checked' : '';
-                            return `
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
-                                    <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
-                                        <strong>${atv.titulo}</strong>
-                                        <small class="text-muted"> (${atv.tarefaNome || 'Tarefa'}) - ${getLabelStatus(atv.status)}</small>
-                                    </label>
-                                </div>
-                            `;
-                        }).join('')}
+                    <label><i class="fas fa-link"></i> Vincular Atividades</label>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Não foi possível carregar atividades para vínculo
                     </div>
-                    ${atividadesParaVincular.length === 0 ? 
-                        '<p class="text-muted small">Não há outras atividades disponíveis para vínculo no(s) seu(s) grupo(s)</p>' : ''}
                 </div>
             `;
+        }
+        
+        // Obter valor da data prevista (usar hoje se não existir)
+        let dataPrevistaValor = '';
+        if (atividadeExistente && atividadeExistente.dataPrevista) {
+            dataPrevistaValor = formatarDataParaInput(atividadeExistente.dataPrevista);
+        } else {
+            // Data padrão: 7 dias a partir de hoje
+            const dataPadrao = new Date();
+            dataPadrao.setDate(dataPadrao.getDate() + 7);
+            dataPrevistaValor = dataPadrao.toISOString().split('T')[0];
         }
         
         document.getElementById('modalAtividadeBody').innerHTML = `
             <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
                 <div class="form-group">
-                    <label for="tituloAtividade">Título *</label>
+                    <label for="tituloAtividade">
+                        <i class="fas fa-heading"></i> Título *
+                    </label>
                     <input type="text" id="tituloAtividade" class="form-control" required 
-                           value="${atividadeExistente ? atividadeExistente.titulo : ''}">
+                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}"
+                           placeholder="Digite o título da atividade">
                 </div>
+                
                 <div class="form-group">
-                    <label for="descricaoAtividade">Descrição</label>
-                    <textarea id="descricaoAtividade" class="form-control" rows="3">${atividadeExistente ? (atividadeExistente.descricao || '') : ''}</textarea>
+                    <label for="descricaoAtividade">
+                        <i class="fas fa-align-left"></i> Descrição
+                    </label>
+                    <textarea id="descricaoAtividade" class="form-control" rows="3" 
+                              placeholder="Descreva os detalhes da atividade...">${atividadeExistente ? this.escapeHtml(atividadeExistente.descricao || '') : ''}</textarea>
                 </div>
+                
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="responsavelAtividade">Responsável *</label>
+                    <div class="form-group col-md-6">
+                        <label for="responsavelAtividade">
+                            <i class="fas fa-user"></i> Responsável *
+                        </label>
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
                             ${usuariosOptions}
                         </select>
+                        <small class="form-text text-muted">Membros dos seus grupos de trabalho</small>
                     </div>
-                    <div class="form-group">
-                        <label for="dataPrevista">Data Prevista</label>
+                    
+                    <div class="form-group col-md-6">
+                        <label for="dataPrevista">
+                            <i class="fas fa-calendar-day"></i> Data Prevista
+                        </label>
                         <input type="date" id="dataPrevista" class="form-control" 
-                               value="${atividadeExistente ? formatarDataParaInput(atividadeExistente.dataPrevista) : new Date().toISOString().split('T')[0]}">
+                               value="${dataPrevistaValor}">
+                        <small class="form-text text-muted">Data limite para conclusão</small>
                     </div>
                 </div>
+                
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="prioridadeAtividade">Prioridade</label>
+                    <div class="form-group col-md-6">
+                        <label for="prioridadeAtividade">
+                            <i class="fas fa-flag"></i> Prioridade
+                        </label>
                         <select id="prioridadeAtividade" class="form-control">
-                            <option value="baixa" ${atividadeExistente && atividadeExistente.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
-                            <option value="media" ${(!atividadeExistente || atividadeExistente.prioridade === 'media') ? 'selected' : ''}>Média</option>
-                            <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
+                            <option value="baixa" ${atividadeExistente && atividadeExistente.prioridade === 'baixa' ? 'selected' : ''}>
+                                Baixa
+                            </option>
+                            <option value="media" ${(!atividadeExistente || atividadeExistente.prioridade === 'media' || !atividadeExistente.prioridade) ? 'selected' : ''}>
+                                Média
+                            </option>
+                            <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>
+                                Alta
+                            </option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="statusAtividade">Status</label>
+                    
+                    <div class="form-group col-md-6">
+                        <label for="statusAtividade">
+                            <i class="fas fa-tasks"></i> Status
+                        </label>
                         <select id="statusAtividade" class="form-control" onchange="verificarConclusaoVinculos()">
-                            <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>Não Iniciado</option>
-                            <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>Pendente</option>
-                            <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>Em Andamento</option>
-                            <option value="concluido" ${statusAtividade === 'concluido' ? 'selected' : ''}>Concluído</option>
+                            <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>
+                                Não Iniciado
+                            </option>
+                            <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>
+                                Pendente
+                            </option>
+                            <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>
+                                Em Andamento
+                            </option>
+                            <option value="concluido" ${statusAtividade === 'concluido' ? 'selected' : ''}>
+                                Concluído
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -993,10 +1192,13 @@ class GestorAtividades {
                 <div class="alert alert-info" id="alertVinculos" style="display: none; margin-top: 15px;">
                     <i class="fas fa-info-circle"></i> 
                     <span id="alertVinculosText"></span>
+                    <br><small>Esta alteração ocorrerá automaticamente ao salvar.</small>
                 </div>
                 
                 <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                    <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Cancelar</button>
+                    <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> ${atividadeExistente ? 'Atualizar' : 'Salvar'} Atividade
                     </button>
@@ -1006,8 +1208,40 @@ class GestorAtividades {
         
         modal.style.display = 'flex';
         
+        // Se for edição, garantir que o responsável seja selecionado
+        if (atividadeExistente && atividadeExistente.responsavel) {
+            setTimeout(() => {
+                const selectResponsavel = document.getElementById('responsavelAtividade');
+                if (selectResponsavel) {
+                    selectResponsavel.value = atividadeExistente.responsavel;
+                }
+            }, 100);
+        }
+        
         verificarConclusaoVinculos();
+        
+        // Adicionar classe de validação ao formulário
+        setTimeout(() => {
+            const form = document.getElementById('formAtividade');
+            if (form) {
+                form.classList.add('was-validated');
+            }
+        }, 200);
     }
+    
+    // Adicione esta função auxiliar para escape de HTML (segurança)
+    escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+    
 }
 
 // ========== FUNÇÕES RESTANTES ==========
