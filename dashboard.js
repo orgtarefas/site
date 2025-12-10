@@ -170,18 +170,78 @@ class GestorAtividades {
         console.log('✅ Gestor de Atividades inicializado com sucesso!');
     }
 
+    // função 
+    escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
     async carregarAtividadesParaVinculo() {
         try {
             console.log('🔗 Carregando atividades para vínculo...');
-            const snapshot = await db.collection('atividades').get();
+            
+            // Primeiro, obter grupos do usuário
+            const usuarioAtual = this.usuario.usuario;
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            const gruposIdsUsuario = gruposSnapshot.docs.map(doc => doc.id);
+            
+            // Se o usuário não pertence a nenhum grupo, não mostrar atividades para vínculo
+            if (gruposIdsUsuario.length === 0) {
+                this.atividadesDisponiveis = [];
+                console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
+                return;
+            }
+            
+            // Carregar TODAS as tarefas e filtrar
+            const todasTarefasSnapshot = await db.collection('tarefas').get();
+            
+            // Filtrar tarefas que o usuário tem acesso
+            const tarefasUsuario = todasTarefasSnapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter(tarefa => {
+                    if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso)) return false;
+                    return tarefa.gruposAcesso.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId)
+                    );
+                });
+            
+            const tarefasIds = tarefasUsuario.map(t => t.id);
+            
+            if (tarefasIds.length === 0) {
+                this.atividadesDisponiveis = [];
+                console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
+                return;
+            }
+            
+            // Carregar atividades APENAS das tarefas que o usuário tem acesso
+            const snapshot = await db.collection('atividades')
+                .where('tarefaId', 'in', tarefasIds)
+                .get();
+            
             this.atividadesDisponiveis = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
-            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo`);
+            
+            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
+            
         } catch (error) {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
+            this.atividadesDisponiveis = [];
         }
     }
 
@@ -237,18 +297,70 @@ class GestorAtividades {
                 ...doc.data()
             }));
             console.log(`✅ ${this.usuarios.length} usuários carregados`);
-
-            // Carregar tarefas
-            const tarefasSnapshot = await db.collection('tarefas').get();
-            this.tarefas = tarefasSnapshot.docs.map(doc => ({
+    
+            // OBTER GRUPOS DO USUÁRIO LOGADO
+            const usuarioAtual = this.usuario.usuario;
+            console.log(`👤 Usuário atual: ${usuarioAtual}`);
+            
+            // Buscar grupos onde o usuário é membro
+            const gruposSnapshot = await db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get();
+            
+            const gruposUsuario = gruposSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log(`✅ ${this.tarefas.length} tarefas carregadas:`);
+            
+            const gruposIdsUsuario = gruposUsuario.map(g => g.id);
+            console.log(`📌 IDs dos grupos do usuário:`, gruposIdsUsuario);
+            
+            // Se o usuário não pertence a nenhum grupo, mostrar todas as tarefas
+            // (isso é para compatibilidade, mas você pode querer mostrar uma mensagem)
+            if (gruposIdsUsuario.length === 0) {
+                console.log('⚠️ Usuário não pertence a nenhum grupo, mostrando todas as tarefas');
+            }
+    
+            // Carregar TODAS as tarefas
+            const tarefasSnapshot = await db.collection('tarefas').get();
+            
+            // Filtrar tarefas que o usuário tem acesso
+            this.tarefas = tarefasSnapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter(tarefa => {
+                    // Se o usuário não tem grupos, mostrar todas (compatibilidade)
+                    if (gruposIdsUsuario.length === 0) return true;
+                    
+                    // Se a tarefa não tem gruposAcesso, o usuário não tem acesso
+                    if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+                        console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
+                        return false;
+                    }
+                    
+                    // Verificar se há interseção entre grupos da tarefa e grupos do usuário
+                    const temAcesso = tarefa.gruposAcesso.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId)
+                    );
+                    
+                    if (!temAcesso) {
+                        console.log(`🚫 Usuário NÃO tem acesso à tarefa: ${tarefa.titulo || tarefa.nome}`);
+                    } else {
+                        console.log(`✅ Usuário TEM acesso à tarefa: ${tarefa.titulo || tarefa.nome}`);
+                    }
+                    
+                    return temAcesso;
+                });
+            
+            console.log(`✅ ${this.tarefas.length} tarefas filtradas do(s) grupo(s) do usuário:`);
             this.tarefas.forEach(t => {
-                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'}`);
+                const gruposAcesso = t.gruposAcesso || [];
+                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'} 
+                    (GruposAcesso: ${gruposAcesso.join(', ')})`);
             });
-
+    
             // Carregar atividades
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => {
@@ -262,16 +374,16 @@ class GestorAtividades {
             
             console.log(`✅ ${todasAtividades.length} atividades carregadas`);
             
-            // Agrupar atividades por tarefa
+            // Agrupar atividades por tarefa (apenas tarefas que o usuário tem acesso)
             this.tarefas.forEach(tarefa => {
                 tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
                 console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
             });
-
+    
             // Atualizar status
             document.getElementById('status-sincronizacao').innerHTML = 
                 '<i class="fas fa-check-circle"></i> Sincronizado';
-
+    
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
             document.getElementById('status-sincronizacao').innerHTML = 
@@ -458,20 +570,60 @@ class GestorAtividades {
         console.log('🎨 Renderizando tarefas...');
         const container = document.getElementById('tarefas-container');
         
+        // Verificar se há tarefas para o usuário atual
         if (this.tarefas.length === 0) {
-            container.innerHTML = `
-                <div class="empty-tarefas">
-                    <i class="fas fa-tasks"></i>
-                    <h3>Nenhuma tarefa disponível</h3>
-                    <p>Crie tarefas na tela de configurações para começar</p>
-                    <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='index.html'">
-                        <i class="fas fa-cog"></i> Ir para Configurações
-                    </button>
-                </div>
-            `;
+            // Verificar se o usuário pertence a algum grupo
+            const usuarioAtual = this.usuario.usuario;
+            
+            db.collection('grupos')
+                .where('membros', 'array-contains', usuarioAtual)
+                .get()
+                .then(gruposSnapshot => {
+                    const temGrupos = gruposSnapshot.size > 0;
+                    
+                    if (!temGrupos) {
+                        container.innerHTML = `
+                            <div class="empty-tarefas">
+                                <i class="fas fa-users-slash"></i>
+                                <h3>Você não pertence a nenhum grupo</h3>
+                                <p>Para visualizar tarefas, você precisa ser membro de um grupo de trabalho.</p>
+                                <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='workmanager.html'">
+                                    <i class="fas fa-users"></i> Ir para Grupos de Trabalho
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = `
+                            <div class="empty-tarefas">
+                                <i class="fas fa-tasks"></i>
+                                <h3>Nenhuma tarefa disponível</h3>
+                                <p>Não há tarefas atribuídas aos seus grupos de trabalho no momento.</p>
+                                <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='index.html'">
+                                    <i class="fas fa-cog"></i> Ir para Configurações
+                                </button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erro ao verificar grupos do usuário:', error);
+                    
+                    // Fallback: mostrar mensagem padrão
+                    container.innerHTML = `
+                        <div class="empty-tarefas">
+                            <i class="fas fa-tasks"></i>
+                            <h3>Nenhuma tarefa disponível</h3>
+                            <p>Não foi possível carregar as tarefas do momento.</p>
+                            <button class="btn btn-primary btn-sm mt-3" onclick="window.location.reload()">
+                                <i class="fas fa-sync-alt"></i> Tentar novamente
+                            </button>
+                        </div>
+                    `;
+                });
+            
             return;
         }
-    
+        
         // Salvar estado atual ANTES de re-renderizar
         manterEstadoExpansaoTarefas();
         
@@ -482,13 +634,24 @@ class GestorAtividades {
             // Usar titulo se existir, senão nome
             const nomeExibicao = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
             
+            // Obter informações dos grupos da tarefa para exibição
+            const gruposAcessoInfo = this.obterInfoGruposTarefa(tarefa);
+            
             return `
                 <div class="task-card">
                     <div class="task-header" onclick="toggleTarefa('${tarefa.id}')">
-                        <h2>
-                            <i class="fas fa-tasks" style="color: ${tarefa.cor || '#2C3E50'}"></i>
-                            ${nomeExibicao}
-                        </h2>
+                        <div class="task-title-section">
+                            <h2>
+                                <i class="fas fa-tasks" style="color: ${tarefa.cor || '#2C3E50'}"></i>
+                                ${nomeExibicao}
+                            </h2>
+                            ${gruposAcessoInfo ? `
+                                <div class="task-groups-info" title="Grupos com acesso a esta tarefa">
+                                    <i class="fas fa-users"></i>
+                                    <span>${gruposAcessoInfo}</span>
+                                </div>
+                            ` : ''}
+                        </div>
                         <div class="task-status">
                             <div class="status-badges-container">
                                 ${this.getTextoStatusTarefa(tarefa)}
@@ -497,7 +660,7 @@ class GestorAtividades {
                         </div>
                     </div>
                     <div class="task-body" id="tarefa-${tarefa.id}" style="display: ${estavaExpandida ? 'block' : 'none'};">
-                        <p class="task-desc">${tarefa.descricao || 'Sem descrição'}</p>
+                        ${tarefa.descricao ? `<p class="task-desc">${tarefa.descricao}</p>` : ''}
                         <div class="activities-grid">
                             ${this.renderizarAtividadesTarefa(tarefa)}
                         </div>
@@ -513,6 +676,49 @@ class GestorAtividades {
             restaurarEstadoExpansaoTarefas();
         }, 10);
     }
+    
+    // Adicione esta função auxiliar para obter informações dos grupos da tarefa
+    obterInfoGruposTarefa(tarefa) {
+        if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+            return null;
+        }
+        
+        // Tentar obter nomes dos grupos
+        const gruposDoUsuario = this.obterGruposUsuarioCache();
+        
+        if (gruposDoUsuario && gruposDoUsuario.length > 0) {
+            const gruposNomes = [];
+            
+            tarefa.gruposAcesso.forEach(grupoId => {
+                const grupo = gruposDoUsuario.find(g => g.id === grupoId);
+                if (grupo) {
+                    gruposNomes.push(grupo.nome || `Grupo ${grupoId.substring(0, 6)}...`);
+                } else {
+                    gruposNomes.push(`Grupo ${grupoId.substring(0, 6)}...`);
+                }
+            });
+            
+            if (gruposNomes.length > 0) {
+                // Limitar a exibição para 2 grupos, mostrar "e mais X" se tiver mais
+                if (gruposNomes.length <= 2) {
+                    return gruposNomes.join(', ');
+                } else {
+                    return `${gruposNomes.slice(0, 2).join(', ')} e mais ${gruposNomes.length - 2}`;
+                }
+            }
+        }
+        
+        // Fallback: mostrar apenas a quantidade de grupos
+        return `${tarefa.gruposAcesso.length} grupo(s)`;
+    }
+    
+    // Adicione esta função para cachear os grupos do usuário (opcional, para performance)
+    obterGruposUsuarioCache() {
+        // Esta função pode ser implementada para cachear os grupos
+        // Por enquanto retornamos null e buscamos quando necessário
+        return null;
+    }
+    
 
     calcularEstatisticasTarefa(tarefa) {
         const atividades = tarefa.atividades || [];
@@ -779,7 +985,7 @@ class GestorAtividades {
         }
     }
 
-    abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
         
@@ -913,9 +1119,10 @@ class GestorAtividades {
 
 // ========== FUNÇÕES RESTANTES ==========
 
-function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
     if (gestorAtividades) {
-        gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
+        await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
+        // Adicione 'async' na declaração e 'await' na chamada
     }
 }
 
@@ -1009,7 +1216,7 @@ async function editarAtividade(atividadeId) {
             ...atividadeDoc.data()
         };
         
-        abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
+        await abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
         
     } catch (error) {
         console.error('❌ Erro ao buscar atividade:', error);
