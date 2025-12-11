@@ -22,16 +22,35 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = 'login.html';
         return;
     }
-
+    
     console.log('👤 Usuário logado:', usuarioLogado.nome);
     document.getElementById('userName').textContent = usuarioLogado.nome;
-    document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+    
+    // Configurar data/hora em tempo real
+    function atualizarDataHora() {
+        const agora = new Date();
+        const dia = String(agora.getDate()).padStart(2, '0');
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const ano = agora.getFullYear();
+        const horas = String(agora.getHours()).padStart(2, '0');
+        const minutos = String(agora.getMinutes()).padStart(2, '0');
+        const segundos = String(agora.getSeconds()).padStart(2, '0');
+        
+        const textoDataHora = `${dia}/${mes}/${ano} ${horas}:${minutos}:${segundos}`;
+        
+        const dataAtualElement = document.getElementById('data-atual');
+        if (dataAtualElement) {
+            dataAtualElement.textContent = textoDataHora;
+        }
+    }
+    
+    // Iniciar atualização
+    atualizarDataHora();
+    setInterval(atualizarDataHora, 1000);
     
     // Configurar data mínima
     configurarDataMinima();
     
-    // Inicializar sistema
-    inicializarSistema();
 });
 
 function inicializarSistema() {
