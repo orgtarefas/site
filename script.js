@@ -22,18 +22,16 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = 'login.html';
         return;
     }
-    
+
     console.log('👤 Usuário logado:', usuarioLogado.nome);
     document.getElementById('userName').textContent = usuarioLogado.nome;
     document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
     
-    // Iniciar atualização
-    atualizarDataHora();
-    setInterval(atualizarDataHora, 1000);
-    
     // Configurar data mínima
     configurarDataMinima();
     
+    // Inicializar sistema
+    inicializarSistema();
 });
 
 function inicializarSistema() {
