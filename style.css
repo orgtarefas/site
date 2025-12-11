@@ -161,6 +161,206 @@ body {
     transform: translateY(-1px);
 }
 
+
+/* ===== BOTÃO NOVA TAREFA PROFISSIONAL ===== */
+.nova-tarefa-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    box-shadow: 0 4px 20px rgba(52, 152, 219, 0.2);
+    overflow: hidden;
+    margin-top: 24px;
+    min-height: 72px;
+}
+
+.nova-tarefa-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #2ecc71, #f39c12, #e74c3c);
+    background-size: 400% 100%;
+    animation: gradientShift 3s ease infinite;
+    border-radius: 12px 12px 0 0;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.nova-tarefa-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(52, 152, 219, 0.3);
+    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+}
+
+.nova-tarefa-btn:active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25);
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    margin-right: 16px;
+    transition: all 0.3s ease;
+}
+
+.nova-tarefa-btn:hover .btn-icon {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1) rotate(90deg);
+}
+
+.btn-icon i {
+    font-size: 1.3rem;
+    color: white;
+}
+
+.btn-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+}
+
+.btn-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+.btn-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-left: 12px;
+    transition: all 0.3s ease;
+}
+
+.nova-tarefa-btn:hover .btn-arrow {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(4px);
+}
+
+.btn-arrow i {
+    font-size: 0.9rem;
+    color: white;
+}
+
+/* Efeito de brilho no hover */
+.nova-tarefa-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.1), 
+        transparent);
+    transition: left 0.7s ease;
+}
+
+.nova-tarefa-btn:hover::after {
+    left: 100%;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+    .nova-tarefa-btn {
+        padding: 14px 18px;
+        min-height: 68px;
+    }
+    
+    .btn-icon {
+        width: 40px;
+        height: 40px;
+        margin-right: 14px;
+    }
+    
+    .btn-title {
+        font-size: 1rem;
+    }
+    
+    .btn-subtitle {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .nova-tarefa-btn {
+        margin-top: 20px;
+        padding: 12px 16px;
+        min-height: 64px;
+    }
+    
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+        margin-right: 12px;
+    }
+    
+    .btn-icon i {
+        font-size: 1.1rem;
+    }
+    
+    .btn-arrow {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .btn-arrow i {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .filters .filter-group:last-child {
+        grid-column: 1 / -1;
+    }
+    
+    .nova-tarefa-btn {
+        min-height: 60px;
+    }
+    
+    .btn-title {
+        font-size: 0.95rem;
+    }
+    
+    .btn-subtitle {
+        font-size: 0.75rem;
+    }
+}
+
 /* Informações do usuário */
 .user-info {
     display: flex;
