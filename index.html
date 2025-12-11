@@ -17,39 +17,35 @@
     </div>
 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho ATUALIZADO similar ao dashboard -->
-        <header class="header">
-            <div class="header-title">
-                <!-- Logo no lugar do título -->
+        <!-- Cabeçalho IDÊNTICO ao dashboard -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <!-- Logo no lugar do ícone -->
                 <div class="logo-container">
                     <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
                 </div>
-                
-                <!-- Botões do cabeçalho (similar ao dashboard) -->
-                <div class="header-buttons">
-                    <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">
-                        <i class="fas fa-chart-line"></i> Minhas Atividades
-                    </button>
-                    <button class="btn btn-primary" onclick="window.location.href='chat.html'">
-                        <i class="fas fa-comment-dots"></i> Chat
-                    </button>
-                    <button class="btn btn-primary" onclick="window.location.href='workmanager.html'">
-                        <i class="fas fa-users"></i> Grupos de Trabalho
-                    </button>
-                </div>
+                <h1>Work Manager</h1>
             </div>
-            
-            <!-- Informações do usuário (similar ao dashboard) -->
-            <div class="header-info">
-                <span id="data-atual"></span>
-                <span id="status-sincronizacao">
+            <div class="header-right">
+                <button class="btn btn-outline btn-sm" onclick="window.location.href='dashboard.html'">
+                    <i class="fas fa-chart-line"></i> Minhas Atividades
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="window.location.href='chat.html'">
+                    <i class="fas fa-comment-dots"></i> Chat
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="window.location.href='workmanager.html'">
+                    <i class="fas fa-users"></i> Grupos de Trabalho
+                </button>
+                
+                <span class="data-atual" id="data-atual"></span>
+                <span class="status-sync" id="status-sincronizacao">
                     <i class="fas fa-sync-alt"></i> Conectando...
                 </span>
-                <div class="user-menu">
-                    <i class="fas fa-user-circle user-icon"></i>
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
                     <span id="userName">Usuário</span>
-                    <button class="btn btn-outline btn-sm" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i> Sair
+                    <button class="btn-logout" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
             </div>
@@ -79,7 +75,7 @@
             </div>
         </div>
 
-        <!-- Filtros ATUALIZADO com campo Sistema -->
+        <!-- Filtros -->
         <div class="filters">
             <div class="filter-group">
                 <label for="searchInput"><i class="fas fa-search"></i> Buscar</label>
@@ -126,7 +122,7 @@
         </div>
     </div>
 
-    <!-- Modal Tarefa com campo Grupos e Atividades -->
+    <!-- Modal Tarefa -->
     <div id="modalTarefa" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -163,8 +159,6 @@
                                 <option value="alta">Alta</option>
                             </select>
                         </div>
-                        
-                        <!-- REMOVIDOS: Status e Responsável -->
                         
                         <div class="form-group">
                             <label for="tarefaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início *</label>
