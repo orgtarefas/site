@@ -205,35 +205,6 @@
         window.db = db;
         window.firebase = firebase;
     </script>
-
-    <!-- Script para data/hora -->
-    <script>
-        // Função para atualizar data e hora
-        function atualizarDataHora() {
-            const agora = new Date();
-            
-            const dia = String(agora.getDate()).padStart(2, '0');
-            const mes = String(agora.getMonth() + 1).padStart(2, '0');
-            const ano = agora.getFullYear();
-            
-            const horas = String(agora.getHours()).padStart(2, '0');
-            const minutos = String(agora.getMinutes()).padStart(2, '0');
-            const segundos = String(agora.getSeconds()).padStart(2, '0');
-            
-            const textoDataHora = `${dia}/${mes}/${ano} ${horas}:${minutos}:${segundos}`;
-            
-            // Atualiza todos os elementos com id="data-hora"
-            document.querySelectorAll('#data-hora').forEach(elemento => {
-                elemento.textContent = textoDataHora;
-            });
-        }
-        
-        // Inicia a atualização
-        document.addEventListener('DOMContentLoaded', function() {
-            atualizarDataHora();
-            setInterval(atualizarDataHora, 1000);
-        });
-    </script>
     
     <script src="script.js"></script>
 </body>
