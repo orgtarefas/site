@@ -41,14 +41,6 @@ body {
     box-shadow: var(--shadow);
 }
 
-.header-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid var(--border);
-}
 
 /* ===== ESTILOS PARA LOGO ===== */
 .logo-container {
@@ -73,7 +65,7 @@ body {
     margin-bottom: 15px;
     padding-bottom: 15px;
     border-bottom: 2px solid var(--border);
-    gap: 20px; /* Adicione esta linha */
+    gap: 25px; 
 }
 
 .header-buttons {
