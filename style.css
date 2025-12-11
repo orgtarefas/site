@@ -63,14 +63,14 @@ body {
 .logo-container {
     display: flex;
     align-items: center;
-    height: 65px;
+    height: 70px; /* Aumentado */
     padding: 8px 0;
 }
 
 .site-logo {
-    height: 50px;
+    height: 60px; /* Aumentado significativamente */
     width: auto;
-    max-width: 220px;
+    max-width: 280px; /* Aumentado */
     object-fit: contain;
 }
 
@@ -764,8 +764,8 @@ select[multiple] option:checked {
     }
 
     .site-logo {
-        height: 35px;
-        max-width: 150px;
+        height: 50px; /* Aumentado de 35px */
+        max-width: 220px; /* Aumentado de 150px */
     }
     
     .header-buttons {
@@ -817,12 +817,12 @@ select[multiple] option:checked {
     }
 
     .site-logo {
-        height: 30px;
-        max-width: 120px;
+        height: 45px; /* Aumentado de 30px */
+        max-width: 200px; /* Aumentado de 120px */
     }
     
     .logo-container {
-        height: 50px;
+        height: 60px; /* Aumentado de 50px */
     }
     
     
