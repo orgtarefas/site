@@ -17,32 +17,45 @@
     </div>
 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho padrão -->
+        <!-- Cabeçalho padrão PROFISSIONAL -->
         <header class="home-header">
             <div class="header-full">
+                <!-- Logo à esquerda -->
                 <div class="logo-container">
                     <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
                 </div>
+                
+                <!-- Todos os itens à direita -->
                 <div class="header-right">
-                    <button class="btn" onclick="window.location.href='chat.html'">
-                        <i class="fas fa-comment-dots"></i> Chat
-                    </button>
-                    <button class="btn" onclick="window.location.href='dashboard.html'">
-                        <i class="fas fa-chart-line"></i> Minhas Atividades
-                    </button>
-                    <button class="btn" onclick="window.location.href='workmanager.html'">
-                        <i class="fas fa-users"></i> Grupos de Trabalho
-                    </button>
-                    <span class="data-atual" id="data-atual">Carregando...</span>
-                    <span class="status-sync" id="status-sincronizacao">
-                        <i class="fas fa-bolt"></i> Conectado
-                    </span>
-                    <div class="user-info">
-                        <i class="fas fa-user-circle"></i>
-                        <span id="userName">thiago.barbosa</span>
-                        <button class="btn-logout" onclick="logout()">
-                            <i class="fas fa-sign-out-alt"></i>
+                    <div class="header-actions">
+                        <button class="btn-header" onclick="window.location.href='chat.html'">
+                            <i class="fas fa-comment-dots"></i> Chat
                         </button>
+                        <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                            <i class="fas fa-chart-line"></i> Minhas Atividades
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Grupos de Trabalho
+                        </button>
+                    </div>
+                    
+                    <div class="header-status">
+                        <span class="status-sync" id="status-sincronizacao">
+                            <i class="fas fa-bolt"></i> Conectado
+                        </span>
+                        
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <!-- ELEMENTO CRÍTICO: onde o JavaScript coloca o nome do usuário -->
+                                <span id="userName" class="username"></span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
