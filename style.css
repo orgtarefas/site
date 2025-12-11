@@ -822,6 +822,15 @@ select[multiple] option:checked {
     .header {
         padding: 15px 20px;
     }
+
+    .site-logo {
+        height: 30px;
+        max-width: 120px;
+    }
+    
+    .logo-container {
+        height: 50px;
+    }
     
     
     .stats-grid {
