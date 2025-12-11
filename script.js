@@ -25,7 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('👤 Usuário logado:', usuarioLogado.nome);
     document.getElementById('userName').textContent = usuarioLogado.nome;
-    document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+    const dataHoraElement = document.getElementById('data-hora');
+    if (dataHoraElement) {
+        dataHoraElement.textContent = new Date().toLocaleDateString('pt-BR');
+    }
     
     // Configurar data mínima
     configurarDataMinima();
