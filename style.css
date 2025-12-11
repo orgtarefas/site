@@ -50,12 +50,30 @@ body {
     border-bottom: 2px solid var(--border);
 }
 
-.header-title h1 {
+/* ===== ESTILOS PARA LOGO ===== */
+.logo-container {
     display: flex;
     align-items: center;
-    gap: 10px;
-    color: var(--primary);
-    font-size: 1.8rem;
+    height: 60px;
+    padding: 5px 0;
+}
+
+.site-logo {
+    height: 40px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+}
+
+/* Ajuste o .header-title existente para incluir gap */
+.header-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border);
+    gap: 20px; /* Adicione esta linha */
 }
 
 .header-buttons {
@@ -751,6 +769,11 @@ select[multiple] option:checked {
         gap: 15px;
         text-align: center;
     }
+
+    .site-logo {
+        height: 35px;
+        max-width: 150px;
+    }
     
     .header-buttons {
         width: 100%;
@@ -800,9 +823,6 @@ select[multiple] option:checked {
         padding: 15px 20px;
     }
     
-    .header-title h1 {
-        font-size: 1.5rem;
-    }
     
     .stats-grid {
         grid-template-columns: 1fr;
