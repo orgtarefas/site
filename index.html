@@ -17,7 +17,7 @@
     </div>
 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho padrão PROFISSIONAL -->
+        <!-- CABEÇALHO PROFISSIONAL -->
         <header class="home-header">
             <div class="header-full">
                 <!-- Logo à esquerda -->
@@ -25,8 +25,9 @@
                     <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
                 </div>
                 
-                <!-- Todos os itens à direita -->
+                <!-- Todos os itens organizados à direita -->
                 <div class="header-right">
+                    <!-- Botões de navegação -->
                     <div class="header-actions">
                         <button class="btn-header" onclick="window.location.href='chat.html'">
                             <i class="fas fa-comment-dots"></i> Chat
@@ -39,17 +40,20 @@
                         </button>
                     </div>
                     
+                    <!-- Status e informações do usuário -->
                     <div class="header-status">
+                        <!-- Status de conexão -->
                         <span class="status-sync" id="status-sincronizacao">
                             <i class="fas fa-bolt"></i> Conectado
                         </span>
                         
+                        <!-- Informações do usuário logado -->
                         <div class="user-info">
                             <div class="user-avatar">
                                 <i class="fas fa-user-circle"></i>
                             </div>
                             <div class="user-details">
-                                <!-- ELEMENTO CRÍTICO: onde o JavaScript coloca o nome do usuário -->
+                                <!-- Nome do usuário logado (preenchido pelo JavaScript) -->
                                 <span id="userName" class="username"></span>
                                 <button class="btn-logout" onclick="logout()" title="Sair">
                                     <i class="fas fa-sign-out-alt"></i>
