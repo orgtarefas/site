@@ -131,6 +131,99 @@ body {
 }
 
 /* Informações à direita */
+
+.header-full {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    height: 60px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo-container {
+    flex: 0 0 auto;
+}
+
+.site-logo {
+    height: 40px;
+    max-height: 40px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.header-right .btn {
+    padding: 8px 15px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.header-right .btn:hover {
+    background: #e0e0e0;
+    transform: translateY(-1px);
+}
+
+.last-access {
+    font-size: 0.85rem;
+    color: #666;
+    background: #f5f5f5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s ease;
+}
+
+.last-access:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.status-sync {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #28a745;
+    background: #e8f5e9;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.btn-logout {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+    background: #f0f0f0;
+    color: #d32f2f;
+}
 .header-right {
     display: flex;
     align-items: center;
