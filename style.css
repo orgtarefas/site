@@ -33,6 +33,14 @@ body {
 }
 
 /* Header */
+
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Header Unificado */
 .header {
     background: white;
     border-radius: 12px;
@@ -41,8 +49,17 @@ body {
     box-shadow: var(--shadow);
 }
 
+.header-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border);
+    gap: 25px;
+}
 
-/* ===== ESTILOS PARA LOGO ===== */
+/* Logo */
 .logo-container {
     display: flex;
     align-items: center;
@@ -51,26 +68,10 @@ body {
 }
 
 .site-logo {
-    height: 50px; /* Aumentei de 40px para 50px */
+    height: 50px;
     width: auto;
-    max-width: 220px; /* Aumentei de 180px para 220px */
+    max-width: 220px;
     object-fit: contain;
-}
-
-/* Ajuste o .header-title existente para incluir gap */
-.header-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid var(--border);
-    gap: 25px; 
-}
-
-.header-buttons {
-    display: flex;
-    gap: 10px;
 }
 
 .header-info {
