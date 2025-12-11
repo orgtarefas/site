@@ -140,7 +140,7 @@ body {
 }
 
 /* Data e Hora Atual */
-.data-hora {
+.data-atual {
     background: var(--light);
     padding: 8px 15px;
     border-radius: 20px;
@@ -232,7 +232,7 @@ body {
         order: 2;
     }
     
-    .data-hora {
+    .data-atual {
         min-width: 140px;
         font-size: 0.85rem;
     }
@@ -281,7 +281,7 @@ body {
         align-items: stretch;
     }
     
-    .data-hora,
+    .data-atual,
     .status-sync,
     .user-info {
         justify-content: center;
