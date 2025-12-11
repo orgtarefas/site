@@ -54,14 +54,14 @@ body {
 .logo-container {
     display: flex;
     align-items: center;
-    height: 60px;
-    padding: 5px 0;
+    height: 65px;
+    padding: 8px 0;
 }
 
 .site-logo {
-    height: 40px;
+    height: 50px; /* Aumentei de 40px para 50px */
     width: auto;
-    max-width: 180px;
+    max-width: 220px; /* Aumentei de 180px para 220px */
     object-fit: contain;
 }
 
