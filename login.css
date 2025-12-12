@@ -111,7 +111,7 @@ body {
 }
 
 .btn-login {
-    background: var(--primary);
+    background: #0D2033; /* Nova cor de fundo */
     color: white;
     border: none;
     padding: 15px 20px;
@@ -128,14 +128,21 @@ body {
 }
 
 .btn-login:hover {
-    background: var(--primary-dark);
+    background: #1A344D; /* Cor mais clara para hover */
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,120,212,0.3);
+    box-shadow: 0 5px 15px rgba(13, 32, 51, 0.3); /* Sombra com a nova cor */
+}
+
+.btn-login:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(13, 32, 51, 0.3);
 }
 
 .btn-login:disabled {
     background: var(--secondary);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .spinner {
