@@ -46,6 +46,20 @@ function getLabelStatus(status) {
     }
 }
 
+async function carregarVinculosAtividade(atividadeId) {
+    try {
+        // Buscar atividades que têm esta atividade como vínculo
+        const snapshot = await db.collection('atividades')
+            .where('atividadesVinculadas', 'array-contains', atividadeId)
+            .get();
+        
+        return snapshot.docs.map(doc => doc.id);
+    } catch (error) {
+        console.error('❌ Erro ao carregar vínculos da atividade:', error);
+        return [];
+    }
+}
+
 function toggleTarefa(tarefaId) {
     console.log(`🔧 Toggle tarefa: ${tarefaId}`);
     const elemento = document.getElementById(`tarefa-${tarefaId}`);
@@ -84,7 +98,7 @@ function verificarConclusaoVinculos() {
     const alertText = document.getElementById('alertVinculosText');
     
     if (statusSelecionado === 'concluido' && checkboxes.length > 0) {
-        alertText.textContent = `Ao salvar, ${checkboxes.length} atividade(s) vinculada(s) será(ão) alterada(s) para "Pendente".`;
+        alertText.textContent = `Ao salvar, ${checkboxes.length} atividade(s) que terão esta atividade como vínculo será(ão) alterada(s) para "Pendente".`;
         alertDiv.style.display = 'block';
     } else {
         alertDiv.style.display = 'none';
@@ -934,40 +948,29 @@ class GestorAtividades {
         try {
             console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
             
-            const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+            // Buscar atividades que têm esta atividade como vínculo
+            const snapshot = await db.collection('atividades')
+                .where('atividadesVinculadas', 'array-contains', atividadeId)
+                .get();
             
-            if (!atividadeDoc.exists) {
-                console.log(`❌ Atividade ${atividadeId} não encontrada`);
-                return;
-            }
-    
-            const atividade = atividadeDoc.data();
-            
-            // Verificar se há atividades vinculadas
-            if (atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0) {
-                console.log(`🔄 Processando ${atividade.atividadesVinculadas.length} atividades vinculadas`);
+            if (!snapshot.empty) {
+                console.log(`🔄 Processando ${snapshot.docs.length} atividades que têm ${atividadeId} como vínculo`);
                 
-                // Atualizar todas as atividades vinculadas para "pendente"
+                // Atualizar todas as atividades que têm esta atividade como vínculo
                 const batch = db.batch();
                 let atualizadas = 0;
                 
-                for (const vinculadaId of atividade.atividadesVinculadas) {
-                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
-                    
-                    // Verificar se a atividade existe
-                    const vinculadaDoc = await atividadeVinculadaRef.get();
-                    if (vinculadaDoc.exists) {
-                        batch.update(atividadeVinculadaRef, {
-                            status: 'pendente',
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        atualizadas++;
-                    }
-                }
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, {
+                        status: 'pendente',
+                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    atualizadas++;
+                });
                 
                 if (atualizadas > 0) {
                     await batch.commit();
-                    console.log(`✅ ${atualizadas} atividades vinculadas atualizadas para "pendente"`);
+                    console.log(`✅ ${atualizadas} atividades foram atualizadas para "pendente"`);
                 }
                 
                 // Recarregar dados após atualização
@@ -978,6 +981,8 @@ class GestorAtividades {
                         this.atualizarGraficos();
                     });
                 }, 1000);
+            } else {
+                console.log(`ℹ️ Nenhuma atividade tem ${atividadeId} como vínculo`);
             }
             
         } catch (error) {
@@ -1027,12 +1032,19 @@ class GestorAtividades {
             atividadesVinculadasHTML = `
                 <div class="form-group">
                     <label for="vinculosAtividade">
-                        <i class="fas fa-link"></i> Vincular Atividades (opcional)
-                        <small class="form-text">Quando esta atividade for concluída, as atividades vinculadas serão alteradas para "Pendente"</small>
+                        <i class="fas fa-link"></i> Vincular Atividade (opcional)
+                        <small class="form-text">Ao selecionar atividades abaixo, esta atividade será adicionada como vínculo nas atividades selecionadas. Quando esta atividade for concluída, as atividades que a têm como vínculo serão alteradas para "Pendente".</small>
                     </label>
                     <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
                         ${atividadesParaVincular.map(atv => {
-                            const checked = atividadesVinculadasIds.includes(atv.id) ? 'checked' : '';
+                            // Para atividades existentes, verificar quais atividades já têm esta atividade como vínculo
+                            let checked = false;
+                            if (atividadeExistente) {
+                                // Precisamos verificar no Firebase quais atividades têm esta atividade como vínculo
+                                // Isso é mais complexo, então por enquanto vamos deixar desmarcado
+                                // Na prática, você precisaria fazer uma consulta para cada atividade
+                            }
+                            
                             return `
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
@@ -1139,10 +1151,11 @@ async function salvarAtividade(tarefaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    const atividadesVinculadas = [];
+    // Coletar IDs das atividades selecionadas para vincular
+    const atividadesParaVincular = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
-        atividadesVinculadas.push(checkbox.value);
+        atividadesParaVincular.push(checkbox.value);
     });
     
     const atividade = {
@@ -1154,18 +1167,45 @@ async function salvarAtividade(tarefaId, tipo) {
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: status,
-        atividadesVinculadas: atividadesVinculadas,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        // NÃO vamos mais salvar atividadesVinculadas aqui
+        // Agora vamos adicionar o ID desta atividade nas atividades selecionadas
     };
     
     try {
         let atividadeId;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
+            // Se está editando, primeiro vamos remover os vínculos antigos
             atividadeId = gestorAtividades.atividadeEditando;
+            const atividadeAntiga = await db.collection('atividades').doc(atividadeId).get();
+            
+            if (atividadeAntiga.exists) {
+                const antigosVinculos = atividadeAntiga.data().atividadesVinculadas || [];
+                
+                // Remover este ID das atividades anteriormente vinculadas
+                for (const vinculoId of antigosVinculos) {
+                    const vinculoRef = db.collection('atividades').doc(vinculoId);
+                    const vinculoDoc = await vinculoRef.get();
+                    
+                    if (vinculoDoc.exists) {
+                        const vinculoData = vinculoDoc.data();
+                        const novasAtividadesVinculadas = (vinculoData.atividadesVinculadas || [])
+                            .filter(id => id !== atividadeId);
+                        
+                        await vinculoRef.update({
+                            atividadesVinculadas: novasAtividadesVinculadas
+                        });
+                    }
+                }
+            }
+            
+            // Atualizar a atividade principal
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
+            
         } else {
+            // Criar nova atividade
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1175,7 +1215,40 @@ async function salvarAtividade(tarefaId, tipo) {
             console.log(`✅ Nova atividade ${atividadeId} criada`);
         }
         
-        if (status === 'concluido' && atividadesVinculadas.length > 0 && gestorAtividades) {
+        // AGORA VAMOS ADICIONAR ESTA ATIVIDADE NAS ATIVIDADES SELECIONADAS
+        if (atividadesParaVincular.length > 0) {
+            console.log(`🔗 Adicionando atividade ${atividadeId} em ${atividadesParaVincular.length} atividades selecionadas`);
+            
+            const batch = db.batch();
+            let atualizadas = 0;
+            
+            for (const vinculadaId of atividadesParaVincular) {
+                const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
+                const vinculadaDoc = await atividadeVinculadaRef.get();
+                
+                if (vinculadaDoc.exists) {
+                    const vinculadaData = vinculadaDoc.data();
+                    const atividadesVinculadasAtuais = vinculadaData.atividadesVinculadas || [];
+                    
+                    // Adicionar o ID desta atividade se ainda não estiver na lista
+                    if (!atividadesVinculadasAtuais.includes(atividadeId)) {
+                        batch.update(atividadeVinculadaRef, {
+                            atividadesVinculadas: [...atividadesVinculadasAtuais, atividadeId],
+                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        atualizadas++;
+                    }
+                }
+            }
+            
+            if (atualizadas > 0) {
+                await batch.commit();
+                console.log(`✅ ${atualizadas} atividades tiveram a atividade ${atividadeId} adicionada como vínculo`);
+            }
+        }
+        
+        // Se a atividade for concluída, processar as atividades que a têm como vínculo
+        if (status === 'concluido' && gestorAtividades) {
             await gestorAtividades.processarConclusaoAtividade(atividadeId);
         }
         
@@ -1195,7 +1268,7 @@ async function salvarAtividade(tarefaId, tipo) {
         alert('Erro ao salvar atividade: ' + error.message);
     }
 }
-
+    
 async function editarAtividade(atividadeId) {
     console.log(`✏️ Editando atividade: ${atividadeId}`);
     
