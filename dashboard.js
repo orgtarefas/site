@@ -1037,17 +1037,16 @@ class GestorAtividades {
                     </label>
                     <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
                         ${atividadesParaVincular.map(atv => {
-                            // Para atividades existentes, verificar quais atividades já têm esta atividade como vínculo
+                            // Para edição, buscar quais atividades já têm esta atividade como vínculo
                             let checked = false;
-                            if (atividadeExistente) {
-                                // Precisamos verificar no Firebase quais atividades têm esta atividade como vínculo
-                                // Isso é mais complexo, então por enquanto vamos deixar desmarcado
-                                // Na prática, você precisaria fazer uma consulta para cada atividade
+                            if (atividadeExistente && atv.atividadesVinculadas) {
+                                // Verificar se esta atividade tem a atividade atual como vínculo
+                                checked = atv.atividadesVinculadas.includes(atividadeExistente.id);
                             }
                             
                             return `
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked}>
+                                    <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked ? 'checked' : ''}>
                                     <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
                                         <strong>${atv.titulo}</strong>
                                         <small class="text-muted"> (${atv.tarefaNome || 'Tarefa'}) - ${getLabelStatus(atv.status)}</small>
