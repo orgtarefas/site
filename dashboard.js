@@ -949,41 +949,49 @@ class GestorAtividades {
         try {
             console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
             
-            // IMPORTANTE: Com a nova lógica, NÃO buscamos as atividadesVinculadas da atividade concluída
-            // Em vez disso, buscamos atividades que TÊM esta atividade como vínculo
+            // PRIMEIRO: Buscar a atividade que foi concluída
+            const atividadeConcluidaDoc = await db.collection('atividades').doc(atividadeId).get();
             
-            // Buscar atividades que têm esta atividadeId em suas atividadesVinculadas
-            const snapshot = await db.collection('atividades')
-                .where('atividadesVinculadas', 'array-contains', atividadeId)
-                .get();
+            if (!atividadeConcluidaDoc.exists) {
+                console.log(`❌ Atividade ${atividadeId} não encontrada`);
+                return;
+            }
             
-            console.log(`📋 Buscando atividades que têm ${atividadeId} como vínculo`);
+            const atividadeConcluida = atividadeConcluidaDoc.data();
             
-            if (!snapshot.empty) {
-                console.log(`🔄 Encontradas ${snapshot.docs.length} atividades que têm ${atividadeId} como vínculo`);
+            // AGORA: Buscar as atividades que ESTÃO nos vínculos da atividade concluída
+            // Ou seja: atividades cujos IDs estão em atividadesVinculadas da atividade concluída
+            const atividadesVinculadasIds = atividadeConcluida.atividadesVinculadas || [];
+            
+            console.log(`📋 Atividade ${atividadeId} tem ${atividadesVinculadasIds.length} atividade(s) em seus vínculos:`, atividadesVinculadasIds);
+            
+            if (atividadesVinculadasIds.length > 0) {
+                console.log(`🔄 Processando ${atividadesVinculadasIds.length} atividades que estão nos vínculos de ${atividadeId}`);
                 
                 const batch = db.batch();
                 let atualizadas = 0;
                 
-                // Para cada atividade que tem esta atividade como vínculo
-                snapshot.docs.forEach(doc => {
-                    const atividadeVinculada = doc.data();
-                    const atividadeVinculadaId = doc.id;
+                // Para cada ID que está na lista de vínculos da atividade concluída
+                for (const vinculadaId of atividadesVinculadasIds) {
+                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
+                    const vinculadaDoc = await atividadeVinculadaRef.get();
                     
-                    console.log(`📌 Atividade ${atividadeVinculadaId} tem ${atividadeId} como vínculo`);
-                    
-                    // Verificar se a atividade NÃO está concluída
-                    if (atividadeVinculada.status !== 'concluido') {
-                        batch.update(doc.ref, {
-                            status: 'pendente',
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        atualizadas++;
-                        console.log(`✅ Marcando atividade ${atividadeVinculadaId} como pendente`);
-                    } else {
-                        console.log(`ℹ️ Atividade ${atividadeVinculadaId} já está concluída, mantendo status`);
+                    if (vinculadaDoc.exists) {
+                        const vinculadaData = vinculadaDoc.data();
+                        
+                        // Verificar se a atividade NÃO está concluída
+                        if (vinculadaData.status !== 'concluido') {
+                            batch.update(atividadeVinculadaRef, {
+                                status: 'pendente',
+                                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            atualizadas++;
+                            console.log(`✅ Marcando atividade ${vinculadaId} (que está no vínculo de ${atividadeId}) como pendente`);
+                        } else {
+                            console.log(`ℹ️ Atividade ${vinculadaId} já está concluída, mantendo status`);
+                        }
                     }
-                });
+                }
                 
                 if (atualizadas > 0) {
                     await batch.commit();
@@ -1001,7 +1009,7 @@ class GestorAtividades {
                     });
                 }, 1000);
             } else {
-                console.log(`ℹ️ Nenhuma atividade tem ${atividadeId} como vínculo`);
+                console.log(`ℹ️ Atividade ${atividadeId} não tem atividades em seus vínculos`);
             }
             
         } catch (error) {
