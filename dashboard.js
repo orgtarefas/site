@@ -131,11 +131,12 @@ function configurarListenerConclusoes() {
                     return;
                 }
                 
+                // IMPORTANTE: Processar quando uma atividade é concluída
                 if (atividadeAntiga?.status !== 'concluido' && 
                     atividadeNova.status === 'concluido') {
                     
                     console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
-                    console.log(`📋 Vínculos: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
+                    console.log(`📋 Vai processar: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
                     
                     if (gestorAtividades) {
                         setTimeout(() => {
@@ -812,9 +813,9 @@ class GestorAtividades {
                                             <div class="item-title">
                                                 ${atividade.titulo}
                                                 ${temVinculos ? 
-                                                    `<span class="vinculos-tooltip" title="${atividadesVinculadas.length} atividade(s) vinculada(s)">
+                                                    `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
                                                         <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
-                                                    </span>` 
+                                                    </span>`
                                                     : ''
                                                 }
                                             </div>
@@ -948,29 +949,52 @@ class GestorAtividades {
         try {
             console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
             
-            // Buscar atividades que têm esta atividade como vínculo
-            const snapshot = await db.collection('atividades')
-                .where('atividadesVinculadas', 'array-contains', atividadeId)
-                .get();
+            // PRIMEIRO: Buscar a atividade que foi concluída para ver suas atividadesVinculadas
+            const atividadeConcluidaDoc = await db.collection('atividades').doc(atividadeId).get();
             
-            if (!snapshot.empty) {
-                console.log(`🔄 Processando ${snapshot.docs.length} atividades que têm ${atividadeId} como vínculo`);
+            if (!atividadeConcluidaDoc.exists) {
+                console.log(`❌ Atividade ${atividadeId} não encontrada`);
+                return;
+            }
+            
+            const atividadeConcluida = atividadeConcluidaDoc.data();
+            const atividadesVinculadasIds = atividadeConcluida.atividadesVinculadas || [];
+            
+            console.log(`📋 Atividade ${atividadeId} tem ${atividadesVinculadasIds.length} vínculo(s):`, atividadesVinculadasIds);
+            
+            if (atividadesVinculadasIds.length > 0) {
+                console.log(`🔄 Processando ${atividadesVinculadasIds.length} atividades vinculadas à ${atividadeId}`);
                 
-                // Atualizar todas as atividades que têm esta atividade como vínculo
+                // Agora sim: Atualizar TODAS as atividades que estão na lista de atividadesVinculadas
                 const batch = db.batch();
                 let atualizadas = 0;
                 
-                snapshot.docs.forEach(doc => {
-                    batch.update(doc.ref, {
-                        status: 'pendente',
-                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    atualizadas++;
-                });
+                for (const vinculadaId of atividadesVinculadasIds) {
+                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
+                    const vinculadaDoc = await atividadeVinculadaRef.get();
+                    
+                    if (vinculadaDoc.exists) {
+                        const vinculadaData = vinculadaDoc.data();
+                        
+                        // Verificar se a atividade vinculada ainda não está concluída
+                        if (vinculadaData.status !== 'concluido') {
+                            batch.update(atividadeVinculadaRef, {
+                                status: 'pendente',
+                                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            atualizadas++;
+                            console.log(`✅ Marcando atividade ${vinculadaId} como pendente`);
+                        } else {
+                            console.log(`ℹ️ Atividade ${vinculadaId} já está concluída, mantendo status`);
+                        }
+                    }
+                }
                 
                 if (atualizadas > 0) {
                     await batch.commit();
                     console.log(`✅ ${atualizadas} atividades foram atualizadas para "pendente"`);
+                } else {
+                    console.log(`ℹ️ Nenhuma atividade precisa ser atualizada para pendente`);
                 }
                 
                 // Recarregar dados após atualização
@@ -982,7 +1006,7 @@ class GestorAtividades {
                     });
                 }, 1000);
             } else {
-                console.log(`ℹ️ Nenhuma atividade tem ${atividadeId} como vínculo`);
+                console.log(`ℹ️ Atividade ${atividadeId} não tem atividades vinculadas`);
             }
             
         } catch (error) {
@@ -1166,9 +1190,8 @@ async function salvarAtividade(tarefaId, tipo) {
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: status,
+        atividadesVinculadas: atividadesParaVincular, // ← MANTENHA ISSO
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        // NÃO vamos mais salvar atividadesVinculadas aqui
-        // Agora vamos adicionar o ID desta atividade nas atividades selecionadas
     };
     
     try {
