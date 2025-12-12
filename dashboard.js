@@ -1236,38 +1236,7 @@ async function salvarAtividade(tarefaId, tipo) {
             atividadeId = docRef.id;
             console.log(`✅ Nova atividade ${atividadeId} criada`);
         }
-        
-        // AGORA VAMOS ADICIONAR ESTA ATIVIDADE NAS ATIVIDADES SELECIONADAS
-        if (atividadesParaVincular.length > 0) {
-            console.log(`🔗 Adicionando atividade ${atividadeId} em ${atividadesParaVincular.length} atividades selecionadas`);
-            
-            const batch = db.batch();
-            let atualizadas = 0;
-            
-            for (const vinculadaId of atividadesParaVincular) {
-                const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
-                const vinculadaDoc = await atividadeVinculadaRef.get();
-                
-                if (vinculadaDoc.exists) {
-                    const vinculadaData = vinculadaDoc.data();
-                    const atividadesVinculadasAtuais = vinculadaData.atividadesVinculadas || [];
-                    
-                    // Adicionar o ID desta atividade se ainda não estiver na lista
-                    if (!atividadesVinculadasAtuais.includes(atividadeId)) {
-                        batch.update(atividadeVinculadaRef, {
-                            atividadesVinculadas: [...atividadesVinculadasAtuais, atividadeId],
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        atualizadas++;
-                    }
-                }
-            }
-            
-            if (atualizadas > 0) {
-                await batch.commit();
-                console.log(`✅ ${atualizadas} atividades tiveram a atividade ${atividadeId} adicionada como vínculo`);
-            }
-        }
+
         
         // Se a atividade for concluída, processar as atividades que a têm como vínculo
         if (status === 'concluido' && gestorAtividades) {
