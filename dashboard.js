@@ -1182,7 +1182,47 @@ class GestorAtividades {
         };
     
         return tipos.map(tipo => {
-            const atividadesTipo = atividades.filter(a => a.tipo === tipo);
+            // Filtrar por tipo e ordenar por data de criação (mais antiga primeiro)
+            const atividadesTipo = atividades
+                .filter(a => a.tipo === tipo)
+                .sort((a, b) => {
+                    // Função para obter timestamp de uma atividade
+                    const getTimestamp = (atividade) => {
+                        // Tentar diferentes campos de data, em ordem de prioridade
+                        if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
+                            return atividade.dataRegistro.toDate().getTime();
+                        }
+                        if (atividade.dataRegistro) {
+                            return new Date(atividade.dataRegistro).getTime();
+                        }
+                        if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
+                            return atividade.dataCriacao.toDate().getTime();
+                        }
+                        if (atividade.dataCriacao) {
+                            return new Date(atividade.dataCriacao).getTime();
+                        }
+                        if (atividade.criadoEm && atividade.criadoEm.toDate) {
+                            return atividade.criadoEm.toDate().getTime();
+                        }
+                        if (atividade.criadoEm) {
+                            return new Date(atividade.criadoEm).getTime();
+                        }
+                        if (atividade.dataAtualizacao && atividade.dataAtualizacao.toDate) {
+                            return atividade.dataAtualizacao.toDate().getTime();
+                        }
+                        if (atividade.dataAtualizacao) {
+                            return new Date(atividade.dataAtualizacao).getTime();
+                        }
+                        // Se não tiver data, usar timestamp 0 (bem antigo)
+                        return 0;
+                    };
+    
+                    const timestampA = getTimestamp(a);
+                    const timestampB = getTimestamp(b);
+                    
+                    // Ordenar: mais antiga (menor timestamp) primeiro
+                    return timestampA - timestampB;
+                });
             
             return `
                 <div class="activity-section">
