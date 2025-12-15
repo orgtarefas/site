@@ -1066,15 +1066,17 @@ class GestorAtividades {
             <div class="form-group">
                 <label for="observadoresAtividade">
                     <i class="fas fa-eye"></i> Observadores (opcional)
-                    <small class="form-text text-muted">Segure Ctrl/Cmd para selecionar múltiplos</small>
                 </label>
-                <select id="observadoresAtividade" class="form-control" multiple style="height: 120px;">
+                <select id="observadoresAtividade" class="form-control" multiple>
                     <option value="">Nenhum observador</option>
                     ${this.usuarios.map(user => {
                         const selected = observadoresSelecionados.includes(user.usuario) ? 'selected' : '';
                         return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
                     }).join('')}
                 </select>
+                <small class="form-text text-muted d-block mt-1">
+                    Segure Ctrl (Windows) ou Cmd (Mac) para selecionar múltiplos observadores
+                </small>
             </div>
         `;
         
