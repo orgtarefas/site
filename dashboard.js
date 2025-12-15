@@ -1197,7 +1197,7 @@ class GestorAtividades {
                                     </script>
                                 ` : ''}
                             </select>
-                            <div class="multi-select-preview" onclick="document.getElementById('observadorAtividade').focus()">
+                            <div class="multi-select-preview" onclick="toggleMultiSelect('observadorAtividade')">
                                 <span id="observadoresPreview">Nenhum observador selecionado</span>
                                 <i class="fas fa-chevron-down"></i>
                             </div>
