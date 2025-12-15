@@ -1,4 +1,4 @@
-// dashboard.js - VERSÃO COMPLETA E CORRETA
+// arquivo dashboard.js 
 console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
 // ========== VARIÁVEIS GLOBAIS ==========
@@ -7,6 +7,147 @@ let gestorAtividades;
 let ctrlPressed = false; // Variável global para controlar Ctrl
 
 // ========== FUNÇÕES AUXILIARES ==========
+
+// Função para visualizar atividade (para usuários não-responsáveis)
+function visualizarAtividade(atividadeId) {
+    console.log(`👁️ Visualizando atividade: ${atividadeId}`);
+    
+    try {
+        if (gestorAtividades) {
+            gestorAtividades.carregarAtividadesParaVinculo();
+        }
+        
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = {
+            id: atividadeDoc.id,
+            ...atividadeDoc.data()
+        };
+        
+        // Abrir modal apenas para visualização
+        abrirModalVisualizacaoAtividade(atividade);
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar atividade:', error);
+        alert('Erro ao carregar atividade: ' + error.message);
+    }
+}
+
+// Função para abrir modal de visualização (sem edição)
+function abrirModalVisualizacaoAtividade(atividade) {
+    console.log(`📋 Abrindo modal de visualização para atividade: ${atividade.id}`);
+    
+    const modal = document.getElementById('modalAtividade');
+    const titulos = {
+        'execucao': 'Execução das Atividades',
+        'monitoramento': 'Monitoramento',
+        'conclusao': 'Conclusão e Revisão'
+    };
+    
+    document.getElementById('modalAtividadeTitulo').textContent = `Visualizar Atividade - ${titulos[atividade.tipo] || 'Detalhes'}`;
+    
+    // Formatar observadores
+    const observadoresFormatados = atividade.observadores && atividade.observadores.length > 0 ?
+        atividade.observadores.map(obs => {
+            const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
+            return usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
+        }).join(', ') : 'Nenhum';
+    
+    // Formatar vínculos
+    const vinculosFormatados = atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0 ?
+        atividade.atividadesVinculadas.length + ' atividade(s) vinculada(s)' : 'Nenhum';
+    
+    document.getElementById('modalAtividadeBody').innerHTML = `
+        <div class="atividade-view">
+            <div class="view-field">
+                <label>Título:</label>
+                <div class="view-value">${gestorAtividades.escapeHtml(atividade.titulo || '')}</div>
+            </div>
+            
+            <div class="view-field">
+                <label>Descrição:</label>
+                <div class="view-value">${gestorAtividades.escapeHtml(atividade.descricao || 'Nenhuma descrição')}</div>
+            </div>
+            
+            <div class="view-row">
+                <div class="view-field">
+                    <label>Responsável:</label>
+                    <div class="view-value">${atividade.responsavel || 'Não definido'}</div>
+                </div>
+                <div class="view-field">
+                    <label>Data Prevista:</label>
+                    <div class="view-value">${atividade.dataPrevista || 'Sem data'}</div>
+                </div>
+            </div>
+            
+            <div class="view-row">
+                <div class="view-field">
+                    <label>Criado por:</label>
+                    <div class="view-value">${atividade.criadoPor || 'Não informado'}</div>
+                </div>
+                <div class="view-field">
+                    <label>Data de Criação:</label>
+                    <div class="view-value">${atividade.dataRegistro ? 
+                        new Date(atividade.dataRegistro.toDate()).toLocaleString('pt-BR') : 
+                        'Não informada'}</div>
+                </div>
+            </div>
+            
+            <div class="view-row">
+                <div class="view-field">
+                    <label>Prioridade:</label>
+                    <div class="view-value">
+                        <span class="badge prioridade-${atividade.prioridade || 'media'}">
+                            ${atividade.prioridade === 'alta' ? 'Alta' : 
+                              atividade.prioridade === 'baixa' ? 'Baixa' : 'Média'}
+                        </span>
+                    </div>
+                </div>
+                <div class="view-field">
+                    <label>Status:</label>
+                    <div class="view-value">
+                        <span class="badge status-${atividade.status || 'nao_iniciado'}">
+                            ${getLabelStatus(atividade.status)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="view-field">
+                <label>Observadores:</label>
+                <div class="view-value">${observadoresFormatados}</div>
+            </div>
+            
+            <div class="view-field">
+                <label>Vínculos com outras atividades:</label>
+                <div class="view-value">${vinculosFormatados}</div>
+            </div>
+            
+            <div class="view-field">
+                <label>Última Atualização:</label>
+                <div class="view-value">${atividade.dataAtualizacao ? 
+                    new Date(atividade.dataAtualizacao.toDate()).toLocaleString('pt-BR') : 
+                    'Não informada'}</div>
+            </div>
+            
+            <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Fechar</button>
+                ${gestorAtividades.usuario && (gestorAtividades.usuario.usuario === atividade.responsavel || gestorAtividades.usuario.usuario === atividade.criadoPor) ?
+                    `<button type="button" class="btn btn-primary" onclick="editarAtividade('${atividade.id}')">
+                        <i class="fas fa-edit"></i> Editar Atividade
+                    </button>` : ''
+                }
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
 
 // Função para atualizar preview dos observadores
 function atualizarPreviewObservadores() {
@@ -1017,7 +1158,7 @@ class GestorAtividades {
             concluidas
         };
     }
-        
+    
     renderizarAtividadesTarefa(tarefa) {
         const atividades = tarefa.atividades || [];
         
@@ -1061,6 +1202,13 @@ class GestorAtividades {
                                 const temObservadores = observadores.length > 0;
                                 const totalObservadores = observadores.length;
                                 
+                                // Verificar permissões do usuário atual
+                                const usuarioAtual = this.usuario ? this.usuario.usuario : null;
+                                const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
+                                const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
+                                const podeEditarExcluir = isResponsavel || isCriador;
+                                const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
+                                
                                 // Limitar exibição para 2 observadores, mostrar "e mais X"
                                 let observadoresHTML = '';
                                 let verMaisHTML = '';
@@ -1071,7 +1219,7 @@ class GestorAtividades {
                                         observadores.slice(0, 2) : observadores;
                                     
                                     observadoresHTML = observadoresLimitados.map(obs => {
-                                        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
+                                        const usuarioObj = this.usuarios.find(u => u.usuario === obs);
                                         const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
                                         return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
                                     }).join('');
@@ -1099,19 +1247,67 @@ class GestorAtividades {
                                     {value: 'concluido', label: 'Concluído'}
                                 ];
                                 
-                                const selectHTML = opcoesStatus.map(opcao => `
-                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
-                                        ${opcao.label}
-                                    </option>
-                                `).join('');
+                                // Gerar select baseado no papel do usuário
+                                let selectHTML = '';
+                                if (podeAlterarStatus) {
+                                    // Responsável: select normal
+                                    selectHTML = opcoesStatus.map(opcao => `
+                                        <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
+                                            ${opcao.label}
+                                        </option>
+                                    `).join('');
+                                } else {
+                                    // Não é responsável: apenas visualização
+                                    const statusAtual = opcoesStatus.find(opcao => opcao.value === status);
+                                    const statusLabel = statusAtual ? statusAtual.label : 'Não definido';
+                                    
+                                    // Determinar a cor do badge baseado no status
+                                    let badgeClass = '';
+                                    switch(status) {
+                                        case 'nao_iniciado': badgeClass = 'status-nao_iniciado'; break;
+                                        case 'pendente': badgeClass = 'status-pendente'; break;
+                                        case 'andamento': badgeClass = 'status-andamento'; break;
+                                        case 'concluido': badgeClass = 'status-concluido'; break;
+                                        default: badgeClass = 'status-nao_iniciado';
+                                    }
+                                    
+                                    selectHTML = `
+                                        <div class="status-display-only" title="Apenas o responsável pode alterar o status">
+                                            <span class="badge ${badgeClass}">
+                                                ${isResponsavel ? '<i class="fas fa-user-check" style="margin-right: 4px; font-size: 10px;"></i>' : 
+                                                  isCriador ? '<i class="fas fa-plus-circle" style="margin-right: 4px; font-size: 10px;"></i>' : 
+                                                  '<i class="fas fa-lock" style="margin-right: 4px; font-size: 10px;"></i>'}
+                                                ${statusLabel}
+                                            </span>
+                                        </div>
+                                    `;
+                                }
                                 
                                 const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                                 
+                                // Badges indicativos de papel
+                                let roleBadges = '';
+                                if (isResponsavel) {
+                                    roleBadges += `
+                                        <span class="role-badge responsavel-badge" title="Você é o responsável por esta atividade">
+                                            <i class="fas fa-user-check"></i> Responsável
+                                        </span>
+                                    `;
+                                }
+                                if (isCriador && !isResponsavel) {
+                                    roleBadges += `
+                                        <span class="role-badge criador-badge" title="Você criou esta atividade">
+                                            <i class="fas fa-plus-circle"></i> Criador
+                                        </span>
+                                    `;
+                                }
+                                
                                 return `
-                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
+                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''}">
                                         <div class="item-info">
                                             <div class="item-title">
                                                 ${atividade.titulo}
+                                                ${roleBadges}
                                                 ${temVinculos ? 
                                                     `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
                                                         <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
@@ -1122,6 +1318,12 @@ class GestorAtividades {
                                             ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                                             <div class="item-meta">
                                                 <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
+                                                ${atividade.criadoPor ? 
+                                                    `<span class="criador-info" title="Criado por ${atividade.criadoPor}">
+                                                        <i class="fas fa-user-plus"></i> ${atividade.criadoPor}
+                                                    </span>` 
+                                                    : ''
+                                                }
                                                 ${temObservadores ? 
                                                     `<span class="observadores-container">
                                                         <i class="fas fa-eye"></i> Observadores: 
@@ -1131,9 +1333,13 @@ class GestorAtividades {
                                                     : ''
                                                 }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                                <span class="badge status-${status}">
-                                                    ${getLabelStatus(status)}
-                                                </span>
+                                                ${!podeAlterarStatus ? 
+                                                    // Status para não-responsável (só visualização)
+                                                    `<span class="badge status-${status}">
+                                                        ${getLabelStatus(status)}
+                                                    </span>` 
+                                                    : ''
+                                                }
                                                 ${temVinculos ? 
                                                     `<span class="vinculos-badge">
                                                         <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
@@ -1144,20 +1350,40 @@ class GestorAtividades {
                                         </div>
                                         <div class="item-actions">
                                             <div class="status-selector">
-                                                <select class="status-select" 
-                                                        data-id="${atividade.id}"
-                                                        data-titulo="${tituloEscapado}"
-                                                        onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                                    ${selectHTML}
-                                                </select>
+                                                ${podeAlterarStatus ? 
+                                                    // Responsável: pode alterar status
+                                                    `<select class="status-select" 
+                                                            data-id="${atividade.id}"
+                                                            data-titulo="${tituloEscapado}"
+                                                            onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
+                                                        ${selectHTML}
+                                                    </select>`
+                                                    : 
+                                                    // Não é responsável: apenas visualização
+                                                    selectHTML
+                                                }
                                             </div>
                                             
-                                            <button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            ${podeEditarExcluir ? 
+                                                // Responsável OU Criador: pode editar
+                                                `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>`
+                                                :
+                                                // Não pode editar: visualização apenas
+                                                `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>`
+                                            }
+                                            ${podeEditarExcluir ? 
+                                                // Responsável OU Criador: pode excluir
+                                                `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>`
+                                                :
+                                                // Não pode excluir
+                                                ''
+                                            }
                                         </div>
                                     </div>
                                 `;
@@ -1557,6 +1783,8 @@ async function salvarAtividade(tarefaId, tipo) {
     } else {
         // Se está criando nova, definir como 'nao_iniciado'
         atividade.status = 'nao_iniciado';
+        // Adicionar quem criou a atividade
+        atividade.criadoPor = gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido';
     }
     
     try {
@@ -1571,7 +1799,7 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal (exceto status)
+            // 2. Atualizar a atividade principal (exceto status e criadoPor)
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
             
@@ -1594,14 +1822,13 @@ async function salvarAtividade(tarefaId, tipo) {
             }
             
         } else {
-            // Criar nova atividade (com status 'nao_iniciado')
+            // Criar nova atividade (com status 'nao_iniciado' e criadoPor)
             const docRef = await db.collection('atividades').add({
                 ...atividade,
-                dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido'
+                dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
             atividadeId = docRef.id;
-            console.log(`✅ Nova atividade ${atividadeId} criada com status 'nao_iniciado'`);
+            console.log(`✅ Nova atividade ${atividadeId} criada por ${atividade.criadoPor}`);
         }
         
         // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
@@ -1658,10 +1885,13 @@ async function editarAtividade(atividadeId) {
     console.log(`✏️ Editando atividade: ${atividadeId}`);
     
     try {
-        if (gestorAtividades) {
-            await gestorAtividades.carregarAtividadesParaVinculo();
+        // Verificar permissões antes de editar
+        if (!gestorAtividades || !gestorAtividades.usuario) {
+            alert('❌ Usuário não identificado');
+            return;
         }
         
+        const usuarioAtual = gestorAtividades.usuario.usuario;
         const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
         
         if (!atividadeDoc.exists) {
@@ -1669,12 +1899,27 @@ async function editarAtividade(atividadeId) {
             return;
         }
         
-        const atividade = {
+        const atividade = atividadeDoc.data();
+        
+        // Verificar se o usuário é o responsável OU criador
+        const isResponsavel = atividade.responsavel === usuarioAtual;
+        const isCriador = atividade.criadoPor === usuarioAtual;
+        
+        if (!isResponsavel && !isCriador) {
+            alert('❌ Apenas o responsável ou criador da atividade podem editá-la.');
+            return;
+        }
+        
+        if (gestorAtividades) {
+            await gestorAtividades.carregarAtividadesParaVinculo();
+        }
+        
+        const atividadeCompleta = {
             id: atividadeDoc.id,
-            ...atividadeDoc.data()
+            ...atividade
         };
         
-        await abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividade);
+        await abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividadeCompleta);
         
     } catch (error) {
         console.error('❌ Erro ao buscar atividade:', error);
@@ -1683,9 +1928,34 @@ async function editarAtividade(atividadeId) {
 }
 
 async function excluirAtividade(atividadeId) {
-    if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
+    // Verificar permissões
+    if (!gestorAtividades || !gestorAtividades.usuario) {
+        alert('❌ Usuário não identificado');
+        return;
+    }
     
     try {
+        const usuarioAtual = gestorAtividades.usuario.usuario;
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = atividadeDoc.data();
+        
+        // Verificar se o usuário é o responsável OU criador
+        const isResponsavel = atividade.responsavel === usuarioAtual;
+        const isCriador = atividade.criadoPor === usuarioAtual;
+        
+        if (!isResponsavel && !isCriador) {
+            alert('❌ Apenas o responsável ou criador da atividade podem excluí-la.');
+            return;
+        }
+        
+        if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
+        
         await db.collection('atividades').doc(atividadeId).delete();
         console.log(`🗑️ Atividade ${atividadeId} excluída`);
         alert('✅ Atividade excluída com sucesso!');
@@ -1705,24 +1975,55 @@ async function excluirAtividade(atividadeId) {
 async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
     console.log(`🔄 Alterando status da atividade ${atividadeId} para ${novoStatus}`);
     
-    const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-    const statusAnterior = select ? select.value : 'nao_iniciado';
-    
-    if (novoStatus === 'concluido') {
-        const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
-        
-        if (!confirmar) {
-            if (select) select.value = statusAnterior;
-            return;
-        }
+    // Verificar se o usuário é o responsável
+    if (!gestorAtividades || !gestorAtividades.usuario) {
+        alert('❌ Usuário não identificado');
+        return;
     }
     
-    if (select) {
-        select.classList.add('processing');
-        select.disabled = true;
-    }
+    const usuarioAtual = gestorAtividades.usuario.usuario;
     
     try {
+        // Buscar a atividade para verificar o responsável
+        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
+        
+        if (!atividadeDoc.exists) {
+            alert('Atividade não encontrada');
+            return;
+        }
+        
+        const atividade = atividadeDoc.data();
+        
+        // Verificar se o usuário atual é o responsável
+        if (atividade.responsavel !== usuarioAtual) {
+            alert('❌ Apenas o responsável pela atividade pode alterar o status.');
+            
+            // Resetar o select para o valor anterior
+            const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
+            if (select) {
+                select.value = atividade.status || 'nao_iniciado';
+            }
+            
+            return;
+        }
+        
+        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
+        const statusAnterior = select ? select.value : 'nao_iniciado';
+        
+        if (novoStatus === 'concluido') {
+            const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
+            
+            if (!confirmar) {
+                if (select) select.value = statusAnterior;
+                return;
+            }
+        }
+        
+        if (select) {
+            select.classList.add('processing');
+            select.disabled = true;
+        }
+        
         await db.collection('atividades').doc(atividadeId).update({
             status: novoStatus,
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
@@ -1753,12 +2054,14 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
     } catch (error) {
         console.error('❌ Erro ao alterar status:', error);
         
+        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
         if (select) {
-            select.value = statusAnterior;
+            select.value = atividade ? atividade.status : 'nao_iniciado';
             alert('Erro ao alterar status: ' + error.message);
         }
         
     } finally {
+        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
         if (select) {
             select.classList.remove('processing');
             select.disabled = false;
