@@ -71,6 +71,99 @@ body {
     margin-bottom: 20px;
 }
 
+/* Estilo para o multi-select personalizado */
+.multi-select-wrapper {
+    position: relative;
+}
+
+.multi-select-wrapper select.multi-select {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+    z-index: -1;
+}
+
+.multi-select-preview {
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 38px;
+}
+
+.multi-select-preview:hover {
+    border-color: #80bdff;
+}
+
+.multi-select-preview:focus-within {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.multi-select-preview i {
+    color: #6c757d;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+#observadoresPreview {
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+/* Estilo quando o select está focado */
+.multi-select-wrapper:focus-within .multi-select-preview {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilo das opções quando o select é aberto */
+.multi-select-wrapper select.multi-select:focus {
+    position: relative;
+    left: 0;
+    opacity: 1;
+    z-index: 1000;
+    height: auto;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Fallback para quando o select está visível */
+.multi-select-wrapper select.multi-select.visible {
+    position: relative;
+    left: 0;
+    opacity: 1;
+    z-index: 1000;
+    height: auto;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Estilo para tags de observadores */
+.observador-tag {
+    display: inline-block;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 5px;
+    margin-bottom: 3px;
+    border: 1px solid #bbdefb;
+}
+
+.item-meta .observador-tag {
+    font-size: 11px;
+    padding: 1px 6px;
+}
+
 .observador-tag {
     display: inline-block;
     background-color: #e3f2fd;
