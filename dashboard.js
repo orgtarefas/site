@@ -4,40 +4,132 @@ console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 // ========== VARIÁVEIS GLOBAIS ==========
 let tarefasExpandidas = new Set();
 let gestorAtividades;
+let ctrlPressed = false; // Variável global para controlar Ctrl
 
 // ========== FUNÇÕES AUXILIARES ==========
 
+// Função para atualizar preview dos observadores
 function atualizarPreviewObservadores() {
     const select = document.getElementById('observadorAtividade');
     const preview = document.getElementById('observadoresPreview');
-    if (select && preview) {
+    const previewContainer = document.querySelector('.multi-select-preview');
+    
+    if (select && preview && previewContainer) {
         const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
         if (selecionados.length > 0) {
-            preview.textContent = selecionados.join(', ');
+            if (selecionados.length === 1) {
+                preview.textContent = selecionados[0];
+            } else if (selecionados.length === 2) {
+                preview.textContent = selecionados.join(' e ');
+            } else {
+                preview.textContent = `${selecionados.length} observadores selecionados`;
+            }
+            previewContainer.classList.add('has-selected');
         } else {
             preview.textContent = 'Nenhum observador selecionado';
+            previewContainer.classList.remove('has-selected');
         }
     }
 }
 
-function configurarObservadoresMultiSelect() {
+// Função para toggle do multi-select (CORRIGIDA - REMOVIDA DUPLICADA)
+function toggleMultiSelect(selectId) {
+    const select = document.getElementById(selectId);
+    const wrapper = select.parentElement;
+    
+    if (wrapper.classList.contains('select-open')) {
+        // Se já está aberto, fecha
+        wrapper.classList.remove('select-open');
+        select.classList.remove('visible');
+    } else {
+        // Fecha outros selects abertos
+        document.querySelectorAll('.multi-select-wrapper.select-open').forEach(otherWrapper => {
+            otherWrapper.classList.remove('select-open');
+            otherWrapper.querySelector('.multi-select').classList.remove('visible');
+        });
+        
+        // Abre este select
+        wrapper.classList.add('select-open');
+        select.classList.add('visible');
+        select.focus();
+        
+        // Configurar fechamento ao clicar fora
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!wrapper.contains(e.target)) {
+                    wrapper.classList.remove('select-open');
+                    select.classList.remove('visible');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 10);
+    }
+}
+
+// Configurar detecção de teclas Ctrl
+function configurarDetecaoCtrl() {
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Control' || e.key === 'Meta') {
+            ctrlPressed = true;
+        }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'Control' || e.key === 'Meta') {
+            ctrlPressed = false;
+        }
+    });
+}
+
+// Configurar comportamento do multi-select
+function configurarMultiSelectBehavior() {
     const selectObservadores = document.getElementById('observadorAtividade');
+    
     if (selectObservadores) {
+        // Configurar detecção de Ctrl
+        configurarDetecaoCtrl();
+        
+        // Detectar clique nas opções
+        selectObservadores.addEventListener('click', (e) => {
+            if (e.target.tagName === 'OPTION') {
+                // Se Ctrl não está pressionado, fecha o dropdown após um pequeno delay
+                if (!ctrlPressed) {
+                    setTimeout(() => {
+                        const wrapper = selectObservadores.parentElement;
+                        wrapper.classList.remove('select-open');
+                        selectObservadores.classList.remove('visible');
+                        
+                        // Atualizar preview
+                        atualizarPreviewObservadores();
+                    }, 200);
+                } else {
+                    // Se Ctrl está pressionado, só atualiza o preview
+                    setTimeout(atualizarPreviewObservadores, 100);
+                }
+            }
+        });
+        
+        // Fechar com ESC
+        selectObservadores.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const wrapper = selectObservadores.parentElement;
+                wrapper.classList.remove('select-open');
+                selectObservadores.classList.remove('visible');
+            }
+        });
+        
+        // Atualizar preview quando houver mudanças
         selectObservadores.addEventListener('change', atualizarPreviewObservadores);
-        // Atualizar preview inicial
+        
+        // Inicializar preview
         setTimeout(atualizarPreviewObservadores, 100);
     }
 }
 
-function toggleMultiSelect(selectId) {
-    const select = document.getElementById(selectId);
-    if (select) {
-        select.classList.toggle('visible');
-        if (select.classList.contains('visible')) {
-            select.focus();
-        }
-    }
-}
+// REMOVER ESTAS FUNÇÕES DUPLICADAS:
+// function configurarObservadoresMultiSelect() - DUPLICADA
+// function toggleMultiSelect(selectId) - SEGUNDA VERSÃO DUPLICADA
 
 function manterEstadoExpansaoTarefas() {
     console.log('💾 Salvando estado de expansão das tarefas...');
@@ -1186,7 +1278,7 @@ class GestorAtividades {
                     <div class="form-group">
                         <label for="observadorAtividade">Observadores (opcional)</label>
                         <div class="multi-select-wrapper">
-                            <select id="observadorAtividade" class="form-control multi-select" multiple>
+                            <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
                                 ${usuariosOptions}
                                 ${atividadeExistente && observadoresSelecionados.length > 0 ? `
                                     <script>
@@ -1212,7 +1304,7 @@ class GestorAtividades {
                                 <i class="fas fa-chevron-down"></i>
                             </div>
                         </div>
-                        <small class="form-text">Clique para selecionar múltiplos observadores (segure Ctrl/Cmd)</small>
+                        <small class="form-text">Clique para selecionar múltiplos observadores</small>
                     </div>
                 </div>
                 
@@ -1232,29 +1324,10 @@ class GestorAtividades {
             </form>
             
             <script>
-                // Função para atualizar o preview dos observadores
-                function atualizarPreviewObservadores() {
-                    const select = document.getElementById('observadorAtividade');
-                    const preview = document.getElementById('observadoresPreview');
-                    if (select && preview) {
-                        const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
-                        if (selecionados.length > 0) {
-                            preview.textContent = selecionados.join(', ');
-                        } else {
-                            preview.textContent = 'Nenhum observador selecionado';
-                        }
-                    }
-                }
-                
-                // Configurar evento de change
-                document.addEventListener('DOMContentLoaded', function() {
-                    const selectObservadores = document.getElementById('observadorAtividade');
-                    if (selectObservadores) {
-                        selectObservadores.addEventListener('change', atualizarPreviewObservadores);
-                        // Atualizar preview inicial
-                        atualizarPreviewObservadores();
-                    }
-                });
+                // Configurar o multi-select após o modal abrir
+                setTimeout(() => {
+                    configurarMultiSelectBehavior();
+                }, 100);
             </script>
         `;
         
@@ -1262,7 +1335,6 @@ class GestorAtividades {
         
         verificarConclusaoVinculos();
     }
-    
 }
 
 // ========== FUNÇÕES RESTANTES ==========
