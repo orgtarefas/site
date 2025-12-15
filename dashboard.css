@@ -141,6 +141,51 @@ body {
     color: #6c757d;
 }
 
+/* Estilo para select múltiplo com aparência de select normal */
+select.form-control[multiple] {
+    min-height: 45px;
+    height: auto;
+    padding: 8px 12px;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 12px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 40px;
+}
+
+/* Remove o ícone de seta padrão do Firefox */
+select.form-control[multiple]::-ms-expand {
+    display: none;
+}
+
+/* Estilo para opções selecionadas */
+select.form-control[multiple] option:checked {
+    background: #3498db linear-gradient(0deg, #3498db 0%, #3498db 100%);
+    color: white;
+}
+
+/* Estilo quando o select está focado */
+select.form-control[multiple]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Remove a barra de rolagem horizontal */
+select.form-control[multiple] {
+    overflow-y: auto;
+}
+
+/* Dica de texto abaixo do campo */
+.form-text.d-block {
+    display: block !important;
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
 .alert-info {
     background-color: #e8f4fd;
     border: 1px solid #b6d4fe;
