@@ -1001,12 +1001,11 @@ textarea.form-control {
     margin-bottom: 0;
 }
 
-/* Texto de ajuda em formulários */
+/* Dica para seleção múltipla */
 .form-text {
-    display: block;
+    font-size: 12px;
+    color: #6c757d;
     margin-top: 5px;
-    font-size: 0.85rem;
-    color: var(--gray);
 }
 
 /* Estilo para o campo de observador múltiplo */
