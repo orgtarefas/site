@@ -1216,6 +1216,9 @@ class GestorAtividades {
                                 const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
                                 const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
                                 
+                                // Título escapado para uso no select
+                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
+                                
                                 // Limitar exibição para 2 observadores, mostrar "e mais X"
                                 let observadoresHTML = '';
                                 let verMaisHTML = '';
@@ -1254,10 +1257,7 @@ class GestorAtividades {
                                     {value: 'concluido', label: 'Concluído'}
                                 ];
                                 
-                                // Declarar tituloEscapado ANTES de usá-lo
-                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                                
-                                // Gerar conteúdo do controle de status
+                                // Gerar conteúdo do controle de status (APENAS se for responsável)
                                 let statusControlHTML = '';
                                 if (podeAlterarStatus) {
                                     // Responsável: select normal
@@ -1277,28 +1277,8 @@ class GestorAtividades {
                                             </select>
                                         </div>
                                     `;
-                                } else {
-                                    // Não é responsável: badge com ícone
-                                    let iconHTML = '';
-                                    if (isResponsavel) {
-                                        iconHTML = '<i class="fas fa-user-check" style="margin-right: 4px; font-size: 10px;"></i>';
-                                    } else if (isCriador) {
-                                        iconHTML = '<i class="fas fa-plus-circle" style="margin-right: 4px; font-size: 10px;"></i>';
-                                    } else {
-                                        iconHTML = '<i class="fas fa-lock" style="margin-right: 4px; font-size: 10px;"></i>';
-                                    }
-                                    
-                                    statusControlHTML = `
-                                        <div class="status-control">
-                                            <div class="status-display-only" title="Apenas o responsável pode alterar o status">
-                                                <span class="badge status-${status}">
-                                                    ${iconHTML}
-                                                    ${getLabelStatus(status)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    `;
                                 }
+                                // Se não for responsável, statusControlHTML fica vazio
                                 
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''}">
@@ -1350,12 +1330,7 @@ class GestorAtividades {
                                             </div>
                                         </div>
                                         <div class="item-actions">
-                                            <!-- Status atual sempre visível -->
-                                            <span class="badge status-${status} status-current-badge">
-                                                ${getLabelStatus(status)}
-                                            </span>
-                                            
-                                            <!-- Controle de status: select ou badge com ícone -->
+                                            <!-- Controle de status: APENAS se for responsável (select) -->
                                             ${statusControlHTML}
                                             
                                             <!-- Botões de ação -->
