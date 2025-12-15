@@ -1151,14 +1151,16 @@ class GestorAtividades {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="observadoresAtividade">
+                        <label for="observadoresAtividade" style="cursor: pointer;" onclick="toggleObservadores()">
                             <i class="fas fa-eye"></i> Observador (opcional)
+                            <i class="fas fa-chevron-down float-right" id="chevronObservadores"></i>
                         </label>
-                        <select id="observadoresAtividade" class="form-control" multiple style="height: 120px;">
-                            <option value="">Selecione os observadores</option>
-                            ${observadoresOptions}
-                        </select>
-                        <small class="form-text">Os observadores selecionados receberão alertas quando esta atividade for concluída. Para selecionar múltiplos, segure Ctrl (Windows) ou Command (Mac).</small>
+                        <div id="observadoresContainer" style="display: none; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 8px;">
+                            <select id="observadoresAtividade" class="form-control" multiple style="height: 120px;">
+                                <option value="">Nenhum</option>
+                                ${observadoresOptions}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1223,8 +1225,11 @@ async function salvarAtividade(tarefaId, tipo) {
     const status = document.getElementById('statusAtividade').value;
     
     // Coletar observadores selecionados
+    // Coletar observadores selecionados (ignorar a opção vazia "Nenhum")
     const observadoresSelect = document.getElementById('observadoresAtividade');
-    const observadores = Array.from(observadoresSelect.selectedOptions).map(option => option.value);
+    const observadores = Array.from(observadoresSelect.selectedOptions)
+        .map(option => option.value)
+        .filter(obs => obs !== ''); // Remover opção vazia "Nenhum"
     
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
@@ -1480,8 +1485,25 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
     }
 }
 
-// ========== INICIALIZAÇÃO ==========
 
+
+// ========== FUNÇÃO PARA TOGGLE DOS OBSERVADORES ==========
+function toggleObservadores() {
+    const container = document.getElementById('observadoresContainer');
+    const chevron = document.getElementById('chevronObservadores');
+    
+    if (container.style.display === 'none' || container.style.display === '') {
+        container.style.display = 'block';
+        chevron.classList.remove('fa-chevron-down');
+        chevron.classList.add('fa-chevron-up');
+    } else {
+        container.style.display = 'none';
+        chevron.classList.remove('fa-chevron-up');
+        chevron.classList.add('fa-chevron-down');
+    }
+}
+
+// ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM carregado, inicializando...');
     
