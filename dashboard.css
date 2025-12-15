@@ -1313,11 +1313,15 @@ select.form-control[multiple] {
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: stretch;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .item-info {
     flex: 1;
+    min-width: 0; /* IMPORTANTE: permite que o texto quebre */
+    max-width: calc(100% - 250px); /* Reserva espaço para ações */
 }
 
 .item-title {
@@ -1335,7 +1339,44 @@ select.form-control[multiple] {
     color: var(--gray);
     margin-bottom: 8px;
     line-height: 1.4;
+    max-height: 100px; /* Altura máxima */
+    overflow-y: auto; /* Rolagem vertical se necessário */
+    word-wrap: break-word; /* Quebra palavras longas */
+    overflow-wrap: break-word; /* Quebra palavras longas */
+    white-space: pre-wrap; /* Mantém quebras de linha */
 }
+
+.item-desc.truncated {
+    max-height: 60px;
+    overflow: hidden;
+    position: relative;
+}
+
+.item-desc.truncated::after {
+    content: '...';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: white;
+    padding: 0 5px;
+}
+
+.btn-expand-desc {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 8px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.btn-expand-desc:hover {
+    text-decoration: underline;
+}
+
+
 
 .item-meta {
     display: flex;
@@ -1673,6 +1714,20 @@ textarea.form-control {
     .stats-panel {
         grid-template-columns: repeat(3, 1fr);
     }
+    
+    .checklist-item {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .item-info {
+        max-width: 100%;
+    }
+    
+    .item-actions {
+        max-width: 100%;
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1919,10 +1974,11 @@ textarea.form-control {
 .item-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-width: 250px;
+    gap: 8px;
+    min-width: 200px;
+    max-width: 250px;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-shrink: 0; /* Não encolhe */
 }
 
 
