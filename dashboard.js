@@ -32,6 +32,83 @@ function atualizarPreviewObservadores() {
     }
 }
 
+// Função para mostrar todos os observadores em um modal
+function mostrarTodosObservadores(atividadeId) {
+    console.log(`👁️ Mostrando todos os observadores da atividade: ${atividadeId}`);
+    
+    // Encontrar a atividade
+    if (!gestorAtividades) return;
+    
+    let atividadeEncontrada = null;
+    gestorAtividades.tarefas.forEach(tarefa => {
+        const atividade = tarefa.atividades?.find(a => a.id === atividadeId);
+        if (atividade) {
+            atividadeEncontrada = atividade;
+        }
+    });
+    
+    if (!atividadeEncontrada) return;
+    
+    const observadores = atividadeEncontrada.observadores || [];
+    
+    if (observadores.length === 0) {
+        alert('Esta atividade não tem observadores');
+        return;
+    }
+    
+    // Criar lista de observadores formatada
+    const listaObservadores = observadores.map(obs => {
+        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
+        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
+        return `<li>${nomeExibicao}</li>`;
+    }).join('');
+    
+    // Criar modal temporário
+    const modalHTML = `
+        <div id="modalObservadores" class="modal" style="display: flex;">
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-users"></i> Observadores da Atividade</h2>
+                    <button class="close" onclick="fecharModalObservadores()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Atividade:</strong> ${atividadeEncontrada.titulo}</p>
+                    <p><strong>Total de observadores:</strong> ${observadores.length}</p>
+                    <div class="observadores-lista" style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
+                        <ul style="list-style: none; padding: 0;">
+                            ${listaObservadores}
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="fecharModalObservadores()">Fechar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar ao body
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    document.body.appendChild(modalDiv);
+    
+    // Fechar ao clicar fora
+    document.getElementById('modalObservadores').onclick = function(e) {
+        if (e.target === this) {
+            fecharModalObservadores();
+        }
+    };
+}
+
+// Função para fechar o modal de observadores
+function fecharModalObservadores() {
+    const modal = document.getElementById('modalObservadores');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+
 // Função para toggle do multi-select
 function toggleMultiSelect(selectId) {
     const select = document.getElementById(selectId);
@@ -982,6 +1059,38 @@ class GestorAtividades {
                                 const temVinculos = atividadesVinculadas.length > 0;
                                 const observadores = atividade.observadores || [];
                                 const temObservadores = observadores.length > 0;
+                                const totalObservadores = observadores.length;
+                                
+                                // Limitar exibição para 2 observadores, mostrar "e mais X"
+                                let observadoresHTML = '';
+                                let verMaisHTML = '';
+                                
+                                if (temObservadores) {
+                                    // Limitar a 2 observadores
+                                    const observadoresLimitados = totalObservadores > 2 ? 
+                                        observadores.slice(0, 2) : observadores;
+                                    
+                                    observadoresHTML = observadoresLimitados.map(obs => {
+                                        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
+                                        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
+                                        return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
+                                    }).join('');
+                                    
+                                    // Adicionar botão "Ver mais" se tiver mais de 2
+                                    if (totalObservadores > 2) {
+                                        const restantes = totalObservadores - 2;
+                                        verMaisHTML = `
+                                            <button class="btn-ver-mais-observadores" 
+                                                    data-atividade-id="${atividade.id}" 
+                                                    onclick="mostrarTodosObservadores('${atividade.id}')"
+                                                    title="Clique para ver todos os observadores">
+                                                <span class="observador-tag observador-ver-mais">
+                                                    <i class="fas fa-users"></i> +${restantes}
+                                                </span>
+                                            </button>
+                                        `;
+                                    }
+                                }
                                 
                                 const opcoesStatus = [
                                     {value: 'nao_iniciado', label: 'Não Iniciado'},
@@ -997,16 +1106,6 @@ class GestorAtividades {
                                 `).join('');
                                 
                                 const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                                
-                                // Formatar observadores para exibição
-                                let observadoresHTML = '';
-                                if (temObservadores) {
-                                    observadoresHTML = observadores.map(obs => {
-                                        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
-                                        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-                                        return `<span class="observador-tag">${nomeExibicao}</span>`;
-                                    }).join('');
-                                }
                                 
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
@@ -1024,7 +1123,11 @@ class GestorAtividades {
                                             <div class="item-meta">
                                                 <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
                                                 ${temObservadores ? 
-                                                    `<span><i class="fas fa-eye"></i> Observadores: ${observadoresHTML}</span>` 
+                                                    `<span class="observadores-container">
+                                                        <i class="fas fa-eye"></i> Observadores: 
+                                                        ${observadoresHTML}
+                                                        ${verMaisHTML}
+                                                    </span>` 
                                                     : ''
                                                 }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
