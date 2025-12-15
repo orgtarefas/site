@@ -1209,7 +1209,7 @@ class GestorAtividades {
                                 const podeEditarExcluir = isResponsavel || isCriador;
                                 const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
                                 
-                                // Obter nomes formatados dos usuários - ADICIONE ESTA PARTE
+                                // Obter nomes formatados dos usuários
                                 const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
                                 const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
                                 
@@ -1327,12 +1327,6 @@ class GestorAtividades {
                                                     : ''
                                                 }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                                ${!podeAlterarStatus ? 
-                                                    `<span class="badge status-${status}">
-                                                        ${getLabelStatus(status)}
-                                                    </span>` 
-                                                    : ''
-                                                }
                                                 ${temVinculos ? 
                                                     `<span class="vinculos-badge">
                                                         <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
@@ -1342,35 +1336,44 @@ class GestorAtividades {
                                             </div>
                                         </div>
                                         <div class="item-actions">
-                                            <div class="status-selector">
+                                            <!-- Status atual sempre visível -->
+                                            <span class="badge status-${status} status-current-badge">
+                                                ${getLabelStatus(status)}
+                                            </span>
+                                            
+                                            <!-- Controle de status -->
+                                            <div class="status-control">
                                                 ${podeAlterarStatus ? 
                                                     `<select class="status-select" 
                                                             data-id="${atividade.id}"
                                                             data-titulo="${tituloEscapado}"
                                                             onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
                                                         ${selectHTML}
-                                                    </select>`
+                                                    </select>` 
                                                     : 
                                                     selectHTML
                                                 }
                                             </div>
                                             
-                                            ${podeEditarExcluir ? 
-                                                `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>`
-                                                :
-                                                `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>`
-                                            }
-                                            ${podeEditarExcluir ? 
-                                                `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>`
-                                                :
-                                                ''
-                                            }
+                                            <!-- Botões de ação -->
+                                            <div class="action-buttons">
+                                                ${podeEditarExcluir ? 
+                                                    `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>`
+                                                    :
+                                                    `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>`
+                                                }
+                                                ${podeEditarExcluir ? 
+                                                    `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>`
+                                                    :
+                                                    ''
+                                                }
+                                            </div>
                                         </div>
                                     </div>
                                 `;
