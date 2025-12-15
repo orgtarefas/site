@@ -71,6 +71,37 @@ body {
     margin-bottom: 20px;
 }
 
+.observador-tag {
+    display: inline-block;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-right: 5px;
+    margin-bottom: 3px;
+    border: 1px solid #bbdefb;
+}
+
+.item-meta .observador-tag {
+    font-size: 11px;
+    padding: 1px 6px;
+}
+
+/* Estilo para select múltiplo */
+.form-control[multiple] {
+    padding: 6px;
+}
+
+.form-control[multiple] option {
+    padding: 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.form-control[multiple] option:last-child {
+    border-bottom: none;
+}
+
 /* Botões no header */
 .header-right .btn {
     padding: 8px 15px;
