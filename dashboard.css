@@ -1910,6 +1910,10 @@ textarea.form-control {
     max-width: fit-content;
 }
 
+.item-actions:not(:has(.status-control)) {
+    justify-content: flex-end;
+}
+
 /* CSS para o novo layout do item-actions */
 
 .item-actions {
@@ -1921,13 +1925,7 @@ textarea.form-control {
     flex-wrap: wrap;
 }
 
-.status-current-badge {
-    padding: 6px 12px;
-    font-weight: 600;
-    font-size: 12px;
-    min-width: 100px;
-    text-align: center;
-}
+
 
 .status-control {
     min-width: 120px;
