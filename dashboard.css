@@ -43,6 +43,430 @@ body {
     color: #3498db;
 }
 
+
+/* ===== LAYOUT PRINCIPAL REVISADO ===== */
+
+/* Container geral das atividades - Agora flexível */
+.activities-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Cada seção de atividade */
+.activity-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e9ecef;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.activity-section:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Cabeçalho da seção */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f2f5;
+}
+
+.section-header h3 {
+    font-size: 1.1rem;
+    color: #2c3e50;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.section-header h3 i {
+    color: #3498db;
+}
+
+.section-header .btn {
+    font-size: 0.85rem;
+    padding: 6px 15px;
+    border-radius: 6px;
+}
+
+/* Container da lista de atividades */
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ===== ITEM DA ATIVIDADE - NOVO DESIGN ===== */
+.checklist-item {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #3498db; /* Linha lateral para destaque */
+    transition: all 0.2s ease;
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    width: 100%;
+    margin-bottom: 5px; /* Espaço extra entre itens */
+}
+
+/* Efeito hover sutil */
+.checklist-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+}
+
+/* Item com vínculos tem cor diferente */
+.atividade-com-vinculos {
+    border-left-color: #00bcd4;
+    background: #f0f9ff;
+}
+
+/* Área de informações - Lado esquerdo */
+.item-info {
+    flex: 1;
+    min-width: 0; /* Permite que o texto quebre */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Título da atividade */
+.item-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.4;
+}
+
+/* Texto do título (parte principal) */
+.item-title span:first-child {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ícone de vínculo */
+.item-title .vinculos-tooltip {
+    color: #00bcd4;
+    font-size: 0.9rem;
+}
+
+/* Descrição da atividade */
+.item-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0;
+    
+    /* Limita a 3 linhas com ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 4.5em; /* 3 linhas * 1.5 line-height */
+}
+
+/* Meta informações - Em linha compacta */
+.item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: #64748b;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.item-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    padding: 4px 10px;
+    border-radius: 15px;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.item-meta i {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.item-meta strong {
+    font-weight: 600;
+    margin-right: 3px;
+    color: #475569;
+}
+
+/* Badge de status */
+.status-meta-badge {
+    font-size: 0.75rem !important;
+    padding: 3px 10px !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px;
+}
+
+/* Badges específicos para status */
+.badge.status-nao_iniciado { background: #94a3b8; color: white; }
+.badge.status-pendente { background: #f59e0b; color: white; }
+.badge.status-andamento { background: #3b82f6; color: white; }
+.badge.status-concluido { background: #10b981; color: white; }
+
+/* Badge de vínculos */
+.vinculos-badge {
+    background: #e0f7fa;
+    color: #00838f;
+    border-color: #80deea !important;
+}
+
+/* Área de ações - Lado direito */
+.item-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: 140px;
+    flex-shrink: 0;
+}
+
+/* Controle de status */
+.status-control {
+    width: 100%;
+}
+
+.status-control select.status-select {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.status-control select.status-select:hover {
+    border-color: #3498db;
+}
+
+.status-control select.status-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Botões de ação */
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+}
+
+.btn-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-edit:hover {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.btn-delete:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.btn-view:hover {
+    background: #10b981;
+    color: white;
+    border-color: #10b981;
+}
+
+/* ===== ESTADO VAZIO ===== */
+.checklist-item > .item-desc {
+    color: #94a3b8;
+    font-style: italic;
+    text-align: center;
+    width: 100%;
+    padding: 20px;
+    font-size: 0.9rem;
+    background: transparent;
+    border: none;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 992px) {
+    .activity-section {
+        padding: 15px;
+    }
+    
+    .checklist-item {
+        padding: 15px;
+    }
+    
+    .item-meta {
+        gap: 8px;
+    }
+    
+    .item-meta span {
+        padding: 3px 8px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .checklist-item {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .item-actions {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        min-width: auto;
+    }
+    
+    .status-control {
+        flex: 1;
+        margin-right: 10px;
+    }
+    
+    .action-buttons {
+        width: auto;
+    }
+    
+    .item-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    
+    .item-meta span {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .section-header .btn {
+        align-self: stretch;
+        text-align: center;
+    }
+    
+    .item-desc {
+        -webkit-line-clamp: 2;
+        max-height: 3em;
+    }
+}
+
+/* ===== ANIMAÇÕES ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.checklist-item {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* ===== CORES POR TIPO DE SEÇÃO ===== */
+.activity-section[data-tipo="execucao"] .section-header {
+    border-bottom-color: #3498db;
+}
+
+.activity-section[data-tipo="monitoramento"] .section-header {
+    border-bottom-color: #00bcd4;
+}
+
+.activity-section[data-tipo="conclusao"] .section-header {
+    border-bottom-color: #10b981;
+}
+
+/* ===== SEPARAÇÃO ENTRE SEÇÕES ===== */
+.activity-section + .activity-section {
+    margin-top: 5px; /* Espaço extra entre seções diferentes */
+}
+
+/* ===== BORDA SUPERIOR PARA DIFERENCIAR SEÇÕES ===== */
+.activity-section::before {
+    content: '';
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #00bcd4);
+    border-radius: 2px 2px 0 0;
+    margin: -20px -20px 20px -20px;
+}
+
+.activity-section[data-tipo="execucao"]::before {
+    background: #3498db;
+}
+
+.activity-section[data-tipo="monitoramento"]::before {
+    background: #00bcd4;
+}
+
+.activity-section[data-tipo="conclusao"]::before {
+    background: #10b981;
+}
+
 /* CSS ADICIONAL PARA MULTI-SELECT */
 
 .multi-select-wrapper {
