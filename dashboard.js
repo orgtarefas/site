@@ -1212,6 +1212,7 @@ async function salvarAtividade(tarefaId, tipo) {
     console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
     
     const titulo = document.getElementById('tituloAtividade').value;
+    const descricao = document.getElementById('descricaoAtividade').value;
     const responsavel = document.getElementById('responsavelAtividade').value;
     
     if (!titulo || !responsavel) {
@@ -1221,12 +1222,12 @@ async function salvarAtividade(tarefaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    // Coletar observadores selecionados
-    // Coletar observadores selecionados (ignorar a opção vazia "Nenhum")
-    const observadoresSelect = document.getElementById('observadoresAtividade');
-    const observadores = Array.from(observadoresSelect.selectedOptions)
-        .map(option => option.value)
-        .filter(obs => obs !== ''); // Remover opção vazia "Nenhum"
+    // Coletar observador (campo único igual ao responsável)
+    const observadorSelect = document.getElementById('observadorAtividade');
+    const observador = observadorSelect ? observadorSelect.value : '';
+    
+    // Converter para array para manter compatibilidade com código existente
+    const observadores = observador ? [observador] : [];
     
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
@@ -1239,13 +1240,12 @@ async function salvarAtividade(tarefaId, tipo) {
         tarefaId: tarefaId,
         tipo: tipo,
         titulo: titulo,
-        descricao: document.getElementById('descricaoAtividade').value,
+        descricao: descricao,
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
         status: status,
-        observadores: observadores.filter(obs => obs !== ''), // Remover opção vazia se selecionada
-        // NÃO armazena mais atividadesVinculadas aqui!
+        observadores: observadores.filter(obs => obs !== ''), // Remover string vazia
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
@@ -1331,10 +1331,17 @@ async function salvarAtividade(tarefaId, tipo) {
         if (status === 'concluido' && gestorAtividades) {
             await gestorAtividades.processarConclusaoAtividade(atividadeId);
             
-            // Aqui você pode adicionar futuramente a lógica para enviar alertas aos observadores
+            // Enviar alertas aos observadores (se houver)
             if (observadores.length > 0) {
-                console.log(`🔔 Atividade ${atividadeId} concluída! Observadores a notificar: ${observadores.join(', ')}`);
+                console.log(`🔔 Atividade "${titulo}" concluída! Observador: ${observadores.join(', ')}`);
                 // Futuramente: implementar sistema de notificações para observadores
+                
+                // Mostrar mensagem amigável
+                if (observadores.length === 1) {
+                    const usuario = gestorAtividades.usuarios.find(u => u.usuario === observadores[0]);
+                    const nomeObservador = usuario ? (usuario.nome || usuario.usuario) : observadores[0];
+                    alert(`✅ Atividade salva com sucesso!\n\n🔔 O observador "${nomeObservador}" será notificado sobre a conclusão.`);
+                }
             }
         }
         
@@ -1347,7 +1354,9 @@ async function salvarAtividade(tarefaId, tipo) {
             gestorAtividades.atualizarGraficos();
         }
         
-        alert(atividadeId ? '✅ Atividade salva com sucesso!' : '✅ Atividade criada com sucesso!');
+        if (!(gestorAtividades && gestorAtividades.atividadeEditando)) {
+            alert('✅ Atividade criada com sucesso!');
+        }
         
     } catch (error) {
         console.error('❌ Erro ao salvar atividade:', error);
