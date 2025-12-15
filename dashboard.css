@@ -1106,10 +1106,6 @@ textarea.form-control {
     margin-top: 5px;
 }
 
-/* Estilo para o campo de observador múltiplo */
-.form-control[multiple] {
-    min-height: 120px;
-}
 
 /* Estilo para opções selecionadas */
 .form-control option:checked {
