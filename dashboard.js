@@ -9,7 +9,7 @@ let ctrlPressed = false; // Variável global para controlar Ctrl
 // ========== FUNÇÕES AUXILIARES ==========
 
 // Função para visualizar atividade (para usuários não-responsáveis)
-function visualizarAtividade(atividadeId) {
+async function visualizarAtividade(atividadeId) {
     console.log(`👁️ Visualizando atividade: ${atividadeId}`);
     
     try {
