@@ -1369,11 +1369,35 @@ select.form-control[multiple] {
     color: var(--gray);
     margin-bottom: 8px;
     line-height: 1.4;
-    max-height: 100px; /* Altura máxima */
-    overflow-y: auto; /* Rolagem vertical se necessário */
-    word-wrap: break-word; /* Quebra palavras longas */
-    overflow-wrap: break-word; /* Quebra palavras longas */
-    white-space: pre-wrap; /* Mantém quebras de linha */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-height: 100px; /* Limita altura máxima */
+    overflow-y: auto; /* Adiciona scroll vertical se necessário */
+    width: 100%;
+    overflow-x: hidden; /* Remove scroll horizontal */
+    
+    /* Estilo da scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary) #f1f1f1;
+}
+
+.item-desc::-webkit-scrollbar {
+    width: 6px;
+}
+
+.item-desc::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.item-desc::-webkit-scrollbar-thumb {
+    background: var(--secondary);
+    border-radius: 3px;
+}
+
+.item-desc::-webkit-scrollbar-thumb:hover {
+    background: #2980b9;
 }
 
 .item-desc.truncated {
