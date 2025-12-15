@@ -1173,13 +1173,23 @@ async function salvarAtividade(tarefaId, tipo) {
         return;
     }
     
-    
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
         atividadesParaVincular.push(checkbox.value);
     });
+    
+    // DEFINIR O STATUS CORRETAMENTE
+    let status;
+    if (gestorAtividades && gestorAtividades.atividadeEditando) {
+        // Se está editando, manter o status atual
+        const atividadeAntiga = await db.collection('atividades').doc(gestorAtividades.atividadeEditando).get();
+        status = atividadeAntiga.exists ? atividadeAntiga.data().status : 'nao_iniciado';
+    } else {
+        // Se está criando nova, usar 'nao_iniciado'
+        status = 'nao_iniciado';
+    }
     
     const atividade = {
         tarefaId: tarefaId,
@@ -1189,8 +1199,7 @@ async function salvarAtividade(tarefaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        status: status,
-        // NÃO armazena mais atividadesVinculadas aqui!
+        status: status, // Usando a variável 'status' que definimos acima
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
@@ -1206,7 +1215,7 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal (SEM atividadesVinculadas)
+            // 2. Atualizar a atividade principal
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
             
