@@ -7,6 +7,28 @@ let gestorAtividades;
 
 // ========== FUNÇÕES AUXILIARES (definidas primeiro) ==========
 
+function atualizarPreviewObservadores() {
+    const select = document.getElementById('observadorAtividade');
+    const preview = document.getElementById('observadoresPreview');
+    if (select && preview) {
+        const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
+        if (selecionados.length > 0) {
+            preview.textContent = selecionados.join(', ');
+        } else {
+            preview.textContent = 'Nenhum observador selecionado';
+        }
+    }
+}
+
+function configurarObservadoresMultiSelect() {
+    const selectObservadores = document.getElementById('observadorAtividade');
+    if (selectObservadores) {
+        selectObservadores.addEventListener('change', atualizarPreviewObservadores);
+        // Atualizar preview inicial
+        setTimeout(atualizarPreviewObservadores, 100);
+    }
+}
+
 function manterEstadoExpansaoTarefas() {
     console.log('💾 Salvando estado de expansão das tarefas...');
     tarefasExpandidas.clear();
@@ -1153,29 +1175,34 @@ class GestorAtividades {
                     </div>
                     <div class="form-group">
                         <label for="observadorAtividade">Observadores (opcional)</label>
-                        <select id="observadorAtividade" class="form-control" multiple style="height: 150px;">
-                            <option value="">Selecione um ou mais observadores</option>
-                            ${usuariosOptions}
-                            ${atividadeExistente ? `
-                                <script>
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        const selectObservadores = document.getElementById('observadorAtividade');
-                                        if (selectObservadores) {
-                                            const observadoresSelecionados = ${JSON.stringify(observadoresSelecionados)};
-                                            observadoresSelecionados.forEach(obs => {
-                                                for (let i = 0; i < selectObservadores.options.length; i++) {
-                                                    if (selectObservadores.options[i].value === obs) {
-                                                        selectObservadores.options[i].selected = true;
-                                                        break;
+                        <div class="multi-select-wrapper">
+                            <select id="observadorAtividade" class="form-control multi-select" multiple>
+                                ${usuariosOptions}
+                                ${atividadeExistente && observadoresSelecionados.length > 0 ? `
+                                    <script>
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            const selectObservadores = document.getElementById('observadorAtividade');
+                                            if (selectObservadores) {
+                                                const observadoresSelecionados = ${JSON.stringify(observadoresSelecionados)};
+                                                observadoresSelecionados.forEach(obs => {
+                                                    for (let i = 0; i < selectObservadores.options.length; i++) {
+                                                        if (selectObservadores.options[i].value === obs) {
+                                                            selectObservadores.options[i].selected = true;
+                                                            break;
+                                                        }
                                                     }
-                                                }
-                                            });
-                                        }
-                                    });
-                                </script>
-                            ` : ''}
-                        </select>
-                        <small class="form-text">Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos observadores</small>
+                                                });
+                                            }
+                                        });
+                                    </script>
+                                ` : ''}
+                            </select>
+                            <div class="multi-select-preview" onclick="document.getElementById('observadorAtividade').focus()">
+                                <span id="observadoresPreview">Nenhum observador selecionado</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
+                        <small class="form-text">Clique para selecionar múltiplos observadores (segure Ctrl/Cmd)</small>
                     </div>
                 </div>
                 
@@ -1193,6 +1220,32 @@ class GestorAtividades {
                     </button>
                 </div>
             </form>
+            
+            <script>
+                // Função para atualizar o preview dos observadores
+                function atualizarPreviewObservadores() {
+                    const select = document.getElementById('observadorAtividade');
+                    const preview = document.getElementById('observadoresPreview');
+                    if (select && preview) {
+                        const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
+                        if (selecionados.length > 0) {
+                            preview.textContent = selecionados.join(', ');
+                        } else {
+                            preview.textContent = 'Nenhum observador selecionado';
+                        }
+                    }
+                }
+                
+                // Configurar evento de change
+                document.addEventListener('DOMContentLoaded', function() {
+                    const selectObservadores = document.getElementById('observadorAtividade');
+                    if (selectObservadores) {
+                        selectObservadores.addEventListener('change', atualizarPreviewObservadores);
+                        // Atualizar preview inicial
+                        atualizarPreviewObservadores();
+                    }
+                });
+            </script>
         `;
         
         modal.style.display = 'flex';
@@ -1222,12 +1275,12 @@ async function salvarAtividade(tarefaId, tipo) {
         return;
     }
     
-    // Coletar observadores selecionados
+    // Coletar múltiplos observadores selecionados
     const observadoresSelect = document.getElementById('observadorAtividade');
     const observadores = [];
     if (observadoresSelect) {
         for (let i = 0; i < observadoresSelect.options.length; i++) {
-            if (observadoresSelect.options[i].selected && observadoresSelect.options[i].value) {
+            if (observadoresSelect.options[i].selected) {
                 observadores.push(observadoresSelect.options[i].value);
             }
         }
@@ -1249,7 +1302,7 @@ async function salvarAtividade(tarefaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        observadores: observadores, // Agora armazena como array
+        observadores: observadores, // Array com múltiplos observadores
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
