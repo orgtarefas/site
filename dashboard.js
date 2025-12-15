@@ -791,6 +791,8 @@ class GestorAtividades {
                                 const status = atividade.status || 'nao_iniciado';
                                 const atividadesVinculadas = atividade.atividadesVinculadas || [];
                                 const temVinculos = atividadesVinculadas.length > 0;
+                                const observadores = atividade.observadores || [];
+                                const temObservadores = observadores.length > 0;
                                 
                                 const opcoesStatus = [
                                     {value: 'nao_iniciado', label: 'Não Iniciado'},
@@ -807,6 +809,16 @@ class GestorAtividades {
                                 
                                 const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                                 
+                                // Formatar observadores para exibição
+                                let observadoresHTML = '';
+                                if (temObservadores) {
+                                    observadoresHTML = observadores.map(obs => {
+                                        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
+                                        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
+                                        return `<span class="observador-tag">${nomeExibicao}</span>`;
+                                    }).join('');
+                                }
+                                
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''}">
                                         <div class="item-info">
@@ -822,6 +834,10 @@ class GestorAtividades {
                                             ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                                             <div class="item-meta">
                                                 <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
+                                                ${temObservadores ? 
+                                                    `<span><i class="fas fa-eye"></i> Observadores: ${observadoresHTML}</span>` 
+                                                    : ''
+                                                }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
                                                 <span class="badge status-${status}">
                                                     ${getLabelStatus(status)}
@@ -1035,8 +1051,8 @@ class GestorAtividades {
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
         
         const usuariosOptions = this.usuarios.map(user => {
-            const selected = atividadeExistente && atividadeExistente.responsavel === user.usuario ? 'selected' : '';
-            return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
+            const nomeExibicao = user.nome || user.usuario;
+            return `<option value="${user.usuario}">${nomeExibicao}</option>`;
         }).join('');
         
         const formatarDataParaInput = (dataString) => {
@@ -1044,7 +1060,10 @@ class GestorAtividades {
             return dataString.split('T')[0];
         };
         
-        const statusAtividade = atividadeExistente ? atividadeExistente.status : 'nao_iniciado';
+        // Preparar observadores selecionados
+        const observadoresSelecionados = atividadeExistente && atividadeExistente.observadores 
+            ? atividadeExistente.observadores 
+            : [];
         
         let atividadesVinculadasHTML = '';
         if (this.atividadesDisponiveis.length > 0) {
@@ -1093,11 +1112,11 @@ class GestorAtividades {
                 <div class="form-group">
                     <label for="tituloAtividade">Título *</label>
                     <input type="text" id="tituloAtividade" class="form-control" required 
-                           value="${atividadeExistente ? atividadeExistente.titulo : ''}">
+                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}">
                 </div>
                 <div class="form-group">
                     <label for="descricaoAtividade">Descrição</label>
-                    <textarea id="descricaoAtividade" class="form-control" rows="3">${atividadeExistente ? (atividadeExistente.descricao || '') : ''}</textarea>
+                    <textarea id="descricaoAtividade" class="form-control" rows="3">${atividadeExistente ? this.escapeHtml(atividadeExistente.descricao || '') : ''}</textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1105,6 +1124,16 @@ class GestorAtividades {
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
                             ${usuariosOptions}
+                            ${atividadeExistente ? `
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        const selectResponsavel = document.getElementById('responsavelAtividade');
+                                        if (selectResponsavel) {
+                                            selectResponsavel.value = '${atividadeExistente.responsavel}';
+                                        }
+                                    });
+                                </script>
+                            ` : ''}
                         </select>
                     </div>
                     <div class="form-group">
@@ -1123,11 +1152,30 @@ class GestorAtividades {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="observadorAtividade">Observadores</label>
-                        <select id="observadorAtividade" class="form-control">
-                            <option value="">Selecione um ou mais observadores (opcional)</option>
+                        <label for="observadorAtividade">Observadores (opcional)</label>
+                        <select id="observadorAtividade" class="form-control" multiple style="height: 150px;">
+                            <option value="">Selecione um ou mais observadores</option>
                             ${usuariosOptions}
+                            ${atividadeExistente ? `
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        const selectObservadores = document.getElementById('observadorAtividade');
+                                        if (selectObservadores) {
+                                            const observadoresSelecionados = ${JSON.stringify(observadoresSelecionados)};
+                                            observadoresSelecionados.forEach(obs => {
+                                                for (let i = 0; i < selectObservadores.options.length; i++) {
+                                                    if (selectObservadores.options[i].value === obs) {
+                                                        selectObservadores.options[i].selected = true;
+                                                        break;
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                </script>
+                            ` : ''}
                         </select>
+                        <small class="form-text">Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos observadores</small>
                     </div>
                 </div>
                 
@@ -1151,6 +1199,7 @@ class GestorAtividades {
         
         verificarConclusaoVinculos();
     }
+    
 }
 
 // ========== FUNÇÕES RESTANTES ==========
@@ -1173,6 +1222,17 @@ async function salvarAtividade(tarefaId, tipo) {
         return;
     }
     
+    // Coletar observadores selecionados
+    const observadoresSelect = document.getElementById('observadorAtividade');
+    const observadores = [];
+    if (observadoresSelect) {
+        for (let i = 0; i < observadoresSelect.options.length; i++) {
+            if (observadoresSelect.options[i].selected && observadoresSelect.options[i].value) {
+                observadores.push(observadoresSelect.options[i].value);
+            }
+        }
+    }
+    
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
@@ -1180,17 +1240,7 @@ async function salvarAtividade(tarefaId, tipo) {
         atividadesParaVincular.push(checkbox.value);
     });
     
-    // DEFINIR O STATUS CORRETAMENTE
-    let status;
-    if (gestorAtividades && gestorAtividades.atividadeEditando) {
-        // Se está editando, manter o status atual
-        const atividadeAntiga = await db.collection('atividades').doc(gestorAtividades.atividadeEditando).get();
-        status = atividadeAntiga.exists ? atividadeAntiga.data().status : 'nao_iniciado';
-    } else {
-        // Se está criando nova, usar 'nao_iniciado'
-        status = 'nao_iniciado';
-    }
-    
+    // Definir dados da atividade
     const atividade = {
         tarefaId: tarefaId,
         tipo: tipo,
@@ -1199,15 +1249,24 @@ async function salvarAtividade(tarefaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        status: status, // Usando a variável 'status' que definimos acima
+        observadores: observadores, // Agora armazena como array
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
+    
+    // IMPORTANTE: NÃO alterar o status na edição
+    if (gestorAtividades && gestorAtividades.atividadeEditando) {
+        // Se está editando, NÃO incluir o status nos dados
+        // O status permanece o mesmo
+    } else {
+        // Se está criando nova, definir como 'nao_iniciado'
+        atividade.status = 'nao_iniciado';
+    }
     
     try {
         let atividadeId;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
-            // Se está editando
+            // Se está editando, usar update mantendo o status atual
             atividadeId = gestorAtividades.atividadeEditando;
             
             // 1. Buscar vínculos antigos para remover
@@ -1215,7 +1274,7 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal
+            // 2. Atualizar a atividade principal (exceto status)
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
             
@@ -1238,14 +1297,14 @@ async function salvarAtividade(tarefaId, tipo) {
             }
             
         } else {
-            // Criar nova atividade
+            // Criar nova atividade (com status 'nao_iniciado')
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
                 criadoPor: gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido'
             });
             atividadeId = docRef.id;
-            console.log(`✅ Nova atividade ${atividadeId} criada`);
+            console.log(`✅ Nova atividade ${atividadeId} criada com status 'nao_iniciado'`);
         }
         
         // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
@@ -1281,11 +1340,6 @@ async function salvarAtividade(tarefaId, tipo) {
             }
         }
         
-        // Se a atividade for concluída, processar as atividades que a têm como vínculo
-        if (status === 'concluido' && gestorAtividades) {
-            await gestorAtividades.processarConclusaoAtividade(atividadeId);
-        }
-        
         fecharModalAtividade();
         
         if (gestorAtividades) {
@@ -1295,7 +1349,7 @@ async function salvarAtividade(tarefaId, tipo) {
             gestorAtividades.atualizarGraficos();
         }
         
-        alert(atividadeId ? '✅ Atividade salva com sucesso!' : '✅ Atividade criada com sucesso!');
+        alert(atividadeId ? '✅ Atividade atualizada com sucesso!' : '✅ Atividade criada com sucesso!');
         
     } catch (error) {
         console.error('❌ Erro ao salvar atividade:', error);
