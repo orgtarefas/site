@@ -32,7 +32,7 @@ function atualizarPreviewObservadores() {
     }
 }
 
-// Função para toggle do multi-select (CORRIGIDA - REMOVIDA DUPLICADA)
+// Função para toggle do multi-select
 function toggleMultiSelect(selectId) {
     const select = document.getElementById(selectId);
     const wrapper = select.parentElement;
@@ -41,11 +41,23 @@ function toggleMultiSelect(selectId) {
         // Se já está aberto, fecha
         wrapper.classList.remove('select-open');
         select.classList.remove('visible');
+        
+        // Remover o event listener global de fechamento
+        if (wrapper._clickOutsideHandler) {
+            document.removeEventListener('click', wrapper._clickOutsideHandler);
+            delete wrapper._clickOutsideHandler;
+        }
     } else {
         // Fecha outros selects abertos
         document.querySelectorAll('.multi-select-wrapper.select-open').forEach(otherWrapper => {
             otherWrapper.classList.remove('select-open');
             otherWrapper.querySelector('.multi-select').classList.remove('visible');
+            
+            // Remover event listeners dos outros selects
+            if (otherWrapper._clickOutsideHandler) {
+                document.removeEventListener('click', otherWrapper._clickOutsideHandler);
+                delete otherWrapper._clickOutsideHandler;
+            }
         });
         
         // Abre este select
@@ -54,15 +66,21 @@ function toggleMultiSelect(selectId) {
         select.focus();
         
         // Configurar fechamento ao clicar fora
+        const clickOutsideHandler = (e) => {
+            if (!wrapper.contains(e.target)) {
+                wrapper.classList.remove('select-open');
+                select.classList.remove('visible');
+                document.removeEventListener('click', clickOutsideHandler);
+                delete wrapper._clickOutsideHandler;
+                
+                // Atualizar preview
+                atualizarPreviewObservadores();
+            }
+        };
+        
+        wrapper._clickOutsideHandler = clickOutsideHandler;
         setTimeout(() => {
-            const closeHandler = (e) => {
-                if (!wrapper.contains(e.target)) {
-                    wrapper.classList.remove('select-open');
-                    select.classList.remove('visible');
-                    document.removeEventListener('click', closeHandler);
-                }
-            };
-            document.addEventListener('click', closeHandler);
+            document.addEventListener('click', clickOutsideHandler);
         }, 10);
     }
 }
@@ -72,17 +90,19 @@ function configurarDetecaoCtrl() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Control' || e.key === 'Meta') {
             ctrlPressed = true;
+            console.log('Ctrl pressionado');
         }
     });
     
     document.addEventListener('keyup', (e) => {
         if (e.key === 'Control' || e.key === 'Meta') {
             ctrlPressed = false;
+            console.log('Ctrl liberado');
         }
     });
 }
 
-// Configurar comportamento do multi-select
+// Configurar comportamento do multi-select (CORRIGIDO)
 function configurarMultiSelectBehavior() {
     const selectObservadores = document.getElementById('observadorAtividade');
     
@@ -93,21 +113,56 @@ function configurarMultiSelectBehavior() {
         // Detectar clique nas opções
         selectObservadores.addEventListener('click', (e) => {
             if (e.target.tagName === 'OPTION') {
-                // Se Ctrl não está pressionado, fecha o dropdown após um pequeno delay
+                // Se Ctrl não está pressionado, fecha o dropdown
                 if (!ctrlPressed) {
+                    console.log('Ctrl NÃO pressionado - fechando dropdown');
+                    
+                    // Pequeno delay para permitir a seleção
                     setTimeout(() => {
                         const wrapper = selectObservadores.parentElement;
-                        wrapper.classList.remove('select-open');
-                        selectObservadores.classList.remove('visible');
+                        if (wrapper.classList.contains('select-open')) {
+                            wrapper.classList.remove('select-open');
+                            selectObservadores.classList.remove('visible');
+                            
+                            // Remover event listener
+                            if (wrapper._clickOutsideHandler) {
+                                document.removeEventListener('click', wrapper._clickOutsideHandler);
+                                delete wrapper._clickOutsideHandler;
+                            }
+                        }
                         
                         // Atualizar preview
                         atualizarPreviewObservadores();
-                    }, 200);
+                    }, 150);
                 } else {
-                    // Se Ctrl está pressionado, só atualiza o preview
-                    setTimeout(atualizarPreviewObservadores, 100);
+                    console.log('Ctrl pressionado - mantendo dropdown aberto');
+                    // Se Ctrl está pressionado, mantém aberto e só atualiza o preview
+                    setTimeout(atualizarPreviewObservadores, 50);
                 }
             }
+        });
+        
+        // Também fechar com clique fora (backup)
+        selectObservadores.addEventListener('blur', () => {
+            // Pequeno delay para verificar se outro elemento ganhou foco
+            setTimeout(() => {
+                if (!document.activeElement || !selectObservadores.contains(document.activeElement)) {
+                    const wrapper = selectObservadores.parentElement;
+                    if (wrapper.classList.contains('select-open')) {
+                        wrapper.classList.remove('select-open');
+                        selectObservadores.classList.remove('visible');
+                        
+                        // Remover event listener
+                        if (wrapper._clickOutsideHandler) {
+                            document.removeEventListener('click', wrapper._clickOutsideHandler);
+                            delete wrapper._clickOutsideHandler;
+                        }
+                        
+                        // Atualizar preview
+                        atualizarPreviewObservadores();
+                    }
+                }
+            }, 100);
         });
         
         // Fechar com ESC
@@ -116,6 +171,20 @@ function configurarMultiSelectBehavior() {
                 const wrapper = selectObservadores.parentElement;
                 wrapper.classList.remove('select-open');
                 selectObservadores.classList.remove('visible');
+                
+                // Remover event listener
+                if (wrapper._clickOutsideHandler) {
+                    document.removeEventListener('click', wrapper._clickOutsideHandler);
+                    delete wrapper._clickOutsideHandler;
+                }
+                
+                // Atualizar preview
+                atualizarPreviewObservadores();
+            }
+            
+            // Permitir seleção múltipla com Shift
+            if (e.key === 'Shift') {
+                console.log('Shift pressionado para seleção múltipla');
             }
         });
         
@@ -126,10 +195,6 @@ function configurarMultiSelectBehavior() {
         setTimeout(atualizarPreviewObservadores, 100);
     }
 }
-
-// REMOVER ESTAS FUNÇÕES DUPLICADAS:
-// function configurarObservadoresMultiSelect() - DUPLICADA
-// function toggleMultiSelect(selectId) - SEGUNDA VERSÃO DUPLICADA
 
 function manterEstadoExpansaoTarefas() {
     console.log('💾 Salvando estado de expansão das tarefas...');
@@ -1248,16 +1313,6 @@ class GestorAtividades {
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
                             ${usuariosOptions}
-                            ${atividadeExistente ? `
-                                <script>
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        const selectResponsavel = document.getElementById('responsavelAtividade');
-                                        if (selectResponsavel) {
-                                            selectResponsavel.value = '${atividadeExistente.responsavel}';
-                                        }
-                                    });
-                                </script>
-                            ` : ''}
                         </select>
                     </div>
                     <div class="form-group">
@@ -1278,33 +1333,15 @@ class GestorAtividades {
                     <div class="form-group">
                         <label for="observadorAtividade">Observadores (opcional)</label>
                         <div class="multi-select-wrapper">
-                            <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
-                                ${usuariosOptions}
-                                ${atividadeExistente && observadoresSelecionados.length > 0 ? `
-                                    <script>
-                                        document.addEventListener('DOMContentLoaded', function() {
-                                            const selectObservadores = document.getElementById('observadorAtividade');
-                                            if (selectObservadores) {
-                                                const observadoresSelecionados = ${JSON.stringify(observadoresSelecionados)};
-                                                observadoresSelecionados.forEach(obs => {
-                                                    for (let i = 0; i < selectObservadores.options.length; i++) {
-                                                        if (selectObservadores.options[i].value === obs) {
-                                                            selectObservadores.options[i].selected = true;
-                                                            break;
-                                                        }
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    </script>
-                                ` : ''}
-                            </select>
                             <div class="multi-select-preview" onclick="toggleMultiSelect('observadorAtividade')">
                                 <span id="observadoresPreview">Nenhum observador selecionado</span>
                                 <i class="fas fa-chevron-down"></i>
                             </div>
+                            <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
+                                ${usuariosOptions}
+                            </select>
                         </div>
-                        <small class="form-text">Clique para selecionar múltiplos observadores</small>
+                        <small class="form-text">Clique para selecionar múltiplos observadores (Ctrl+Clique para seleção múltipla)</small>
                     </div>
                 </div>
                 
@@ -1322,19 +1359,41 @@ class GestorAtividades {
                     </button>
                 </div>
             </form>
-            
-            <script>
-                // Configurar o multi-select após o modal abrir
-                setTimeout(() => {
-                    configurarMultiSelectBehavior();
-                }, 100);
-            </script>
         `;
         
         modal.style.display = 'flex';
         
+        // Configurar valores após o DOM ser renderizado
+        setTimeout(() => {
+            // Configurar responsável
+            const selectResponsavel = document.getElementById('responsavelAtividade');
+            if (selectResponsavel && atividadeExistente && atividadeExistente.responsavel) {
+                selectResponsavel.value = atividadeExistente.responsavel;
+            }
+            
+            // Configurar observadores
+            const selectObservadores = document.getElementById('observadorAtividade');
+            if (selectObservadores && observadoresSelecionados.length > 0) {
+                observadoresSelecionados.forEach(obs => {
+                    for (let i = 0; i < selectObservadores.options.length; i++) {
+                        if (selectObservadores.options[i].value === obs) {
+                            selectObservadores.options[i].selected = true;
+                            break;
+                        }
+                    }
+                });
+            }
+            
+            // Configurar o multi-select
+            configurarMultiSelectBehavior();
+            
+            // Atualizar preview inicial
+            atualizarPreviewObservadores();
+        }, 100);
+        
         verificarConclusaoVinculos();
     }
+        
 }
 
 // ========== FUNÇÕES RESTANTES ==========
