@@ -43,6 +43,147 @@ body {
     color: #3498db;
 }
 
+/* CSS ADICIONAL PARA MULTI-SELECT */
+
+.multi-select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.multi-select-wrapper select.multi-select {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: -1;
+    height: 0;
+    overflow: hidden;
+}
+
+.multi-select-wrapper.select-open select.multi-select {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    z-index: 1000;
+    height: auto;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.multi-select-preview {
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 38px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    z-index: 1;
+}
+
+.multi-select-preview:hover {
+    border-color: #80bdff;
+}
+
+.multi-select-preview:focus-within {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.multi-select-wrapper.select-open .multi-select-preview {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#observadoresPreview {
+    color: #495057;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+.multi-select-preview i {
+    color: #6c757d;
+    font-size: 12px;
+    margin-left: 8px;
+    transition: transform 0.3s;
+}
+
+.multi-select-wrapper.select-open .multi-select-preview i {
+    transform: rotate(180deg);
+}
+
+/* Estilo para quando há selecionados */
+.multi-select-preview.has-selected {
+    background-color: #e8f4fd;
+    border-color: #b6d4fe;
+}
+
+/* Estilo das opções do select */
+.multi-select-wrapper select.multi-select option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.multi-select-wrapper select.multi-select option:hover {
+    background-color: #f8f9fa;
+}
+
+.multi-select-wrapper select.multi-select option:checked {
+    background-color: #3498db;
+    color: white;
+}
+
+.multi-select-wrapper select.multi-select option:checked:hover {
+    background-color: #2980b9;
+}
+
+/* Ajustar o select para ficar abaixo do preview */
+.multi-select-wrapper.select-open select.multi-select {
+    border: 1px solid #80bdff;
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Adicionar uma seta para o preview */
+.multi-select-preview::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #6c757d;
+}
+
+.multi-select-wrapper.select-open .multi-select-preview::after {
+    border-top: none;
+    border-bottom: 4px solid #6c757d;
+}
+
+/* Para melhorar a seleção múltipla */
+.multi-select-wrapper select.multi-select:focus {
+    outline: none;
+}
+
 /* Área vazia para tarefas */
 .empty-tarefas {
     text-align: center;
