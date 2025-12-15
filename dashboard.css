@@ -668,6 +668,59 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+/* Estilo para checkboxes dos observadores */
+.observadores-checkbox-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.observadores-checkbox-container .form-check {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 0;
+}
+
+.observadores-checkbox-container .form-check:last-child {
+    border-bottom: none;
+}
+
+.observadores-checkbox-container .form-check-input {
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.observadores-checkbox-container .form-check-label {
+    cursor: pointer;
+    user-select: none;
+    color: #495057;
+}
+
+.observadores-checkbox-container .form-check-input:checked + .form-check-label {
+    font-weight: 600;
+    color: #3498db;
+}
+
+/* Estilo para exibição dos observadores na lista */
+.observadores-info {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 3px solid #3498db;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.observadores-info i {
+    margin-right: 5px;
+    color: #3498db;
+}
+
+.observadores-info span {
+    font-size: 12px;
+    color: #2c3e50;
+}
+
 .activities-grid {
     display: grid;
     gap: 20px;
