@@ -1173,7 +1173,6 @@ async function salvarAtividade(tarefaId, tipo) {
         return;
     }
     
-    const status = document.getElementById('statusAtividade').value;
     
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
