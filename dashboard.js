@@ -1254,38 +1254,45 @@ class GestorAtividades {
                                     {value: 'concluido', label: 'Concluído'}
                                 ];
                                 
-                                // Gerar select baseado no papel do usuário
-                                let selectHTML = '';
+                                // Gerar conteúdo do controle de status
+                                let statusControlHTML = '';
                                 if (podeAlterarStatus) {
                                     // Responsável: select normal
-                                    selectHTML = opcoesStatus.map(opcao => `
+                                    const optionsHTML = opcoesStatus.map(opcao => `
                                         <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
                                             ${opcao.label}
                                         </option>
                                     `).join('');
-                                } else {
-                                    // Não é responsável: apenas visualização
-                                    const statusAtual = opcoesStatus.find(opcao => opcao.value === status);
-                                    const statusLabel = statusAtual ? statusAtual.label : 'Não definido';
                                     
-                                    // Determinar a cor do badge baseado no status
-                                    let badgeClass = '';
-                                    switch(status) {
-                                        case 'nao_iniciado': badgeClass = 'status-nao_iniciado'; break;
-                                        case 'pendente': badgeClass = 'status-pendente'; break;
-                                        case 'andamento': badgeClass = 'status-andamento'; break;
-                                        case 'concluido': badgeClass = 'status-concluido'; break;
-                                        default: badgeClass = 'status-nao_iniciado';
+                                    statusControlHTML = `
+                                        <div class="status-control">
+                                            <select class="status-select" 
+                                                    data-id="${atividade.id}"
+                                                    data-titulo="${tituloEscapado}"
+                                                    onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
+                                                ${optionsHTML}
+                                            </select>
+                                        </div>
+                                    `;
+                                } else {
+                                    // Não é responsável: badge com ícone
+                                    let iconHTML = '';
+                                    if (isResponsavel) {
+                                        iconHTML = '<i class="fas fa-user-check" style="margin-right: 4px; font-size: 10px;"></i>';
+                                    } else if (isCriador) {
+                                        iconHTML = '<i class="fas fa-plus-circle" style="margin-right: 4px; font-size: 10px;"></i>';
+                                    } else {
+                                        iconHTML = '<i class="fas fa-lock" style="margin-right: 4px; font-size: 10px;"></i>';
                                     }
                                     
-                                    selectHTML = `
-                                        <div class="status-display-only" title="Apenas o responsável pode alterar o status">
-                                            <span class="badge ${badgeClass}">
-                                                ${isResponsavel ? '<i class="fas fa-user-check" style="margin-right: 4px; font-size: 10px;"></i>' : 
-                                                  isCriador ? '<i class="fas fa-plus-circle" style="margin-right: 4px; font-size: 10px;"></i>' : 
-                                                  '<i class="fas fa-lock" style="margin-right: 4px; font-size: 10px;"></i>'}
-                                                ${statusLabel}
-                                            </span>
+                                    statusControlHTML = `
+                                        <div class="status-control">
+                                            <div class="status-display-only" title="Apenas o responsável pode alterar o status">
+                                                <span class="badge status-${status}">
+                                                    ${iconHTML}
+                                                    ${getLabelStatus(status)}
+                                                </span>
+                                            </div>
                                         </div>
                                     `;
                                 }
@@ -1342,24 +1349,13 @@ class GestorAtividades {
                                             </div>
                                         </div>
                                         <div class="item-actions">
-                                            <!-- Status atual sempre visível (mesmo sendo responsável) -->
+                                            <!-- Status atual sempre visível -->
                                             <span class="badge status-${status} status-current-badge">
                                                 ${getLabelStatus(status)}
                                             </span>
                                             
-                                            <!-- Controle de status (select para responsável) -->
-                                            <div class="status-control">
-                                                ${podeAlterarStatus ? 
-                                                    `<select class="status-select" 
-                                                            data-id="${atividade.id}"
-                                                            data-titulo="${tituloEscapado}"
-                                                            onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                                        ${selectHTML}
-                                                    </select>` 
-                                                    : 
-                                                    selectHTML
-                                                }
-                                            </div>
+                                            <!-- Controle de status: select ou badge com ícone -->
+                                            ${statusControlHTML}
                                             
                                             <!-- Botões de ação -->
                                             <div class="action-buttons">
@@ -1391,6 +1387,7 @@ class GestorAtividades {
             `;
         }).join('');
     }
+
 
     getTextoStatusTarefa(tarefa) {
         const stats = this.calcularEstatisticasTarefa(tarefa);
