@@ -1910,6 +1910,116 @@ textarea.form-control {
     max-width: fit-content;
 }
 
+/* CSS para o novo layout do item-actions */
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 250px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.status-current-badge {
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 100px;
+    text-align: center;
+}
+
+.status-control {
+    min-width: 120px;
+}
+
+.status-control select.status-select {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.status-control select.status-select:hover {
+    border-color: #3498db;
+}
+
+.status-control select.status-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Para status-display-only dentro do status-control */
+.status-control .status-display-only {
+    padding: 6px 10px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    font-size: 12px;
+    text-align: center;
+    min-width: 120px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+/* Para responsividade */
+@media (max-width: 768px) {
+    .item-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        min-width: auto;
+        margin-top: 10px;
+    }
+    
+    .status-current-badge,
+    .status-control {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .action-buttons {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+/* Estilos para os badges de status */
+.badge.status-nao_iniciado {
+    background-color: #6c757d;
+    color: white;
+}
+
+.badge.status-pendente {
+    background-color: #f39c12;
+    color: white;
+}
+
+.badge.status-andamento {
+    background-color: #3498db;
+    color: white;
+}
+
+.badge.status-concluido {
+    background-color: #27ae60;
+    color: white;
+}
+
+/* Efeito de hover nos badges */
+.badge:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    transition: all 0.2s;
+}
+
 /* Grid responsivo para atividades */
 @media (min-width: 768px) {
     .activities-grid {
