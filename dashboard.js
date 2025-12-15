@@ -1209,6 +1209,13 @@ class GestorAtividades {
                                 const podeEditarExcluir = isResponsavel || isCriador;
                                 const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
                                 
+                                // Obter nomes formatados dos usuários - ADICIONE ESTA PARTE
+                                const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
+                                const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
+                                
+                                const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
+                                const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
+                                
                                 // Limitar exibição para 2 observadores, mostrar "e mais X"
                                 let observadoresHTML = '';
                                 let verMaisHTML = '';
@@ -1285,29 +1292,11 @@ class GestorAtividades {
                                 
                                 const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                                 
-                                // Badges indicativos de papel
-                                let roleBadges = '';
-                                if (isResponsavel) {
-                                    roleBadges += `
-                                        <span class="role-badge responsavel-badge" title="Você é o responsável por esta atividade">
-                                            <i class="fas fa-user-check"></i> Responsável
-                                        </span>
-                                    `;
-                                }
-                                if (isCriador && !isResponsavel) {
-                                    roleBadges += `
-                                        <span class="role-badge criador-badge" title="Você criou esta atividade">
-                                            <i class="fas fa-plus-circle"></i> Criador
-                                        </span>
-                                    `;
-                                }
-                                
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''}">
                                         <div class="item-info">
                                             <div class="item-title">
                                                 ${atividade.titulo}
-                                                ${roleBadges}
                                                 ${temVinculos ? 
                                                     `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
                                                         <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
@@ -1317,16 +1306,21 @@ class GestorAtividades {
                                             </div>
                                             ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                                             <div class="item-meta">
-                                                <span><i class="fas fa-user"></i> ${atividade.responsavel || 'Não definido'}</span>
+                                                <span class="responsavel-info">
+                                                    <i class="fas fa-user"></i> 
+                                                    <strong>Responsável:</strong> ${responsavelNome || atividade.responsavel || 'Não definido'}
+                                                </span>
                                                 ${atividade.criadoPor ? 
-                                                    `<span class="criador-info" title="Criado por ${atividade.criadoPor}">
-                                                        <i class="fas fa-user-plus"></i> ${atividade.criadoPor}
+                                                    `<span class="criador-info" title="Criado por ${criadorNome || atividade.criadoPor}">
+                                                        <i class="fas fa-user-plus"></i> 
+                                                        <strong>Criador:</strong> ${criadorNome || atividade.criadoPor}
                                                     </span>` 
                                                     : ''
                                                 }
                                                 ${temObservadores ? 
                                                     `<span class="observadores-container">
-                                                        <i class="fas fa-eye"></i> Observadores: 
+                                                        <i class="fas fa-eye"></i> 
+                                                        <strong>Observadores:</strong> 
                                                         ${observadoresHTML}
                                                         ${verMaisHTML}
                                                     </span>` 
@@ -1334,7 +1328,6 @@ class GestorAtividades {
                                                 }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
                                                 ${!podeAlterarStatus ? 
-                                                    // Status para não-responsável (só visualização)
                                                     `<span class="badge status-${status}">
                                                         ${getLabelStatus(status)}
                                                     </span>` 
@@ -1351,7 +1344,6 @@ class GestorAtividades {
                                         <div class="item-actions">
                                             <div class="status-selector">
                                                 ${podeAlterarStatus ? 
-                                                    // Responsável: pode alterar status
                                                     `<select class="status-select" 
                                                             data-id="${atividade.id}"
                                                             data-titulo="${tituloEscapado}"
@@ -1359,29 +1351,24 @@ class GestorAtividades {
                                                         ${selectHTML}
                                                     </select>`
                                                     : 
-                                                    // Não é responsável: apenas visualização
                                                     selectHTML
                                                 }
                                             </div>
                                             
                                             ${podeEditarExcluir ? 
-                                                // Responsável OU Criador: pode editar
                                                 `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
                                                     <i class="fas fa-edit"></i>
                                                 </button>`
                                                 :
-                                                // Não pode editar: visualização apenas
                                                 `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
                                                     <i class="fas fa-eye"></i>
                                                 </button>`
                                             }
                                             ${podeEditarExcluir ? 
-                                                // Responsável OU Criador: pode excluir
                                                 `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
                                                     <i class="fas fa-trash"></i>
                                                 </button>`
                                                 :
-                                                // Não pode excluir
                                                 ''
                                             }
                                         </div>
