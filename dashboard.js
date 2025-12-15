@@ -759,7 +759,7 @@ class GestorAtividades {
             return `
                 <div class="empty-activities">
                     <p>Nenhuma atividade cadastrada para esta tarefa</p>
-                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividadeWrapper('${tarefa.id}')">
                         <i class="fas fa-plus"></i> Adicionar Atividade
                     </button>
                 </div>
@@ -781,7 +781,7 @@ class GestorAtividades {
                 <div class="activity-section">
                     <div class="section-header">
                         <h3><i class="fas fa-list-check"></i> ${titulos[tipo]}</h3>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividadeWrapper('${tarefa.id}', '${tipo}')">
                             <i class="fas fa-plus"></i> Nova Atividade
                         </button>
                     </div>
@@ -1190,6 +1190,13 @@ class GestorAtividades {
         modal.style.display = 'flex';
         
         verificarConclusaoVinculos();
+    }
+
+    // Função wrapper para usar no onclick
+    function abrirModalAtividadeWrapper(tarefaId, tipo = 'execucao') {
+        if (gestorAtividades) {
+            gestorAtividades.abrirModalAtividade(tarefaId, tipo);
+        }
     }
 
 // ========== FUNÇÕES RESTANTES ==========
