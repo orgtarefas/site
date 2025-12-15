@@ -1123,12 +1123,10 @@ class GestorAtividades {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="statusAtividade">Status</label>
-                        <select id="statusAtividade" class="form-control" onchange="verificarConclusaoVinculos()">
-                            <option value="nao_iniciado" ${statusAtividade === 'nao_iniciado' ? 'selected' : ''}>Não Iniciado</option>
-                            <option value="pendente" ${statusAtividade === 'pendente' ? 'selected' : ''}>Pendente</option>
-                            <option value="andamento" ${statusAtividade === 'andamento' ? 'selected' : ''}>Em Andamento</option>
-                            <option value="concluido" ${statusAtividade === 'concluido' ? 'selected' : ''}>Concluído</option>
+                        <label for="observadorAtividade">Observadores</label>
+                        <select id="observadorAtividade" class="form-control">
+                            <option value="">Selecione um ou mais observadores (opcional)</option>
+                            ${usuariosOptions}
                         </select>
                     </div>
                 </div>
