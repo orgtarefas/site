@@ -1034,7 +1034,7 @@ class GestorAtividades {
         }
     }
 
-    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
+     async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
         console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
         
@@ -1057,15 +1057,41 @@ class GestorAtividades {
             return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
         }).join('');
         
-        // Opções para observador (AGORA como select único, não múltiplo)
-        const observadorSelecionado = atividadeExistente && atividadeExistente.observadores && atividadeExistente.observadores.length > 0 
-            ? atividadeExistente.observadores[0] 
-            : ''; // Pega o primeiro observador ou vazio
-        
-        const observadoresOptions = this.usuarios.map(user => {
-            const selected = observadorSelecionado === user.usuario ? 'selected' : '';
-            return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
-        }).join('');
+        // Opções para observador (MÚLTIPLOS usando checkboxes)
+        const observadoresSelecionados = atividadeExistente && atividadeExistente.observadores 
+            ? atividadeExistente.observadores 
+            : [];
+    
+        const observadoresHTML = `
+            <div class="form-group">
+                <label for="observadoresAtividade">
+                    <i class="fas fa-eye"></i> Observadores (opcional)
+                    <small class="form-text text-muted">Selecione um ou mais observadores</small>
+                </label>
+                <div style="margin-bottom: 5px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-sm" onclick="toggleTodosObservadores(true)" style="margin-right: 5px;">
+                        <i class="fas fa-check-square"></i> Selecionar Todos
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-sm" onclick="toggleTodosObservadores(false)">
+                        <i class="fas fa-square"></i> Desmarcar Todos
+                    </button>
+                </div>
+                <div class="observadores-checkbox-container" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 5px;">
+                    ${this.usuarios.map(user => {
+                        const checked = observadoresSelecionados.includes(user.usuario) ? 'checked' : '';
+                        const nome = user.nome || user.usuario;
+                        return `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="${user.usuario}" id="obs-${user.usuario}" ${checked}>
+                                <label class="form-check-label" for="obs-${user.usuario}" style="cursor: pointer; font-size: 14px;">
+                                    ${nome}
+                                </label>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
         
         const formatarDataParaInput = (dataString) => {
             if (!dataString) return '';
@@ -1150,15 +1176,7 @@ class GestorAtividades {
                             <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="observadorAtividade">
-                            <i class="fas fa-eye"></i> Observador (opcional)
-                        </label>
-                        <select id="observadorAtividade" class="form-control">
-                            <option value="">Nenhum observador</option>
-                            ${observadoresOptions}
-                        </select>
-                    </div>
+                    ${observadoresHTML}
                 </div>
                 <div class="form-group">
                     <label for="statusAtividade">Status</label>
@@ -1189,10 +1207,19 @@ class GestorAtividades {
         modal.style.display = 'flex';
         
         verificarConclusaoVinculos();
-    }
+    }       
+        
 }
 
 // ========== FUNÇÕES RESTANTES ==========
+
+// Função para selecionar/deselecionar todos os observadores
+function toggleTodosObservadores(selectAll) {
+    const checkboxes = document.querySelectorAll('.observadores-checkbox-container input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
 
 // Função wrapper para usar no onclick
 function abrirModalAtividadeWrapper(tarefaId, tipo = 'execucao') {
@@ -1222,35 +1249,26 @@ async function salvarAtividade(tarefaId, tipo) {
     
     const status = document.getElementById('statusAtividade').value;
     
-    // Coletar observador (campo único igual ao responsável)
-    const observadorSelect = document.getElementById('observadorAtividade');
-    const observador = observadorSelect ? observadorSelect.value : '';
-    
-    // Converter para array para manter compatibilidade com código existente
-    const observadores = observador ? [observador] : [];
+    // Coletar observadores selecionados (múltiplos via checkboxes)
+    const observadores = [];
+    document.querySelectorAll('.observadores-checkbox-container input[type="checkbox"]:checked').forEach(checkbox => {
+        if (checkbox.value) { // Ignorar checkboxes vazios
+            observadores.push(checkbox.value);
+        }
+    });
     
     // Coletar IDs das atividades selecionadas para vincular
     const atividadesParaVincular = [];
     const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
-        atividadesParaVincular.push(checkbox.value);
+        if (checkbox.value) { // Ignorar checkboxes vazios
+            atividadesParaVincular.push(checkbox.value);
+        }
     });
-    
-    const atividade = {
-        tarefaId: tarefaId,
-        tipo: tipo,
-        titulo: titulo,
-        descricao: descricao,
-        responsavel: responsavel,
-        dataPrevista: document.getElementById('dataPrevista').value,
-        prioridade: document.getElementById('prioridadeAtividade').value,
-        status: status,
-        observadores: observadores.filter(obs => obs !== ''), // Remover string vazia
-        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-    };
     
     try {
         let atividadeId;
+        let atividadeDataParaSalvar;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
             // Se está editando
@@ -1261,11 +1279,28 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal (SEM atividadesVinculadas)
-            await db.collection('atividades').doc(atividadeId).update(atividade);
+            // 2. Preparar dados para atualização
+            atividadeDataParaSalvar = {
+                tarefaId: tarefaId,
+                tipo: tipo,
+                titulo: titulo,
+                descricao: descricao,
+                responsavel: responsavel,
+                dataPrevista: document.getElementById('dataPrevista').value,
+                prioridade: document.getElementById('prioridadeAtividade').value,
+                status: status,
+                observadores: observadores,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp(),
+                // MANTER os vínculos existentes
+                atividadesVinculadas: atividadeAntiga.exists ? 
+                    (atividadeAntiga.data().atividadesVinculadas || []) : []
+            };
+            
+            // 3. Atualizar a atividade principal
+            await db.collection('atividades').doc(atividadeId).update(atividadeDataParaSalvar);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
             
-            // 3. REMOVER vínculos antigos das atividades
+            // 4. REMOVER vínculos antigos das atividades
             for (const vinculoId of antigosVinculosIds) {
                 const vinculoRef = db.collection('atividades').doc(vinculoId);
                 const vinculoDoc = await vinculoRef.get();
@@ -1285,11 +1320,23 @@ async function salvarAtividade(tarefaId, tipo) {
             
         } else {
             // Criar nova atividade
-            const docRef = await db.collection('atividades').add({
-                ...atividade,
+            atividadeDataParaSalvar = {
+                tarefaId: tarefaId,
+                tipo: tipo,
+                titulo: titulo,
+                descricao: descricao,
+                responsavel: responsavel,
+                dataPrevista: document.getElementById('dataPrevista').value,
+                prioridade: document.getElementById('prioridadeAtividade').value,
+                status: status,
+                observadores: observadores,
+                atividadesVinculadas: [], // Iniciar com array vazio
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido'
-            });
+                criadoPor: gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido',
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            const docRef = await db.collection('atividades').add(atividadeDataParaSalvar);
             atividadeId = docRef.id;
             console.log(`✅ Nova atividade ${atividadeId} criada`);
         }
@@ -1333,14 +1380,20 @@ async function salvarAtividade(tarefaId, tipo) {
             
             // Enviar alertas aos observadores (se houver)
             if (observadores.length > 0) {
-                console.log(`🔔 Atividade "${titulo}" concluída! Observador: ${observadores.join(', ')}`);
-                // Futuramente: implementar sistema de notificações para observadores
+                console.log(`🔔 Atividade "${titulo}" concluída! Observadores: ${observadores.join(', ')}`);
                 
                 // Mostrar mensagem amigável
-                if (observadores.length === 1) {
-                    const usuario = gestorAtividades.usuarios.find(u => u.usuario === observadores[0]);
-                    const nomeObservador = usuario ? (usuario.nome || usuario.usuario) : observadores[0];
-                    alert(`✅ Atividade salva com sucesso!\n\n🔔 O observador "${nomeObservador}" será notificado sobre a conclusão.`);
+                if (observadores.length > 0) {
+                    const nomesObservadores = observadores.map(obs => {
+                        const usuario = gestorAtividades.usuarios.find(u => u.usuario === obs);
+                        return usuario ? (usuario.nome || usuario.usuario) : obs;
+                    });
+                    
+                    if (observadores.length === 1) {
+                        alert(`✅ Atividade salva com sucesso!\n\n🔔 O observador "${nomesObservadores[0]}" será notificado sobre a conclusão.`);
+                    } else {
+                        alert(`✅ Atividade salva com sucesso!\n\n🔔 ${observadores.length} observadores serão notificados sobre a conclusão.`);
+                    }
                 }
             }
         }
