@@ -5,7 +5,7 @@ console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 let tarefasExpandidas = new Set();
 let gestorAtividades;
 
-// ========== FUNÇÕES AUXILIARES (definidas primeiro) ==========
+// ========== FUNÇÕES AUXILIARES ==========
 
 function atualizarPreviewObservadores() {
     const select = document.getElementById('observadorAtividade');
@@ -26,6 +26,16 @@ function configurarObservadoresMultiSelect() {
         selectObservadores.addEventListener('change', atualizarPreviewObservadores);
         // Atualizar preview inicial
         setTimeout(atualizarPreviewObservadores, 100);
+    }
+}
+
+function toggleMultiSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (select) {
+        select.classList.toggle('visible');
+        if (select.classList.contains('visible')) {
+            select.focus();
+        }
     }
 }
 
