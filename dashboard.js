@@ -1327,6 +1327,12 @@ class GestorAtividades {
                                                     : ''
                                                 }
                                                 <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
+                                                
+                                                <!-- SEMPRE mostrar o badge do status no item-meta -->
+                                                <span class="badge status-${status} status-meta-badge">
+                                                    ${getLabelStatus(status)}
+                                                </span>
+                                                
                                                 ${temVinculos ? 
                                                     `<span class="vinculos-badge">
                                                         <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
@@ -1336,12 +1342,12 @@ class GestorAtividades {
                                             </div>
                                         </div>
                                         <div class="item-actions">
-                                            <!-- Status atual sempre visível -->
+                                            <!-- Status atual sempre visível (mesmo sendo responsável) -->
                                             <span class="badge status-${status} status-current-badge">
                                                 ${getLabelStatus(status)}
                                             </span>
                                             
-                                            <!-- Controle de status -->
+                                            <!-- Controle de status (select para responsável) -->
                                             <div class="status-control">
                                                 ${podeAlterarStatus ? 
                                                     `<select class="status-select" 
