@@ -1057,13 +1057,13 @@ class GestorAtividades {
             return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
         }).join('');
         
-        // Opções para observador (múltipla seleção)
-        const observadoresSelecionados = atividadeExistente && atividadeExistente.observadores 
-            ? atividadeExistente.observadores 
-            : [];
+        // Opções para observador (AGORA como select único, não múltiplo)
+        const observadorSelecionado = atividadeExistente && atividadeExistente.observadores && atividadeExistente.observadores.length > 0 
+            ? atividadeExistente.observadores[0] 
+            : ''; // Pega o primeiro observador ou vazio
         
         const observadoresOptions = this.usuarios.map(user => {
-            const selected = observadoresSelecionados.includes(user.usuario) ? 'selected' : '';
+            const selected = observadorSelecionado === user.usuario ? 'selected' : '';
             return `<option value="${user.usuario}" ${selected}>${user.nome || user.usuario}</option>`;
         }).join('');
         
@@ -1151,16 +1151,13 @@ class GestorAtividades {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="observadoresAtividade" style="cursor: pointer;" onclick="toggleObservadores()">
+                        <label for="observadorAtividade">
                             <i class="fas fa-eye"></i> Observador (opcional)
-                            <i class="fas fa-chevron-down float-right" id="chevronObservadores"></i>
                         </label>
-                        <div id="observadoresContainer" style="display: none; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 8px;">
-                            <select id="observadoresAtividade" class="form-control" multiple style="height: 120px;">
-                                <option value="">Nenhum</option>
-                                ${observadoresOptions}
-                            </select>
-                        </div>
+                        <select id="observadorAtividade" class="form-control">
+                            <option value="">Nenhum observador</option>
+                            ${observadoresOptions}
+                        </select>
                     </div>
                 </div>
                 <div class="form-group">
