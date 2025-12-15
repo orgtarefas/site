@@ -1483,23 +1483,6 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
 }
 
 
-
-// ========== FUNÇÃO PARA TOGGLE DOS OBSERVADORES ==========
-function toggleObservadores() {
-    const container = document.getElementById('observadoresContainer');
-    const chevron = document.getElementById('chevronObservadores');
-    
-    if (container.style.display === 'none' || container.style.display === '') {
-        container.style.display = 'block';
-        chevron.classList.remove('fa-chevron-down');
-        chevron.classList.add('fa-chevron-up');
-    } else {
-        container.style.display = 'none';
-        chevron.classList.remove('fa-chevron-up');
-        chevron.classList.add('fa-chevron-down');
-    }
-}
-
 // ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM carregado, inicializando...');
