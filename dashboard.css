@@ -105,6 +105,150 @@ body {
     border-bottom-right-radius: 0;
 }
 
+/* CSS para observadores limitados */
+
+.observadores-container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.observadores-container i.fa-eye {
+    margin-right: 4px;
+    color: #3498db;
+    min-width: 16px;
+}
+
+.observador-tag {
+    display: inline-block;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    border: 1px solid #bbdefb;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Tag especial para "Ver mais" */
+.observador-ver-mais {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.3s;
+    padding: 2px 6px;
+}
+
+.observador-ver-mais:hover {
+    background-color: #e9ecef;
+    color: #495057;
+    transform: scale(1.05);
+}
+
+.observador-ver-mais i {
+    margin-right: 3px;
+    font-size: 10px;
+}
+
+.btn-ver-mais-observadores {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.btn-ver-mais-observadores:hover .observador-ver-mais {
+    background-color: #e9ecef;
+}
+
+/* Modal de observadores */
+.observadores-lista ul li {
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+    transition: background-color 0.2s;
+}
+
+.observadores-lista ul li:hover {
+    background-color: #e9ecef;
+}
+
+/* Ajustar layout do item-meta para múltiplas linhas */
+.item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 15px;
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+.item-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+/* Para telas pequenas, ajustar ainda mais */
+@media (max-width: 768px) {
+    .observador-tag {
+        max-width: 90px;
+        font-size: 10px;
+        padding: 1px 6px;
+    }
+    
+    .item-meta span {
+        font-size: 11px;
+    }
+    
+    .item-meta {
+        gap: 8px 10px;
+    }
+}
+
+/* Tooltip para tags de observadores */
+.observador-tag[title] {
+    position: relative;
+}
+
+.observador-tag[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+.observador-tag[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    margin-bottom: -5px;
+    z-index: 1000;
+}
+
 #observadoresPreview {
     color: #495057;
     white-space: nowrap;
