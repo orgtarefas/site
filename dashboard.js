@@ -1254,6 +1254,9 @@ class GestorAtividades {
                                     {value: 'concluido', label: 'Concluído'}
                                 ];
                                 
+                                // Declarar tituloEscapado ANTES de usá-lo
+                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
+                                
                                 // Gerar conteúdo do controle de status
                                 let statusControlHTML = '';
                                 if (podeAlterarStatus) {
@@ -1296,8 +1299,6 @@ class GestorAtividades {
                                         </div>
                                     `;
                                 }
-                                
-                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                                 
                                 return `
                                     <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''}">
