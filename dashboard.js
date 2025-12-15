@@ -1191,20 +1191,21 @@ class GestorAtividades {
         
         verificarConclusaoVinculos();
     }
-
-    // Função wrapper para usar no onclick
-    function abrirModalAtividadeWrapper(tarefaId, tipo = 'execucao') {
-        if (gestorAtividades) {
-            gestorAtividades.abrirModalAtividade(tarefaId, tipo);
-        }
-    }
+}
 
 // ========== FUNÇÕES RESTANTES ==========
 
+// Função wrapper para usar no onclick
+function abrirModalAtividadeWrapper(tarefaId, tipo = 'execucao') {
+    if (gestorAtividades) {
+        gestorAtividades.abrirModalAtividade(tarefaId, tipo);
+    }
+} 
+
+// Função GLOBAL que é chamada por editarAtividade (DIFERENTE do método da classe)
 async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
     if (gestorAtividades) {
         await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
-        // Adicione 'async' na declaração e 'await' na chamada
     }
 }
 
