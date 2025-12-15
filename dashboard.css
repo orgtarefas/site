@@ -1212,15 +1212,45 @@ select.form-control[multiple] {
     color: #2c3e50;
 }
 
+/* Grid responsivo para atividades - CORRIGIDO */
 .activities-grid {
     display: grid;
     gap: 20px;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Para telas grandes: máximo 3 colunas, mas adaptável */
+@media (min-width: 1200px) {
+    .activities-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)); /* minmax(0, 1fr) é CRUCIAL */
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+    .activities-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 colunas em tablets */
+    }
+}
+
+@media (max-width: 767px) {
+    .activities-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .activity-section {
-    background: var(--light);
-    border-radius: var(--radius-sm);
-    padding: 20px;
+    width: 100%;
+    min-width: 0; /* PERMITE que a grid encolha esta seção */
+    max-width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Limita o crescimento dentro do grid */
+.activity-section > * {
+    max-width: 100%;
 }
 
 .section-header {
@@ -2074,18 +2104,6 @@ textarea.form-control {
     transition: all 0.2s;
 }
 
-/* Grid responsivo para atividades */
-@media (min-width: 768px) {
-    .activities-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 767px) {
-    .activities-grid {
-        grid-template-columns: 1fr;
-    }
-}
 
 /* Margens e espaçamentos */
 .mt-3 { margin-top: 1rem; }
