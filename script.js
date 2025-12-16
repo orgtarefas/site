@@ -17,6 +17,7 @@ let alertasLidosResponsavel = new Set();
 let ultimaVerificacaoAlertas = null;
 
 // Inicialização
+// Configurar event listeners
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Verificando autenticação...';
@@ -35,6 +36,28 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar data mínima
     configurarDataMinima();
+    
+    // Configurar event listeners dos filtros
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', () => atualizarListaTarefas());
+    }
+    
+    if (filterStatus) {
+        filterStatus.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterPrioridade) {
+        filterPrioridade.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterResponsavel) {
+        filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
+    }
     
     // Inicializar sistema
     inicializarSistema();
@@ -1328,30 +1351,6 @@ document.addEventListener('click', function(event) {
         containers.forEach(container => {
             container.classList.remove('show');
         });
-    }
-});
-
-// Configurar event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const filterStatus = document.getElementById('filterStatus');
-    const filterPrioridade = document.getElementById('filterPrioridade');
-    const filterResponsavel = document.getElementById('filterResponsavel');
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', () => atualizarListaTarefas());
-    }
-    
-    if (filterStatus) {
-        filterStatus.addEventListener('change', () => atualizarListaTarefas());
-    }
-    
-    if (filterPrioridade) {
-        filterPrioridade.addEventListener('change', () => atualizarListaTarefas());
-    }
-    
-    if (filterResponsavel) {
-        filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
     }
 });
 
