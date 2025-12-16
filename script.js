@@ -79,13 +79,13 @@ function inicializarSistema() {
     try {
         carregarUsuarios();
         carregarGrupos();
-        carregarAlertasLidos(); // ← ADICIONE ESTA LINHA
+        carregarAlertasLidos();
         configurarFirebase();
         
-        // Iniciar verificação de alertas após 5 segundos
+        // INICIAR VERIFICAÇÃO IMEDIATA APÓS 1 SEGUNDO
         setTimeout(() => {
             verificarAlertas();
-        }, 5000);
+        }, 1000);
         
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
@@ -286,10 +286,19 @@ async function verificarAlertas() {
         // 2. BUSCAR ALERTAS DE RESPONSÁVEL
         await verificarAlertasResponsavel(usuarioAtual);
         
-        // Atualizar interface
+        // 3. Atualizar interface IMEDIATAMENTE
         atualizarContadoresAlertas();
         
-        // Agendar próxima verificação em 30 segundos
+        // 4. Mostrar notificação se houver pendências
+        const naoLidosResponsavel = alertasResponsavel.filter(alerta => 
+            !alertasLidosResponsavel.has(alerta.id)
+        ).length;
+        
+        if (naoLidosResponsavel > 0) {
+            mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
+        }
+        
+        // 5. Agendar próxima verificação em 30 segundos
         setTimeout(verificarAlertas, 30000);
         
     } catch (error) {
@@ -377,30 +386,33 @@ async function verificarAlertasResponsavel(usuarioAtual) {
         
         console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
         
-        // Filtrar atividades pendentes
-        const atividadesPendentes = atividadesComoResponsavel.filter(atividade => 
-            atividade.status && atividade.status.toLowerCase() === 'pendente'
-        );
+        // Filtrar atividades pendentes (com status 'pendente' ou não iniciadas)
+        const atividadesPendentes = atividadesComoResponsavel.filter(atividade => {
+            const status = (atividade.status || '').toLowerCase();
+            return status === 'pendente' || status === 'nao_iniciado' || status === 'não iniciado';
+        });
         
-        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
+        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes/não iniciadas`);
         
         // Criar alertas para atividades pendentes
         const novosAlertas = atividadesPendentes.map(atividade => {
             const alertaId = `resp_${atividade.id}`;
+            const status = (atividade.status || '').toLowerCase();
             
             return {
                 id: alertaId,
                 atividadeId: atividade.id,
                 titulo: atividade.titulo || 'Atividade sem título',
-                status: 'pendente',
+                status: status,
                 dataCriacao: new Date(),
                 tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
                 tipo: 'responsavel',
-                dataPrevista: atividade.dataPrevista
+                dataPrevista: atividade.dataPrevista,
+                descricao: atividade.descricao || ''
             };
         });
         
-        // Adicionar novos alertas (remover duplicados)
+        // Adicionar novos alertas
         alertasResponsavel = novosAlertas;
         
     } catch (error) {
@@ -438,6 +450,77 @@ async function carregarHistoricoStatus(usuarioAtual) {
         console.error('❌ Erro ao carregar histórico de status:', error);
     }
 }
+
+// Função para mostrar notificação rápida
+function mostrarNotificacaoRapida(mensagem) {
+    // Verificar se já existe notificação
+    const notificacaoExistente = document.querySelector('.notificacao-rapida');
+    if (notificacaoExistente) {
+        notificacaoExistente.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = 'notificacao-rapida';
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #ffc107;
+        color: #856404;
+        font-weight: 500;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+    
+    notification.innerHTML = `
+        <i class="fas fa-clock"></i>
+        <span>${mensagem}</span>
+        <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            margin-left: 8px;
+        ">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remover automaticamente após 5 segundos
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// CSS para animação
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .notificacao-rapida {
+        animation: slideIn 0.3s ease;
+    }
+`;
+document.head.appendChild(style);
 
 // Função para atualizar contadores de alertas
 function atualizarContadoresAlertas() {
@@ -560,37 +643,56 @@ function renderizarAlertasResponsavel() {
         const isLido = alertasLidosResponsavel.has(alerta.id);
         const tempoAtras = formatarTempoAtras(alerta.dataCriacao);
         const dataPrevista = alerta.dataPrevista ? 
-            `Data prevista: ${formatarData(alerta.dataPrevista)}` : 
-            'Sem data prevista';
+            `<div class="alert-data-prevista">
+                <i class="fas fa-calendar"></i>
+                ${formatarData(alerta.dataPrevista)}
+            </div>` : 
+            '';
+        
+        const statusLabel = getLabelStatus(alerta.status);
+        const statusClass = normalizarStatusParaClasse(alerta.status);
         
         return `
             <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
                 <div class="alert-item-header">
-                    <div class="alert-item-title">${alerta.titulo}</div>
+                    <div class="alert-item-title">
+                        <i class="fas fa-user-check"></i>
+                        ${alerta.titulo}
+                    </div>
                     <div class="alert-item-time">${tempoAtras}</div>
                 </div>
                 <div class="alert-item-body">
-                    Pendente em <strong>${alerta.tarefaNome}</strong>
+                    <strong>${alerta.tarefaNome}</strong>
+                    ${alerta.descricao ? `<p class="alert-descricao">${alerta.descricao}</p>` : ''}
                 </div>
                 <div class="alert-item-details">
-                    <span class="badge alert-status-badge badge-pendente">PENDENTE</span>
-                    <span>${dataPrevista}</span>
+                    <span class="badge alert-status-badge status-${statusClass}">${statusLabel}</span>
+                    ${dataPrevista}
                 </div>
                 <div class="alert-actions">
                     ${!isLido ? `
                         <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
-                            <i class="fas fa-check"></i> Marcar como visualizado
+                            <i class="fas fa-check"></i> Visualizado
                         </button>
                     ` : ''}
-                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
-                        <i class="fas fa-external-link-alt"></i> Resolver atividade
-                    </a>
+                    <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
+                        <i class="fas fa-external-link-alt"></i> Resolver
+                    </button>
                 </div>
             </div>
         `;
     }).join('');
     
     container.innerHTML = alertasHTML;
+}
+
+// Função para ir para a atividade
+function irParaAtividade(atividadeId) {
+    // Marcar como lido primeiro
+    marcarAlertaComoLido(atividadeId, 'responsavel');
+    
+    // Abrir dashboard ou página de atividades
+    window.open(`dashboard.html?atividade=${atividadeId}`, '_blank');
 }
 
 // Função para marcar alerta como lido
