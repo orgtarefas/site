@@ -1,2285 +1,1380 @@
-// arquivo dashboard.js 
-console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
+// script.js - VERSÃO COMPLETA COM MODAL ÚNICO E CONTROLE DE VISIBILIDADE
+console.log('=== SISTEMA INICIANDO ===');
 
-// ========== VARIÁVEIS GLOBAIS ==========
-let tarefasExpandidas = new Set();
-let gestorAtividades;
-let ctrlPressed = false; // Variável global para controlar Ctrl
+// Estado global
+let tarefas = [];
+let usuarios = [];
+let grupos = [];
+let atividadesPorTarefa = {};
+let editandoTarefaId = null;
+let modoEdicao = false;
 
-// ========== FUNÇÕES AUXILIARES ==========
+// Estado global dos alertas
+let alertasObservador = [];
+let alertasResponsavel = [];
+let alertasLidosObservador = new Set();
+let alertasLidosResponsavel = new Set();
+let ultimaVerificacaoAlertas = null;
 
-// Função para visualizar atividade (para usuários não-responsáveis)
-async function visualizarAtividade(atividadeId) {
-    console.log(`👁️ Visualizando atividade: ${atividadeId}`);
+// Inicialização
+// Configurar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sistema...');
+    document.getElementById('loadingText').textContent = 'Verificando autenticação...';
+    
+    // Verificar se usuário está logado
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    
+    if (!usuarioLogado) {
+        console.log('❌ Usuário não logado, redirecionando...');
+        window.location.href = 'login.html';
+        return;
+    }
+
+    console.log('👤 Usuário logado:', usuarioLogado.nome);
+    document.getElementById('userName').textContent = usuarioLogado.nome;
+    
+    // Configurar data mínima
+    configurarDataMinima();
+    
+    // Configurar event listeners dos filtros
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', () => atualizarListaTarefas());
+    }
+    
+    if (filterStatus) {
+        filterStatus.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterPrioridade) {
+        filterPrioridade.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    if (filterResponsavel) {
+        filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
+    }
+    
+    // Inicializar sistema
+    inicializarSistema();
+});
+
+function inicializarSistema() {
+    console.log('🔥 Inicializando Firebase...');
+    document.getElementById('loadingText').textContent = 'Conectando ao banco de dados...';
+    
+    // Aguardar Firebase carregar
+    if (!window.db) {
+        console.log('⏳ Aguardando Firebase...');
+        setTimeout(inicializarSistema, 100);
+        return;
+    }
+
+    console.log('✅ Firebase carregado!');
     
     try {
-        if (gestorAtividades) {
-            gestorAtividades.carregarAtividadesParaVinculo();
-        }
+        carregarUsuarios();
+        carregarGrupos();
+        carregarAlertasLidos(); // ← ADICIONE ESTA LINHA
+        configurarFirebase();
         
-        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-        
-        if (!atividadeDoc.exists) {
-            alert('Atividade não encontrada');
-            return;
-        }
-        
-        const atividade = {
-            id: atividadeDoc.id,
-            ...atividadeDoc.data()
-        };
-        
-        // Abrir modal apenas para visualização
-        abrirModalVisualizacaoAtividade(atividade);
+        // Iniciar verificação de alertas após 5 segundos
+        setTimeout(() => {
+            verificarAlertas();
+        }, 5000);
         
     } catch (error) {
-        console.error('❌ Erro ao buscar atividade:', error);
-        alert('Erro ao carregar atividade: ' + error.message);
+        console.error('❌ Erro na inicialização:', error);
+        document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline';
+        mostrarErro('Erro ao conectar com o banco de dados');
     }
 }
 
-// Função para abrir modal de visualização (sem edição)
-function abrirModalVisualizacaoAtividade(atividade) {
-    console.log(`📋 Abrindo modal de visualização para atividade: ${atividade.id}`);
+function configurarDataMinima() {
+    const hoje = new Date().toISOString().split('T')[0];
+    const dataInicio = document.getElementById('tarefaDataInicio');
+    const dataFim = document.getElementById('tarefaDataFim');
     
-    const modal = document.getElementById('modalAtividade');
-    const titulos = {
-        'execucao': 'Execução das Atividades',
-        'monitoramento': 'Monitoramento',
-        'conclusao': 'Conclusão e Revisão'
-    };
-    
-    document.getElementById('modalAtividadeTitulo').textContent = `Visualizar Atividade - ${titulos[atividade.tipo] || 'Detalhes'}`;
-    
-    // Formatar observadores
-    const observadoresFormatados = atividade.observadores && atividade.observadores.length > 0 ?
-        atividade.observadores.map(obs => {
-            const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
-            return usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-        }).join(', ') : 'Nenhum';
-    
-    // Formatar vínculos
-    const vinculosFormatados = atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0 ?
-        atividade.atividadesVinculadas.length + ' atividade(s) vinculada(s)' : 'Nenhum';
-    
-    document.getElementById('modalAtividadeBody').innerHTML = `
-        <div class="atividade-view">
-            <div class="view-field">
-                <label>Título:</label>
-                <div class="view-value">${gestorAtividades.escapeHtml(atividade.titulo || '')}</div>
-            </div>
-            
-            <div class="view-field">
-                <label>Descrição:</label>
-                <div class="view-value">${gestorAtividades.escapeHtml(atividade.descricao || 'Nenhuma descrição')}</div>
-            </div>
-            
-            <div class="view-row">
-                <div class="view-field">
-                    <label>Responsável:</label>
-                    <div class="view-value">${atividade.responsavel || 'Não definido'}</div>
-                </div>
-                <div class="view-field">
-                    <label>Data Prevista:</label>
-                    <div class="view-value">${atividade.dataPrevista || 'Sem data'}</div>
-                </div>
-            </div>
-            
-            <div class="view-row">
-                <div class="view-field">
-                    <label>Criado por:</label>
-                    <div class="view-value">${atividade.criadoPor || 'Não informado'}</div>
-                </div>
-                <div class="view-field">
-                    <label>Data de Criação:</label>
-                    <div class="view-value">${atividade.dataRegistro ? 
-                        new Date(atividade.dataRegistro.toDate()).toLocaleString('pt-BR') : 
-                        'Não informada'}</div>
-                </div>
-            </div>
-            
-            <div class="view-row">
-                <div class="view-field">
-                    <label>Prioridade:</label>
-                    <div class="view-value">
-                        <span class="badge prioridade-${atividade.prioridade || 'media'}">
-                            ${atividade.prioridade === 'alta' ? 'Alta' : 
-                              atividade.prioridade === 'baixa' ? 'Baixa' : 'Média'}
-                        </span>
-                    </div>
-                </div>
-                <div class="view-field">
-                    <label>Status:</label>
-                    <div class="view-value">
-                        <span class="badge status-${atividade.status || 'nao_iniciado'}">
-                            ${getLabelStatus(atividade.status)}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="view-field">
-                <label>Observadores:</label>
-                <div class="view-value">${observadoresFormatados}</div>
-            </div>
-            
-            <div class="view-field">
-                <label>Vínculos com outras atividades:</label>
-                <div class="view-value">${vinculosFormatados}</div>
-            </div>
-            
-            <div class="view-field">
-                <label>Última Atualização:</label>
-                <div class="view-value">${atividade.dataAtualizacao ? 
-                    new Date(atividade.dataAtualizacao.toDate()).toLocaleString('pt-BR') : 
-                    'Não informada'}</div>
-            </div>
-            
-            <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Fechar</button>
-                ${gestorAtividades.usuario && (gestorAtividades.usuario.usuario === atividade.responsavel || gestorAtividades.usuario.usuario === atividade.criadoPor) ?
-                    `<button type="button" class="btn btn-primary" onclick="editarAtividade('${atividade.id}')">
-                        <i class="fas fa-edit"></i> Editar Atividade
-                    </button>` : ''
-                }
-            </div>
-        </div>
-    `;
-    
-    modal.style.display = 'flex';
+    if (dataInicio) dataInicio.min = hoje;
+    if (dataFim) dataFim.min = hoje;
 }
 
-// Função para atualizar preview dos observadores
-function atualizarPreviewObservadores() {
-    const select = document.getElementById('observadorAtividade');
-    const preview = document.getElementById('observadoresPreview');
-    const previewContainer = document.querySelector('.multi-select-preview');
+// FUNÇÃO: Carregar grupos
+async function carregarGrupos() {
+    console.log('👥 Carregando grupos...');
     
-    if (select && preview && previewContainer) {
-        const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
-        if (selecionados.length > 0) {
-            if (selecionados.length === 1) {
-                preview.textContent = selecionados[0];
-            } else if (selecionados.length === 2) {
-                preview.textContent = selecionados.join(' e ');
-            } else {
-                preview.textContent = `${selecionados.length} observadores selecionados`;
-            }
-            previewContainer.classList.add('has-selected');
-        } else {
-            preview.textContent = 'Nenhum observador selecionado';
-            previewContainer.classList.remove('has-selected');
+    try {
+        const snapshot = await db.collection("grupos").get();
+        
+        grupos = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Grupos carregados:', grupos.length);
+
+        // Preencher select de grupos
+        const selectGrupos = document.getElementById('tarefaGrupos');
+        
+        if (selectGrupos) {
+            selectGrupos.innerHTML = '<option value="">Selecione um ou mais grupos...</option>';
+            
+            grupos.forEach(grupo => {
+                const option = document.createElement('option');
+                option.value = grupo.id;
+                option.textContent = grupo.nome || grupo.id;
+                selectGrupos.appendChild(option);
+            });
         }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar grupos:', error);
     }
 }
 
-// Função para mostrar todos os observadores em um modal
-function mostrarTodosObservadores(atividadeId) {
-    console.log(`👁️ Mostrando todos os observadores da atividade: ${atividadeId}`);
+// FUNÇÃO: Carregar usuários
+async function carregarUsuarios() {
+    console.log('👥 Carregando usuários...');
     
-    // Encontrar a atividade
-    if (!gestorAtividades) return;
+    try {
+        const snapshot = await db.collection("usuarios").get();
+        
+        usuarios = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Usuários carregados:', usuarios.length);
+
+        // Apenas preencher select de responsável para FILTRO
+        const selectFiltro = document.getElementById('filterResponsavel');
+        if (selectFiltro) {
+            selectFiltro.innerHTML = '<option value="">Todos</option>';
+            usuarios.forEach(usuario => {
+                const option = document.createElement('option');
+                option.value = usuario.usuario || usuario.id;
+                option.textContent = usuario.nome || usuario.usuario || usuario.id;
+                selectFiltro.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+    }
+}
+
+function configurarFirebase() {
+    console.log('📡 Configurando listener do Firestore...');
+    document.getElementById('loadingText').textContent = 'Carregando tarefas...';
     
-    let atividadeEncontrada = null;
-    gestorAtividades.tarefas.forEach(tarefa => {
-        const atividade = tarefa.atividades?.find(a => a.id === atividadeId);
-        if (atividade) {
-            atividadeEncontrada = atividade;
+    // Listener em tempo real para tarefas
+    db.collection("tarefas")
+        .orderBy("dataCriacao", "desc")
+        .onSnapshot(
+            async (snapshot) => {
+                console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
+                tarefas = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Carregar atividades para todas as tarefas
+                await carregarAtividadesParaTodasTarefas();
+                
+                // Finalizar carregamento
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Conectado';
+                
+                atualizarInterface();
+                console.log('🎉 Sistema carregado com sucesso!');
+            },
+            (error) => {
+                console.error('❌ Erro no Firestore:', error);
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro Conexão';
+                mostrarErro('Erro ao carregar tarefas: ' + error.message);
+            }
+        );
+    
+    // LISTENER PARA ATIVIDADES (para alertas em tempo real)
+    db.collection("atividades")
+        .onSnapshot((snapshot) => {
+            console.log('🔄 Atualização de atividades recebida');
+            
+            // Verificar se há usuário logado
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            if (usuarioLogado) {
+                // Verificar se há alterações relevantes
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified') {
+                        const atividade = change.doc.data();
+                        
+                        // Verificar se é uma atividade que o usuário observa ou é responsável
+                        const usuarioAtual = usuarioLogado.usuario;
+                        const isObservador = atividade.observadores && 
+                                           atividade.observadores.includes(usuarioAtual);
+                        const isResponsavel = atividade.responsavel === usuarioAtual;
+                        
+                        if (isObservador || isResponsavel) {
+                            // Forçar nova verificação de alertas
+                            setTimeout(verificarAlertas, 2000);
+                        }
+                    }
+                });
+            }
+        });
+}
+
+async function carregarAtividadesParaTodasTarefas() {
+    console.log('📋 Carregando atividades para todas as tarefas...');
+    
+    try {
+        // Buscar todas as atividades
+        const snapshot = await db.collection("atividades").get();
+        const todasAtividades = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Atividades carregadas:', todasAtividades.length);
+
+        // Organizar atividades por tarefaId
+        atividadesPorTarefa = {};
+        
+        todasAtividades.forEach(atividade => {
+            if (atividade.tarefaId) {
+                if (!atividadesPorTarefa[atividade.tarefaId]) {
+                    atividadesPorTarefa[atividade.tarefaId] = [];
+                }
+                atividadesPorTarefa[atividade.tarefaId].push(atividade);
+            }
+        });
+
+        console.log('📊 Atividades organizadas por tarefa:', Object.keys(atividadesPorTarefa).length);
+        
+        // Ordenar atividades dentro de cada tarefa
+        Object.keys(atividadesPorTarefa).forEach(tarefaId => {
+            atividadesPorTarefa[tarefaId] = ordenarAtividadesPorTipo(atividadesPorTarefa[tarefaId]);
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar atividades:', error);
+    }
+}
+
+// ========== FUNÇÕES DE ALERTAS ==========
+
+// Função para verificar alertas
+async function verificarAlertas() {
+    console.log('🔔 Verificando alertas...');
+    
+    try {
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) return;
+        
+        const usuarioAtual = usuarioLogado.usuario;
+        
+        // 1. BUSCAR ALERTAS DE OBSERVADOR
+        await verificarAlertasObservador(usuarioAtual);
+        
+        // 2. BUSCAR ALERTAS DE RESPONSÁVEL
+        await verificarAlertasResponsavel(usuarioAtual);
+        
+        // Atualizar interface
+        atualizarContadoresAlertas();
+        
+        // Agendar próxima verificação em 30 segundos
+        setTimeout(verificarAlertas, 30000);
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas:', error);
+    }
+}
+
+// Função para verificar alertas de observador
+async function verificarAlertasObservador(usuarioAtual) {
+    try {
+        // Buscar atividades onde o usuário é observador
+        const snapshot = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual)
+            .get();
+        
+        const atividadesComoObservador = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
+        
+        // Carregar histórico de alterações de status
+        await carregarHistoricoStatus(usuarioAtual);
+        
+        // Processar cada atividade
+        const novosAlertas = [];
+        
+        atividadesComoObservador.forEach(atividade => {
+            // Verificar se houve alteração recente de status
+            const historicoAtividade = historicoStatus[atividade.id];
+            
+            if (historicoAtividade && historicoAtividade.ultimaAlteracao) {
+                const ultimaAlteracao = historicoAtividade.ultimaAlteracao.toDate
+                    ? historicoAtividade.ultimaAlteracao.toDate()
+                    : new Date(historicoAtividade.ultimaAlteracao);
+                
+                // Verificar se é uma alteração recente (últimas 24 horas)
+                const agora = new Date();
+                const horasDesdeAlteracao = (agora - ultimaAlteracao) / (1000 * 60 * 60);
+                
+                if (horasDesdeAlteracao <= 24) {
+                    // Verificar se já viu este alerta
+                    const alertaId = `obs_${atividade.id}_${ultimaAlteracao.getTime()}`;
+                    
+                    if (!alertasLidosObservador.has(alertaId)) {
+                        novosAlertas.push({
+                            id: alertaId,
+                            atividadeId: atividade.id,
+                            titulo: atividade.titulo || 'Atividade sem título',
+                            statusAntigo: historicoAtividade.statusAnterior,
+                            statusNovo: atividade.status || 'nao_iniciado',
+                            dataAlteracao: ultimaAlteracao,
+                            tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                            tipo: 'observador'
+                        });
+                    }
+                }
+            }
+        });
+        
+        // Adicionar novos alertas
+        alertasObservador = [...novosAlertas.reverse(), ...alertasObservador];
+        
+        // Manter apenas os últimos 50 alertas
+        alertasObservador = alertasObservador.slice(0, 50);
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas de observador:', error);
+    }
+}
+
+// Função para verificar alertas de responsável
+async function verificarAlertasResponsavel(usuarioAtual) {
+    try {
+        // Buscar atividades onde o usuário é responsável
+        const snapshot = await db.collection('atividades')
+            .where('responsavel', '==', usuarioAtual)
+            .get();
+        
+        const atividadesComoResponsavel = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
+        
+        // Filtrar atividades pendentes
+        const atividadesPendentes = atividadesComoResponsavel.filter(atividade => 
+            atividade.status && atividade.status.toLowerCase() === 'pendente'
+        );
+        
+        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
+        
+        // Criar alertas para atividades pendentes
+        const novosAlertas = atividadesPendentes.map(atividade => {
+            const alertaId = `resp_${atividade.id}`;
+            
+            return {
+                id: alertaId,
+                atividadeId: atividade.id,
+                titulo: atividade.titulo || 'Atividade sem título',
+                status: 'pendente',
+                dataCriacao: new Date(),
+                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                tipo: 'responsavel',
+                dataPrevista: atividade.dataPrevista
+            };
+        });
+        
+        // Adicionar novos alertas (remover duplicados)
+        alertasResponsavel = novosAlertas;
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas de responsável:', error);
+    }
+}
+
+// Variável para histórico de status
+let historicoStatus = {};
+
+// Função para carregar histórico de alterações de status
+async function carregarHistoricoStatus(usuarioAtual) {
+    try {
+        // Buscar histórico das últimas 24 horas
+        const vinteQuatroHorasAtras = new Date();
+        vinteQuatroHorasAtras.setHours(vinteQuatroHorasAtras.getHours() - 24);
+        
+        const snapshot = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual)
+            .where('dataAtualizacao', '>=', vinteQuatroHorasAtras)
+            .get();
+        
+        historicoStatus = {};
+        
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            historicoStatus[doc.id] = {
+                ultimaAlteracao: data.dataAtualizacao,
+                statusAnterior: data.statusAnterior || 'nao_iniciado',
+                statusAtual: data.status || 'nao_iniciado'
+            };
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico de status:', error);
+    }
+}
+
+// Função para atualizar contadores de alertas
+function atualizarContadoresAlertas() {
+    // Contar alertas não lidos
+    const naoLidosObservador = alertasObservador.filter(alerta => 
+        !alertasLidosObservador.has(alerta.id)
+    ).length;
+    
+    const naoLidosResponsavel = alertasResponsavel.filter(alerta => 
+        !alertasLidosResponsavel.has(alerta.id)
+    ).length;
+    
+    // Atualizar contadores na interface
+    document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
+    document.getElementById('responsavelAlertCount').textContent = naoLidosResponsavel;
+    
+    // Mostrar/ocultar contadores
+    document.getElementById('observadorAlertCount').style.display = 
+        naoLidosObservador > 0 ? 'flex' : 'none';
+    document.getElementById('responsavelAlertCount').style.display = 
+        naoLidosResponsavel > 0 ? 'flex' : 'none';
+}
+
+// Função para abrir dropdown de alertas de observador
+function abrirAlertasObservador() {
+    const container = document.getElementById('observadorAlertsContainer');
+    const dropdown = document.getElementById('observadorAlertDropdown');
+    const otherContainers = document.querySelectorAll('.alerts-container.show');
+    
+    // Fechar outros dropdowns
+    otherContainers.forEach(other => {
+        if (other !== container) {
+            other.classList.remove('show');
         }
     });
     
-    if (!atividadeEncontrada) return;
+    // Alternar este dropdown
+    container.classList.toggle('show');
     
-    const observadores = atividadeEncontrada.observadores || [];
+    // Renderizar alertas
+    renderizarAlertasObservador();
+}
+
+// Função para renderizar alertas de observador
+function renderizarAlertasObservador() {
+    const container = document.getElementById('observadorAlertList');
     
-    if (observadores.length === 0) {
-        alert('Esta atividade não tem observadores');
+    if (alertasObservador.length === 0) {
+        container.innerHTML = '<div class="no-alerts">Nenhum alerta</div>';
         return;
     }
     
-    // Criar lista de observadores formatada
-    const listaObservadores = observadores.map(obs => {
-        const usuarioObj = gestorAtividades.usuarios.find(u => u.usuario === obs);
-        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-        return `<li>${nomeExibicao}</li>`;
-    }).join('');
-    
-    // Criar modal temporário
-    const modalHTML = `
-        <div id="modalObservadores" class="modal" style="display: flex;">
-            <div class="modal-content" style="max-width: 400px;">
-                <div class="modal-header">
-                    <h2><i class="fas fa-users"></i> Observadores da Atividade</h2>
-                    <button class="close" onclick="fecharModalObservadores()">&times;</button>
+    const alertasHTML = alertasObservador.map(alerta => {
+        const isLido = alertasLidosObservador.has(alerta.id);
+        const tempoAtras = formatarTempoAtras(alerta.dataAlteracao);
+        
+        return `
+            <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
+                <div class="alert-item-header">
+                    <div class="alert-item-title">${alerta.titulo}</div>
+                    <div class="alert-item-time">${tempoAtras}</div>
                 </div>
-                <div class="modal-body">
-                    <p><strong>Atividade:</strong> ${atividadeEncontrada.titulo}</p>
-                    <p><strong>Total de observadores:</strong> ${observadores.length}</p>
-                    <div class="observadores-lista" style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
-                        <ul style="list-style: none; padding: 0;">
-                            ${listaObservadores}
-                        </ul>
+                <div class="alert-item-body">
+                    Status alterado em <strong>${alerta.tarefaNome}</strong>
+                </div>
+                <div class="alert-item-details">
+                    <div class="alert-status-change">
+                        <span class="alert-status-badge badge-de">${getLabelStatus(alerta.statusAntigo)}</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span class="alert-status-badge badge-para">${getLabelStatus(alerta.statusNovo)}</span>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" onclick="fecharModalObservadores()">Fechar</button>
+                <div class="alert-actions">
+                    ${!isLido ? `
+                        <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'observador')">
+                            <i class="fas fa-check"></i> Marcar como lido
+                        </button>
+                    ` : ''}
+                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> Ver atividade
+                    </a>
                 </div>
             </div>
-        </div>
-    `;
+        `;
+    }).join('');
     
-    // Adicionar ao body
-    const modalDiv = document.createElement('div');
-    modalDiv.innerHTML = modalHTML;
-    document.body.appendChild(modalDiv);
-    
-    // Fechar ao clicar fora
-    document.getElementById('modalObservadores').onclick = function(e) {
-        if (e.target === this) {
-            fecharModalObservadores();
-        }
-    };
+    container.innerHTML = alertasHTML;
 }
 
-// Função para fechar o modal de observadores
-function fecharModalObservadores() {
-    const modal = document.getElementById('modalObservadores');
-    if (modal) {
-        modal.remove();
+// Função para abrir dropdown de alertas de responsável
+function abrirAlertasResponsavel() {
+    const container = document.getElementById('responsavelAlertsContainer');
+    const dropdown = document.getElementById('responsavelAlertDropdown');
+    const otherContainers = document.querySelectorAll('.alerts-container.show');
+    
+    // Fechar outros dropdowns
+    otherContainers.forEach(other => {
+        if (other !== container) {
+            other.classList.remove('show');
+        }
+    });
+    
+    // Alternar este dropdown
+    container.classList.toggle('show');
+    
+    // Renderizar alertas
+    renderizarAlertasResponsavel();
+}
+
+// Função para renderizar alertas de responsável
+function renderizarAlertasResponsavel() {
+    const container = document.getElementById('responsavelAlertList');
+    
+    if (alertasResponsavel.length === 0) {
+        container.innerHTML = '<div class="no-alerts">Nenhuma pendência</div>';
+        return;
     }
+    
+    const alertasHTML = alertasResponsavel.map(alerta => {
+        const isLido = alertasLidosResponsavel.has(alerta.id);
+        const tempoAtras = formatarTempoAtras(alerta.dataCriacao);
+        const dataPrevista = alerta.dataPrevista ? 
+            `Data prevista: ${formatarData(alerta.dataPrevista)}` : 
+            'Sem data prevista';
+        
+        return `
+            <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
+                <div class="alert-item-header">
+                    <div class="alert-item-title">${alerta.titulo}</div>
+                    <div class="alert-item-time">${tempoAtras}</div>
+                </div>
+                <div class="alert-item-body">
+                    Pendente em <strong>${alerta.tarefaNome}</strong>
+                </div>
+                <div class="alert-item-details">
+                    <span class="badge alert-status-badge badge-pendente">PENDENTE</span>
+                    <span>${dataPrevista}</span>
+                </div>
+                <div class="alert-actions">
+                    ${!isLido ? `
+                        <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
+                            <i class="fas fa-check"></i> Marcar como visualizado
+                        </button>
+                    ` : ''}
+                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> Resolver atividade
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = alertasHTML;
 }
 
-
-// Função para toggle do multi-select
-function toggleMultiSelect(selectId) {
-    const select = document.getElementById(selectId);
-    const wrapper = select.parentElement;
-    
-    if (wrapper.classList.contains('select-open')) {
-        // Se já está aberto, fecha
-        wrapper.classList.remove('select-open');
-        select.classList.remove('visible');
-        
-        // Remover o event listener global de fechamento
-        if (wrapper._clickOutsideHandler) {
-            document.removeEventListener('click', wrapper._clickOutsideHandler);
-            delete wrapper._clickOutsideHandler;
-        }
+// Função para marcar alerta como lido
+function marcarAlertaComoLido(alertaId, tipo) {
+    if (tipo === 'observador') {
+        alertasLidosObservador.add(alertaId);
+        localStorage.setItem('alertasLidosObservador', JSON.stringify([...alertasLidosObservador]));
     } else {
-        // Fecha outros selects abertos
-        document.querySelectorAll('.multi-select-wrapper.select-open').forEach(otherWrapper => {
-            otherWrapper.classList.remove('select-open');
-            otherWrapper.querySelector('.multi-select').classList.remove('visible');
-            
-            // Remover event listeners dos outros selects
-            if (otherWrapper._clickOutsideHandler) {
-                document.removeEventListener('click', otherWrapper._clickOutsideHandler);
-                delete otherWrapper._clickOutsideHandler;
-            }
-        });
-        
-        // Abre este select
-        wrapper.classList.add('select-open');
-        select.classList.add('visible');
-        select.focus();
-        
-        // Configurar fechamento ao clicar fora
-        const clickOutsideHandler = (e) => {
-            if (!wrapper.contains(e.target)) {
-                wrapper.classList.remove('select-open');
-                select.classList.remove('visible');
-                document.removeEventListener('click', clickOutsideHandler);
-                delete wrapper._clickOutsideHandler;
-                
-                // Atualizar preview
-                atualizarPreviewObservadores();
-            }
-        };
-        
-        wrapper._clickOutsideHandler = clickOutsideHandler;
-        setTimeout(() => {
-            document.addEventListener('click', clickOutsideHandler);
-        }, 10);
+        alertasLidosResponsavel.add(alertaId);
+        localStorage.setItem('alertasLidosResponsavel', JSON.stringify([...alertasLidosResponsavel]));
+    }
+    
+    // Atualizar interface
+    atualizarContadoresAlertas();
+    
+    // Re-renderizar lista
+    if (tipo === 'observador') {
+        renderizarAlertasObservador();
+    } else {
+        renderizarAlertasResponsavel();
     }
 }
 
-// Configurar detecção de teclas Ctrl
-function configurarDetecaoCtrl() {
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Control' || e.key === 'Meta') {
-            ctrlPressed = true;
-            console.log('Ctrl pressionado');
-        }
+// Função para marcar todos os alertas de observador como lido
+function marcarTodosAlertasObservadorComoLido() {
+    alertasObservador.forEach(alerta => {
+        alertasLidosObservador.add(alerta.id);
     });
     
-    document.addEventListener('keyup', (e) => {
-        if (e.key === 'Control' || e.key === 'Meta') {
-            ctrlPressed = false;
-            console.log('Ctrl liberado');
-        }
-    });
+    localStorage.setItem('alertasLidosObservador', JSON.stringify([...alertasLidosObservador]));
+    atualizarContadoresAlertas();
+    renderizarAlertasObservador();
 }
 
-// Configurar comportamento do multi-select (CORRIGIDO)
-function configurarMultiSelectBehavior() {
-    const selectObservadores = document.getElementById('observadorAtividade');
+// Função para marcar todas as pendências como visualizado
+function marcarTodasPendenciasComoLido() {
+    alertasResponsavel.forEach(alerta => {
+        alertasLidosResponsavel.add(alerta.id);
+    });
     
-    if (selectObservadores) {
-        // Configurar detecção de Ctrl
-        configurarDetecaoCtrl();
-        
-        // Detectar clique nas opções
-        selectObservadores.addEventListener('click', (e) => {
-            if (e.target.tagName === 'OPTION') {
-                // Se Ctrl não está pressionado, fecha o dropdown
-                if (!ctrlPressed) {
-                    console.log('Ctrl NÃO pressionado - fechando dropdown');
-                    
-                    // Pequeno delay para permitir a seleção
-                    setTimeout(() => {
-                        const wrapper = selectObservadores.parentElement;
-                        if (wrapper.classList.contains('select-open')) {
-                            wrapper.classList.remove('select-open');
-                            selectObservadores.classList.remove('visible');
-                            
-                            // Remover event listener
-                            if (wrapper._clickOutsideHandler) {
-                                document.removeEventListener('click', wrapper._clickOutsideHandler);
-                                delete wrapper._clickOutsideHandler;
-                            }
-                        }
-                        
-                        // Atualizar preview
-                        atualizarPreviewObservadores();
-                    }, 150);
-                } else {
-                    console.log('Ctrl pressionado - mantendo dropdown aberto');
-                    // Se Ctrl está pressionado, mantém aberto e só atualiza o preview
-                    setTimeout(atualizarPreviewObservadores, 50);
-                }
-            }
-        });
-        
-        // Também fechar com clique fora (backup)
-        selectObservadores.addEventListener('blur', () => {
-            // Pequeno delay para verificar se outro elemento ganhou foco
-            setTimeout(() => {
-                if (!document.activeElement || !selectObservadores.contains(document.activeElement)) {
-                    const wrapper = selectObservadores.parentElement;
-                    if (wrapper.classList.contains('select-open')) {
-                        wrapper.classList.remove('select-open');
-                        selectObservadores.classList.remove('visible');
-                        
-                        // Remover event listener
-                        if (wrapper._clickOutsideHandler) {
-                            document.removeEventListener('click', wrapper._clickOutsideHandler);
-                            delete wrapper._clickOutsideHandler;
-                        }
-                        
-                        // Atualizar preview
-                        atualizarPreviewObservadores();
-                    }
-                }
-            }, 100);
-        });
-        
-        // Fechar com ESC
-        selectObservadores.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                const wrapper = selectObservadores.parentElement;
-                wrapper.classList.remove('select-open');
-                selectObservadores.classList.remove('visible');
-                
-                // Remover event listener
-                if (wrapper._clickOutsideHandler) {
-                    document.removeEventListener('click', wrapper._clickOutsideHandler);
-                    delete wrapper._clickOutsideHandler;
-                }
-                
-                // Atualizar preview
-                atualizarPreviewObservadores();
-            }
-            
-            // Permitir seleção múltipla com Shift
-            if (e.key === 'Shift') {
-                console.log('Shift pressionado para seleção múltipla');
-            }
-        });
-        
-        // Atualizar preview quando houver mudanças
-        selectObservadores.addEventListener('change', atualizarPreviewObservadores);
-        
-        // Inicializar preview
-        setTimeout(atualizarPreviewObservadores, 100);
-    }
+    localStorage.setItem('alertasLidosResponsavel', JSON.stringify([...alertasLidosResponsavel]));
+    atualizarContadoresAlertas();
+    renderizarAlertasResponsavel();
 }
 
-function manterEstadoExpansaoTarefas() {
-    console.log('💾 Salvando estado de expansão das tarefas...');
-    tarefasExpandidas.clear();
+// Função para formatar tempo atrás
+function formatarTempoAtras(data) {
+    const agora = new Date();
+    const dataAlerta = new Date(data);
+    const diferencaMinutos = Math.floor((agora - dataAlerta) / (1000 * 60));
     
-    document.querySelectorAll('.task-body').forEach(tarefa => {
-        if (tarefa.style.display !== 'none') {
-            const id = tarefa.id.replace('tarefa-', '');
-            tarefasExpandidas.add(id);
-            console.log(`✅ Tarefa ${id} estava expandida`);
-        }
-    });
+    if (diferencaMinutos < 1) return 'Agora mesmo';
+    if (diferencaMinutos < 60) return `${diferencaMinutos} min atrás`;
+    
+    const diferencaHoras = Math.floor(diferencaMinutos / 60);
+    if (diferencaHoras < 24) return `${diferencaHoras} h atrás`;
+    
+    const diferencaDias = Math.floor(diferencaHoras / 24);
+    return `${diferencaDias} d atrás`;
 }
 
-function restaurarEstadoExpansaoTarefas() {
-    console.log('🔄 Restaurando estado de expansão das tarefas...');
-    tarefasExpandidas.forEach(id => {
-        const elemento = document.getElementById(`tarefa-${id}`);
-        const header = elemento ? elemento.previousElementSibling : null;
-        const chevron = header ? header.querySelector('.fa-chevron-down, .fa-chevron-up') : null;
-        
-        if (elemento && header && chevron) {
-            elemento.style.display = 'block';
-            chevron.classList.remove('fa-chevron-down');
-            chevron.classList.add('fa-chevron-up');
-            console.log(`✅ Restaurada tarefa ${id}`);
-        }
-    });
-}
-
-function getLabelStatus(status) {
-    switch(status) {
-        case 'nao_iniciado': return 'Não Iniciado';
-        case 'pendente': return 'Pendente';
-        case 'andamento': return 'Em Andamento';
-        case 'concluido': return 'Concluído';
-        default: return status || 'Não definido';
-    }
-}
-
-async function carregarVinculosAtividade(atividadeId) {
+// Carregar alertas lidos do localStorage
+function carregarAlertasLidos() {
     try {
-        // Buscar atividades que têm esta atividade como vínculo
-        const snapshot = await db.collection('atividades')
-            .where('atividadesVinculadas', 'array-contains', atividadeId)
+        const lidosObservador = JSON.parse(localStorage.getItem('alertasLidosObservador') || '[]');
+        const lidosResponsavel = JSON.parse(localStorage.getItem('alertasLidosResponsavel') || '[]');
+        
+        alertasLidosObservador = new Set(lidosObservador);
+        alertasLidosResponsavel = new Set(lidosResponsavel);
+    } catch (error) {
+        console.error('❌ Erro ao carregar alertas lidos:', error);
+    }
+}
+
+
+
+// FUNÇÃO: Buscar atividades específicas de uma tarefa
+async function buscarAtividadesDaTarefa(tarefaId) {
+    try {
+        const snapshot = await db.collection("atividades")
+            .where("tarefaId", "==", tarefaId)
             .get();
         
-        return snapshot.docs.map(doc => doc.id);
+        if (!snapshot.empty) {
+            let atividades = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Ordenar atividades por tipo
+            atividades = ordenarAtividadesPorTipo(atividades);
+            
+            return atividades;
+        }
+        return [];
     } catch (error) {
-        console.error('❌ Erro ao carregar vínculos da atividade:', error);
+        console.error('❌ Erro ao buscar atividades da tarefa:', error);
         return [];
     }
 }
 
-function toggleTarefa(tarefaId) {
-    console.log(`🔧 Toggle tarefa: ${tarefaId}`);
-    const elemento = document.getElementById(`tarefa-${tarefaId}`);
-    const header = elemento.previousElementSibling;
-    const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
+// FUNÇÃO: Ordenar atividades por tipo
+function ordenarAtividadesPorTipo(atividades) {
+    // Ordem específica dos tipos
+    const ordemTipos = ['execucao', 'monitoramento', 'conclusao'];
     
-    if (!elemento || !chevron) return;
+    // Separar atividades que têm tipo definido
+    const atividadesComTipo = atividades.filter(a => a.tipo);
+    const atividadesSemTipo = atividades.filter(a => !a.tipo);
     
-    if (elemento.style.display === 'none') {
-        elemento.style.display = 'block';
-        chevron.classList.remove('fa-chevron-down');
-        chevron.classList.add('fa-chevron-up');
-        tarefasExpandidas.add(tarefaId);
-        console.log(`✅ Expandida tarefa ${tarefaId}`);
+    // Ordenar atividades com tipo na ordem específica
+    atividadesComTipo.sort((a, b) => {
+        const indiceA = ordemTipos.indexOf(a.tipo);
+        const indiceB = ordemTipos.indexOf(b.tipo);
+        
+        if (indiceA !== -1 && indiceB !== -1) {
+            return indiceA - indiceB;
+        }
+        if (indiceA !== -1) return -1;
+        if (indiceB !== -1) return 1;
+        return 0;
+    });
+    
+    // Combinar: atividades ordenadas por tipo + atividades sem tipo
+    return [...atividadesComTipo, ...atividadesSemTipo];
+}
+
+// MODAL FUNCTIONS
+function abrirModalTarefa(tarefaId = null) {
+    editandoTarefaId = tarefaId;
+    modoEdicao = !!tarefaId;
+    
+    const modal = document.getElementById('modalTarefa');
+    const titulo = document.getElementById('modalTitulo');
+    const btnSalvar = document.getElementById('btnSalvarTarefa');
+    const secaoAtividades = document.getElementById('secao-atividades');
+    
+    if (modoEdicao) {
+        titulo.textContent = 'Editar Tarefa';
+        btnSalvar.textContent = 'Salvar Alterações';
+        preencherFormulario(tarefaId);
+        // Ocultar atividades na edição
+        if (secaoAtividades) secaoAtividades.style.display = 'none';
     } else {
-        elemento.style.display = 'none';
-        chevron.classList.remove('fa-chevron-up');
-        chevron.classList.add('fa-chevron-down');
-        tarefasExpandidas.delete(tarefaId);
-        console.log(`✅ Recolhida tarefa ${tarefaId}`);
+        titulo.textContent = 'Nova Tarefa';
+        btnSalvar.textContent = 'Salvar Tarefa';
+        limparFormulario();
+        // Mostrar atividades apenas na nova tarefa
+        if (secaoAtividades) secaoAtividades.style.display = 'block';
     }
     
-    event.stopPropagation();
+    modal.style.display = 'flex';
+}
+
+function fecharModalTarefa() {
+    const modal = document.getElementById('modalTarefa');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    editandoTarefaId = null;
+    modoEdicao = false;
+}
+
+function preencherFormulario(tarefaId) {
+    const tarefa = tarefas.find(t => t.id === tarefaId);
+    if (!tarefa) return;
+    
+    // USANDO A FUNÇÃO AUXILIAR para extrair título sem os grupos
+    const tituloOriginal = extrairTituloSemGrupos(tarefa.titulo, tarefa.gruposAcesso);
+    
+    // Preencher os campos do formulário
+    document.getElementById('tarefaTitulo').value = tituloOriginal;
+    document.getElementById('tarefaDescricao').value = tarefa.descricao || '';
+    document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
+    document.getElementById('tarefaDataInicio').value = tarefa.dataInicio || '';
+    document.getElementById('tarefaDataFim').value = tarefa.dataFim;
+    
+    // Preencher grupos (múltipla seleção)
+    const selectGrupos = document.getElementById('tarefaGrupos');
+    if (selectGrupos) {
+        // Desmarcar todos primeiro
+        Array.from(selectGrupos.options).forEach(option => {
+            option.selected = false;
+        });
+        
+        // Marcar apenas os grupos da tarefa
+        if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
+            Array.from(selectGrupos.options).forEach(option => {
+                if (tarefa.gruposAcesso.includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+        }
+    }
+    
+    console.log('📝 Formulário preenchido:', {
+        tituloOriginal: tituloOriginal,
+        gruposAcesso: tarefa.gruposAcesso,
+        nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
+        tituloCompleto: tarefa.titulo
+    });
+}
+
+// FUNÇÃO AUXILIAR: Extrair título sem os grupos (para formulário de edição)
+function extrairTituloSemGrupos(tituloCompleto, gruposIds) {
+    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
+        return tituloCompleto;
+    }
+    
+    const nomesGrupos = obterNomesTodosGrupos(gruposIds);
+    
+    if (nomesGrupos) {
+        // Primeiro tenta com todos os grupos
+        const prefixoComTodos = nomesGrupos + ' - ';
+        if (tituloCompleto.startsWith(prefixoComTodos)) {
+            return tituloCompleto.substring(prefixoComTodos.length);
+        }
+        
+        // Para compatibilidade com tarefas antigas que só tinham primeiro grupo
+        const primeiroGrupoId = gruposIds[0];
+        const primeiroGrupo = grupos.find(g => g.id === primeiroGrupoId);
+        if (primeiroGrupo) {
+            const prefixoIndividual = primeiroGrupo.nome + ' - ';
+            if (tituloCompleto.startsWith(prefixoIndividual)) {
+                return tituloCompleto.substring(prefixoIndividual.length);
+            }
+        }
+    }
+    
+    // Se não encontrar prefixo, retorna o título original
+    return tituloCompleto;
+}
+
+// FUNÇÃO: Obter nomes de TODOS os grupos separados por vírgula
+function obterNomesTodosGrupos(gruposIds) {
+    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
+        return '';
+    }
+    
+    const nomes = gruposIds.map(grupoId => {
+        const grupo = grupos.find(g => g.id === grupoId);
+        return grupo ? grupo.nome : grupoId;
+    });
+    
+    return nomes.join(', ');
+}
+
+function limparFormulario() {
+    const form = document.getElementById('formTarefa');
+    if (form) {
+        form.reset();
+    }
+    configurarDataMinima();
+    
+    // Desmarcar todos os grupos
+    const selectGrupos = document.getElementById('tarefaGrupos');
+    if (selectGrupos) {
+        Array.from(selectGrupos.options).forEach(option => {
+            option.selected = false;
+        });
+    }
+    
+    // Limpar atividades
+    const listaAtividades = document.getElementById('lista-atividades');
+    if (listaAtividades) {
+        listaAtividades.innerHTML = '';
+    }
+}
+
+// CRUD Operations
+async function salvarTarefa() {
+    console.log('💾 Salvando tarefa...');
+    
+    // Obter grupos selecionados
+    const gruposSelect = document.getElementById('tarefaGrupos');
+    const gruposSelecionados = Array.from(gruposSelect.selectedOptions)
+        .map(option => option.value)
+        .filter(value => value !== '');
+    
+    if (gruposSelecionados.length === 0) {
+        mostrarNotificacao('Selecione pelo menos um grupo para a tarefa!', 'error');
+        return;
+    }
+    
+    // USANDO A NOVA FUNÇÃO: Obter nomes de TODOS os grupos
+    const nomesTodosGrupos = obterNomesTodosGrupos(gruposSelecionados);
+    const tituloDigitado = document.getElementById('tarefaTitulo').value.trim();
+    
+    // Criar título com prefixo de todos os grupos
+    const tituloCompleto = nomesTodosGrupos ? 
+        `${nomesTodosGrupos} - ${tituloDigitado}` : 
+        tituloDigitado;
+    
+    // Preparar objeto tarefa (sem Status e Responsável)
+    const tarefa = {
+        titulo: tituloCompleto,
+        descricao: document.getElementById('tarefaDescricao').value || '',
+        prioridade: document.getElementById('tarefaPrioridade').value,
+        dataInicio: document.getElementById('tarefaDataInicio').value || null,
+        dataFim: document.getElementById('tarefaDataFim').value,
+        gruposAcesso: gruposSelecionados,
+        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    // Para NOVA TAREFA, podemos definir Status padrão e adicionar atividades
+    if (!modoEdicao) {
+        // Status padrão para nova tarefa
+        tarefa.status = 'nao_iniciado'; // Valor padrão
+        
+        // Adicionar atividades da nova tarefa
+        const atividades = obterAtividadesDoFormulario();
+        if (atividades.length > 0) {
+            tarefa.atividades = atividades;
+        }
+    }
+
+    try {
+        if (modoEdicao && editandoTarefaId) {
+            console.log('✏️ Editando tarefa:', editandoTarefaId);
+            // Na edição, mantém o Status existente (não atualiza)
+            await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
+        } else {
+            console.log('🆕 Criando nova tarefa');
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            await db.collection("tarefas").add({
+                ...tarefa,
+                dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: usuarioLogado.usuario
+            });
+        }
+        
+        fecharModalTarefa();
+        mostrarNotificacao(modoEdicao ? 'Tarefa atualizada com sucesso!' : 'Tarefa criada com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao salvar tarefa:', error);
+        mostrarNotificacao('Erro ao salvar tarefa: ' + error.message, 'error');
+    }
+}
+
+async function excluirTarefa(tarefaId) {
+    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    
+    console.log('🗑️ Excluindo tarefa:', tarefaId);
+    
+    try {
+        await db.collection("tarefas").doc(tarefaId).delete();
+        mostrarNotificacao('Tarefa excluída com sucesso!', 'success');
+    } catch (error) {
+        console.error('❌ Erro ao excluir tarefa:', error);
+        mostrarNotificacao('Erro ao excluir tarefa', 'error');
+    }
+}
+
+// FUNÇÕES PARA ATIVIDADES (APENAS NOVA TAREFA)
+function adicionarAtividade(texto = '', concluida = false) {
+    const listaAtividades = document.getElementById('lista-atividades');
+    if (!listaAtividades) return;
+    
+    const atividadeId = 'atividade_' + Date.now();
+    
+    const atividadeDiv = document.createElement('div');
+    atividadeDiv.className = `atividade-item ${concluida ? 'atividade-concluida' : ''}`;
+    atividadeDiv.id = atividadeId;
+    
+    atividadeDiv.innerHTML = `
+        <input type="checkbox" class="atividade-checkbox" ${concluida ? 'checked' : ''} 
+               onclick="alternarAtividade('${atividadeId}')">
+        <input type="text" class="atividade-texto" value="${texto}" 
+               placeholder="Descreva a atividade..." 
+               onchange="atualizarAtividadeTexto('${atividadeId}', this.value)">
+        <button type="button" class="btn-remover-atividade" onclick="removerAtividade('${atividadeId}')">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    listaAtividades.appendChild(atividadeDiv);
+}
+
+function alternarAtividade(atividadeId) {
+    const atividadeDiv = document.getElementById(atividadeId);
+    const checkbox = atividadeDiv.querySelector('.atividade-checkbox');
+    atividadeDiv.classList.toggle('atividade-concluida', checkbox.checked);
+}
+
+function atualizarAtividadeTexto(atividadeId, texto) {
+    console.log('Texto da atividade atualizado:', texto);
+}
+
+function removerAtividade(atividadeId) {
+    const atividadeDiv = document.getElementById(atividadeId);
+    if (atividadeDiv && confirm('Remover esta atividade?')) {
+        atividadeDiv.remove();
+    }
+}
+
+function obterAtividadesDoFormulario() {
+    const atividades = [];
+    const itensAtividades = document.querySelectorAll('.atividade-item');
+    
+    itensAtividades.forEach(item => {
+        const textoInput = item.querySelector('.atividade-texto');
+        const checkbox = item.querySelector('.atividade-checkbox');
+        
+        if (textoInput && textoInput.value.trim() !== '') {
+            atividades.push({
+                texto: textoInput.value.trim(),
+                concluida: checkbox.checked,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    });
+    
+    return atividades;
+}
+
+// Interface
+function atualizarInterface() {
+    atualizarEstatisticas();
+    atualizarListaTarefas();
+}
+
+function atualizarEstatisticas() {
+    // Obter usuário logado
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const usuarioGrupos = usuarioLogado?.grupos || [];
+    
+    // Filtrar tarefas baseado no usuário logado
+    const tarefasVisiveis = tarefas.filter(tarefa => {
+        // Se a tarefa não tem grupos definidos, mostra para todos
+        if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+            return true;
+        }
+        
+        // Verifica se usuário pertence a algum dos grupos da tarefa
+        return tarefa.gruposAcesso.some(grupoId => 
+            usuarioGrupos.includes(grupoId)
+        );
+    });
+    
+    const total = tarefasVisiveis.length;
+    const naoiniciadas = tarefasVisiveis.filter(t => {
+        const status = t.status ? t.status.toLowerCase().trim() : '';
+        return status === 'nao_iniciado' || status === 'não iniciado';
+    }).length;
+    const pendentes = tarefasVisiveis.filter(t => t.status === 'pendente').length;
+    const andamento = tarefasVisiveis.filter(t => t.status === 'andamento').length;
+    const concluidas = tarefasVisiveis.filter(t => t.status === 'concluido').length;
+
+    document.getElementById('total-tarefas').textContent = total;
+    document.getElementById('tarefas-naoiniciadas').textContent = naoiniciadas;
+    document.getElementById('tarefas-pendentes').textContent = pendentes;
+    document.getElementById('tarefas-andamento').textContent = andamento;
+    document.getElementById('tarefas-concluidas').textContent = concluidas;
+}
+
+function atualizarListaTarefas() {
+    const container = document.getElementById('lista-tarefas');
+    if (!container) return;
+    
+    // Obter usuário logado
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const usuarioGrupos = usuarioLogado?.grupos || [];
+    
+    // Filtrar tarefas baseado no usuário logado
+    const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
+        // Se a tarefa não tem grupos definidos, mostra para todos
+        if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+            return true;
+        }
+        
+        // Verifica se usuário pertence a algum dos grupos da tarefa
+        return tarefa.gruposAcesso.some(grupoId => 
+            usuarioGrupos.includes(grupoId)
+        );
+    });
+    
+    const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
+
+    if (tarefasFiltradas.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-tasks"></i>
+                <h3>Nenhuma tarefa encontrada</h3>
+                <p>Clique em "Nova Tarefa" para começar</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Renderizar tarefas
+    container.innerHTML = tarefasFiltradas.map(tarefa => {
+        // Adicionar informação de grupos (todos os grupos)
+        let gruposInfo = '';
+        if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
+            const nomesGrupos = tarefa.gruposAcesso.map(grupoId => {
+                const grupo = grupos.find(g => g.id === grupoId);
+                return grupo ? grupo.nome : 'Grupo desconhecido';
+            }).join(', ');
+            
+            if (nomesGrupos) {
+                gruposInfo = `
+                    <div class="grupos-acesso">
+                        <i class="fas fa-users"></i>
+                        <span class="grupos-nomes">${nomesGrupos}</span>
+                    </div>
+                `;
+            }
+        }
+        
+        // Buscar atividades da tarefa
+        const atividadesDaTarefa = atividadesPorTarefa[tarefa.id] || [];
+        let atividadesHTML = '';
+        
+        if (atividadesDaTarefa.length > 0) {
+            const atividadesConcluidas = atividadesDaTarefa.filter(a => 
+                a.status && (a.status.toLowerCase() === 'concluido' || a.status.toLowerCase() === 'concluído')
+            ).length;
+            
+            atividadesHTML = `
+                <div class="atividades-sistema">
+                    <div class="atividades-header">
+                        <i class="fas fa-list-check"></i>
+                        <strong>Atividades da Tarefa (${atividadesConcluidas}/${atividadesDaTarefa.length}):</strong>
+                    </div>
+                    <div class="atividades-lista">
+                        ${atividadesDaTarefa.map((atividade, index) => {
+                            const isConcluida = atividade.status && 
+                                               (atividade.status.toLowerCase() === 'concluido' || 
+                                                atividade.status.toLowerCase() === 'concluído');
+                            
+                            return `
+                                <div class="atividade-item ${isConcluida ? 'concluida' : ''} ${atividade.tipo ? `tipo-${atividade.tipo}` : ''}">
+                                    <div class="atividade-ordem">
+                                        <span class="ordem-numero">${index + 1}</span>
+                                    </div>
+                                    <div class="atividade-tipo">
+                                        <i class="fas fa-${getIconTipo(atividade.tipo)}"></i>
+                                        <span class="tipo-label">${getLabelTipo(atividade.tipo)}</span>
+                                    </div>
+                                    <div class="atividade-conteudo">
+                                        <span class="atividade-titulo">${atividade.titulo || atividade.descricao || 'Atividade sem título'}</span>
+                                        <span class="atividade-status badge status-${atividade.status ? normalizarStatusParaClasse(atividade.status) : 'pendente'}">
+                                            ${getLabelStatus(atividade.status)}
+                                        </span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        return `
+        <div class="task-card prioridade-${tarefa.prioridade}">
+            <div class="task-header">
+                <div>
+                    <div class="task-title">${tarefa.titulo}</div>
+                    ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
+                    ${gruposInfo}
+                </div>
+            </div>
+            
+            <div class="task-meta">
+                <span class="badge prioridade-${tarefa.prioridade}">
+                    ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
+                </span>
+                <span class="badge status-${tarefa.status}">
+                    ${getLabelStatus(tarefa.status)}
+                </span>
+                ${tarefa.responsavel ? `
+                    <span class="task-responsavel">
+                        <i class="fas fa-user"></i> ${tarefa.responsavel}
+                    </span>
+                ` : ''}
+            </div>
+
+            ${atividadesHTML}
+
+            <div class="task-meta">
+                ${tarefa.dataInicio ? `<small><i class="fas fa-play-circle"></i> ${formatarData(tarefa.dataInicio)}</small>` : ''}
+                <small><i class="fas fa-flag-checkered"></i> ${formatarData(tarefa.dataFim)}</small>
+            </div>
+
+            <div class="task-actions">
+                <button class="btn btn-outline btn-sm" onclick="abrirModalTarefa('${tarefa.id}')">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="excluirTarefa('${tarefa.id}')">
+                    <i class="fas fa-trash"></i> Excluir
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+// FUNÇÕES AUXILIARES PARA ATIVIDADES
+function getIconTipo(tipo) {
+    if (!tipo) return 'tasks';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'play-circle';
+        case 'monitoramento': return 'eye';
+        case 'conclusao': return 'check-double';
+        default: return 'tasks';
+    }
+}
+
+function getLabelTipo(tipo) {
+    if (!tipo) return 'Outras';
+    
+    switch(tipo.toLowerCase()) {
+        case 'execucao': return 'Execução';
+        case 'monitoramento': return 'Monitoramento';
+        case 'conclusao': return 'Conclusão';
+        default: return tipo.charAt(0).toUpperCase() + tipo.slice(1);
+    }
+}
+
+function normalizarStatusParaClasse(status) {
+    if (!status) return 'pendente';
+    
+    const statusNorm = status.toLowerCase().trim();
+    
+    switch(statusNorm) {
+        case 'nao_iniciado':
+        case 'não iniciado':
+            return 'nao_iniciado';
+        case 'pendente':
+            return 'pendente';
+        case 'andamento':
+        case 'em andamento':
+            return 'andamento';
+        case 'concluido':
+        case 'concluído':
+            return 'concluido';
+        default:
+            return statusNorm.replace(/[^a-z0-9]/g, '_');
+    }
+}
+
+function getLabelStatus(status) {
+    if (!status) return 'Não Iniciado';
+    
+    const statusNorm = status.toLowerCase().trim();
+    
+    switch(statusNorm) {
+        case 'nao_iniciado':
+        case 'não iniciado':
+            return 'Não Iniciado';
+        case 'pendente':
+            return 'Pendente';
+        case 'andamento':
+        case 'em andamento':
+            return 'Em Andamento';
+        case 'concluido':
+        case 'concluído':
+            return 'Concluído';
+        default:
+            return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+}
+
+function filtrarTarefas(tarefasLista = tarefas) {
+    const searchInput = document.getElementById('searchInput');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    const termo = searchInput ? searchInput.value.toLowerCase() : '';
+    const status = filterStatus ? filterStatus.value : '';
+    const prioridade = filterPrioridade ? filterPrioridade.value : '';
+    const responsavel = filterResponsavel ? filterResponsavel.value : '';
+
+    return tarefasLista.filter(tarefa => {
+        if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
+            !(tarefa.descricao && tarefa.descricao.toLowerCase().includes(termo))) {
+            return false;
+        }
+        if (status && tarefa.status !== status) return false;
+        if (prioridade && tarefa.prioridade !== prioridade) return false;
+        if (responsavel && tarefa.responsavel !== responsavel) return false;
+        return true;
+    });
+}
+
+// Utils
+function formatarData(dataString) {
+    if (!dataString) return 'Não definida';
+    return new Date(dataString + 'T00:00:00').toLocaleDateString('pt-BR');
+}
+
+function mostrarNotificacao(mensagem, tipo) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        background: ${tipo === 'success' ? '#28a745' : '#dc3545'};
+    `;
+    notification.textContent = mensagem;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        document.body.removeChild(notification);
+    }, 3000);
+}
+
+function mostrarErro(mensagem) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        background: #dc3545;
+        text-align: center;
+    `;
+    notification.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${mensagem}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        document.body.removeChild(notification);
+    }, 5000);
 }
 
 function logout() {
-    console.log('🚪 Logout realizado');
+    console.log('🚪 Fazendo logout...');
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
 
-function verificarConclusaoVinculos() {
-    const statusSelecionado = document.getElementById('statusAtividade')?.value;
-    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
-    const alertDiv = document.getElementById('alertVinculos');
-    const alertText = document.getElementById('alertVinculosText');
+// Fechar dropdowns de alerta ao clicar fora
+document.addEventListener('click', function(event) {
+    // Verificar se o clique foi fora de um container de alerta
+    const containers = document.querySelectorAll('.alerts-container');
+    let clickDentroDeAlerta = false;
     
-    if (statusSelecionado === 'concluido' && checkboxes.length > 0) {
-        alertText.textContent = `Ao salvar, esta atividade será adicionada como vínculo em ${checkboxes.length} atividade(s) selecionada(s). Quando essas atividades forem concluídas, esta atividade será alterada para "Pendente".`;
-        alertDiv.style.display = 'block';
-    } else {
-        alertDiv.style.display = 'none';
-    }
-}
-
-function fecharModalAtividade() {
-    console.log('❌ Fechando modal de atividade');
-    document.getElementById('modalAtividade').style.display = 'none';
-    if (gestorAtividades) {
-        gestorAtividades.atividadeEditando = null;
-    }
-}
-
-function configurarListenerConclusoes() {
-    console.log('🎯 Configurando listener para conclusões...');
-    
-    if (!window.db) {
-        console.error('❌ Firebase não está disponível');
-        return;
-    }
-    
-    db.collection('atividades').onSnapshot((snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'modified') {
-                const atividadeAntiga = change.doc._previousData;
-                const atividadeNova = change.doc.data();
-                
-                if (atividadeAntiga?.status === atividadeNova.status) {
-                    return;
-                }
-                
-                // IMPORTANTE: Processar quando uma atividade é concluída
-                if (atividadeAntiga?.status !== 'concluido' && 
-                    atividadeNova.status === 'concluido') {
-                    
-                    console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
-                    console.log(`📋 Vai processar: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
-                    
-                    if (gestorAtividades) {
-                        setTimeout(() => {
-                            gestorAtividades.processarConclusaoAtividade(change.doc.id);
-                        }, 500);
-                    }
-                }
-            }
-        });
-    });
-}
-
-// ========== CLASSE PRINCIPAL ==========
-class GestorAtividades {
-    constructor() {
-        console.log('🏗️ Criando nova instância do GestorAtividades');
-        this.tarefas = [];
-        this.usuarios = [];
-        this.usuario = null;
-        this.charts = {};
-        this.atividadeEditando = null;
-        this.atividadesDisponiveis = [];
-    }
-
-    async init() {
-        console.log('🚀 Inicializando Gestor de Atividades...');
-        
-        // Verificar autenticação
-        await this.verificarAutenticacao();
-        
-        // Carregar dados PRIMEIRO
-        await this.carregarDados();
-        
-        // Carregar atividades disponíveis para vínculos
-        await this.carregarAtividadesParaVinculo();
-        
-        // Inicializar gráficos DEPOIS de carregar dados
-        this.inicializarGraficos();
-        
-        // Renderizar tarefas
-        this.renderizarTarefas();
-        
-        // Configurar listeners
-        this.configurarListeners();
-        
-        console.log('✅ Gestor de Atividades inicializado com sucesso!');
-    }
-
-    // função 
-    escapeHtml(text) {
-        if (!text) return '';
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
-
-    async carregarAtividadesParaVinculo() {
-        try {
-            console.log('🔗 Carregando atividades para vínculo...');
-            
-            // Primeiro, obter grupos do usuário
-            const usuarioAtual = this.usuario.usuario;
-            const gruposSnapshot = await db.collection('grupos')
-                .where('membros', 'array-contains', usuarioAtual)
-                .get();
-            
-            const gruposIdsUsuario = gruposSnapshot.docs.map(doc => doc.id);
-            
-            // Se o usuário não pertence a nenhum grupo, não mostrar atividades para vínculo
-            if (gruposIdsUsuario.length === 0) {
-                this.atividadesDisponiveis = [];
-                console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
-                return;
-            }
-            
-            // Carregar TODAS as tarefas e filtrar
-            const todasTarefasSnapshot = await db.collection('tarefas').get();
-            
-            // Filtrar tarefas que o usuário tem acesso
-            const tarefasUsuario = todasTarefasSnapshot.docs
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }))
-                .filter(tarefa => {
-                    if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso)) return false;
-                    return tarefa.gruposAcesso.some(grupoId => 
-                        gruposIdsUsuario.includes(grupoId)
-                    );
-                });
-            
-            const tarefasIds = tarefasUsuario.map(t => t.id);
-            
-            if (tarefasIds.length === 0) {
-                this.atividadesDisponiveis = [];
-                console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
-                return;
-            }
-            
-            // Carregar atividades APENAS das tarefas que o usuário tem acesso
-            const snapshot = await db.collection('atividades')
-                .where('tarefaId', 'in', tarefasIds)
-                .get();
-            
-            this.atividadesDisponiveis = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
-            }));
-            
-            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
-            
-        } catch (error) {
-            console.error('❌ Erro ao carregar atividades para vínculo:', error);
-            this.atividadesDisponiveis = [];
+    containers.forEach(container => {
+        if (container.contains(event.target)) {
+            clickDentroDeAlerta = true;
         }
-    }
-
-    usuarioPodeVerAtividade(atividade) {
-        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
-        if (!usuarioAtual) return false;
-        
-        // Se o usuário é membro de algum grupo com acesso à tarefa
-        const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
-        if (tarefa && tarefa.acessoCompleto) {
-            return true; // Tem acesso completo à tarefa (é membro do grupo)
-        }
-        
-        // Se não tem acesso completo, verificar se é observador desta atividade específica
-        const observadores = atividade.observadores || [];
-        return observadores.includes(usuarioAtual);
-    }
-
-    getNomeTarefa(tarefaId) {
-        const tarefa = this.tarefas.find(t => t.id === tarefaId);
-        
-        if (!tarefa) {
-            console.log(`❌ Tarefa ${tarefaId} não encontrada`);
-            return 'Tarefa não encontrada';
-        }
-        
-        // Usar 'titulo' se existir, senão usar 'nome'
-        const nome = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
-        console.log(`✅ Tarefa ${tarefaId}: ${nome}`);
-        return nome;
-    }
-
-    async verificarAutenticacao() {
-        console.log('🔐 Verificando autenticação...');
-        const usuarioLogado = localStorage.getItem('usuarioLogado');
-        
-        if (!usuarioLogado) {
-            console.log('❌ Usuário não autenticado, redirecionando...');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        this.usuario = JSON.parse(usuarioLogado);
-        console.log(`✅ Usuário autenticado: ${this.usuario.nome || this.usuario.usuario}`);
-        
-        // Atualizar interface
-        if (document.getElementById('userName')) {
-            document.getElementById('userName').textContent = this.usuario.nome || this.usuario.usuario;
-        }
-        
-        if (document.getElementById('data-atual')) {
-            document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
-        }
-        
-        // Esconder loading e mostrar conteúdo
-        document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-    }
-
-    async carregarDados() {
-        console.log('📊 Carregando dados do Firebase...');
-        
-        try {
-            // Carregar usuários
-            const usuariosSnapshot = await db.collection('usuarios').get();
-            this.usuarios = usuariosSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`✅ ${this.usuarios.length} usuários carregados`);
-    
-            // OBTER GRUPOS DO USUÁRIO LOGADO
-            const usuarioAtual = this.usuario.usuario;
-            console.log(`👤 Usuário atual: ${usuarioAtual}`);
-            
-            // Buscar grupos onde o usuário é membro
-            const gruposSnapshot = await db.collection('grupos')
-                .where('membros', 'array-contains', usuarioAtual)
-                .get();
-            
-            const gruposUsuario = gruposSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            const gruposIdsUsuario = gruposUsuario.map(g => g.id);
-            console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
-            
-            // Se o usuário não pertence a nenhum grupo, ainda pode ver atividades onde é observador
-            if (gruposIdsUsuario.length === 0) {
-                console.log('⚠️ Usuário não é membro de nenhum grupo');
-            } else {
-                console.log(`✅ Usuário é membro de ${gruposIdsUsuario.length} grupo(s)`);
-            }
-    
-            // Carregar TODAS as tarefas
-            const tarefasSnapshot = await db.collection('tarefas').get();
-            const todasTarefas = tarefasSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-    
-            // Carregar TODAS as atividades
-            const atividadesSnapshot = await db.collection('atividades').get();
-            const todasAtividades = atividadesSnapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    tarefaNome: this.getNomeTarefa(data.tarefaId)
-                };
-            });
-    
-            console.log(`✅ ${todasAtividades.length} atividades carregadas no total`);
-            console.log(`✅ ${todasTarefas.length} tarefas carregadas no total`);
-    
-            // Filtrar atividades que o usuário tem acesso:
-            // 1. Atividades onde o usuário é observador
-            const atividadesComoObservador = todasAtividades.filter(atividade => {
-                const observadores = atividade.observadores || [];
-                return observadores.includes(usuarioAtual);
-            });
-            
-            console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
-    
-            // 2. Filtrar tarefas baseadas no acesso do usuário
-            const tarefasFiltradas = todasTarefas.filter(tarefa => {
-                // Se o usuário não tem grupos de acesso, verificar se tem atividades como observador nesta tarefa
-                if (gruposIdsUsuario.length === 0) {
-                    // Verificar se há atividades nesta tarefa onde o usuário é observador
-                    const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                    const temAtividadeComoObservador = atividadesTarefa.some(a => 
-                        a.observadores && a.observadores.includes(usuarioAtual)
-                    );
-                    return temAtividadeComoObservador;
-                }
-                
-                // Se o usuário tem grupos, verificar acesso normal
-                if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-                    console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
-                    return false;
-                }
-                
-                // Verificar se há interseção entre grupos da tarefa e grupos do usuário
-                return tarefa.gruposAcesso.some(grupoId => 
-                    gruposIdsUsuario.includes(grupoId)
-                );
-            });
-    
-            console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
-            
-            // Agrupar atividades por tarefa, considerando o acesso do usuário
-            this.tarefas = tarefasFiltradas.map(tarefa => {
-                // Para cada tarefa, filtrar as atividades que o usuário pode ver
-                const atividadesDaTarefa = todasAtividades.filter(atividade => {
-                    if (atividade.tarefaId !== tarefa.id) return false;
-                    
-                    // Se o usuário é membro do grupo, pode ver TODAS as atividades da tarefa
-                    if (gruposIdsUsuario.length > 0) {
-                        // Verificar se a tarefa pertence a algum grupo do usuário
-                        const tarefaPertenceAoGrupo = tarefa.gruposAcesso && 
-                            tarefa.gruposAcesso.some(grupoId => gruposIdsUsuario.includes(grupoId));
-                        
-                        if (tarefaPertenceAoGrupo) {
-                            return true; // Usuário é membro do grupo, pode ver todas atividades
-                        }
-                    }
-                    
-                    // Se não for membro, verificar se é observador desta atividade específica
-                    const observadores = atividade.observadores || [];
-                    return observadores.includes(usuarioAtual);
-                });
-                
-                return {
-                    ...tarefa,
-                    atividades: atividadesDaTarefa,
-                    // Marcar se o usuário é membro do grupo (pode ver todas) ou apenas observador (ver apenas algumas)
-                    acessoCompleto: gruposIdsUsuario.some(grupoId => 
-                        tarefa.gruposAcesso && tarefa.gruposAcesso.includes(grupoId)
-                    )
-                };
-            });
-    
-            // Remover tarefas que não têm atividades visíveis para o usuário
-            this.tarefas = this.tarefas.filter(tarefa => tarefa.atividades.length > 0);
-            
-            console.log(`✅ Após filtragem: ${this.tarefas.length} tarefas com atividades visíveis para o usuário`);
-            
-            this.tarefas.forEach(tarefa => {
-                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
-            });
-    
-            // Atualizar status
-            document.getElementById('status-sincronizacao').innerHTML = 
-                '<i class="fas fa-check-circle"></i> Sincronizado';
-    
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            document.getElementById('status-sincronizacao').innerHTML = 
-                '<i class="fas fa-exclamation-triangle"></i> Offline';
-        }
-    }
-
-    inicializarGraficos() {
-        console.log('📊 Inicializando gráficos...');
-        this.inicializarGraficoStatus();
-        this.inicializarGraficoProgresso();
-        this.inicializarGraficoTimeline();
-    }
-
-    inicializarGraficoStatus() {
-        try {
-            const ctx = document.getElementById('statusChart').getContext('2d');
-            const dados = this.calcularEstatisticas();
-            
-            console.log('Dados para gráfico de status:', dados);
-            
-            this.charts.status = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Não Iniciadas', 'Pendentes', 'Em Andamento', 'Concluídas', 'Atrasadas'],
-                    datasets: [{
-                        data: [
-                            dados.naoIniciadas,
-                            dados.pendentes,  
-                            dados.andamento,
-                            dados.concluidas,
-                            dados.atrasadas
-                        ],
-                        backgroundColor: [
-                            '#6c757d',
-                            '#f39c12',
-                            '#3498db',
-                            '#27ae60',
-                            '#e74c3c'
-                        ],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-            console.log('✅ Gráfico de status inicializado');
-        } catch (error) {
-            console.error('❌ Erro ao inicializar gráfico de status:', error);
-        }
-    }
-
-    inicializarGraficoProgresso() {
-        try {
-            const ctx = document.getElementById('progressChart').getContext('2d');
-            
-            // Usar titulo se existir, senão nome
-            const tarefasNomes = this.tarefas.map(t => t.titulo || t.nome || 'Sem nome');
-            const tarefasProgresso = this.tarefas.map(tarefa => {
-                const atividades = tarefa.atividades || [];
-                if (atividades.length === 0) return 0;
-                const concluidas = atividades.filter(a => a.status === 'concluido').length;
-                return (concluidas / atividades.length) * 100;
-            });
-
-            this.charts.progress = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: tarefasNomes,
-                    datasets: [{
-                        label: 'Progresso (%)',
-                        data: tarefasProgresso,
-                        backgroundColor: this.tarefas.map(t => t.cor || '#2C3E50')
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            console.log('✅ Gráfico de progresso inicializado');
-        } catch (error) {
-            console.error('❌ Erro ao inicializar gráfico de progresso:', error);
-        }
-    }
-
-    inicializarGraficoTimeline() {
-        try {
-            const ctx = document.getElementById('timelineChart').getContext('2d');
-            
-            // Dados de exemplo
-            const ultimos7Dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-            const dadosTimeline = [5, 8, 12, 6, 15, 10, 7];
-
-            this.charts.timeline = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ultimos7Dias,
-                    datasets: [{
-                        label: 'Atividades Concluídas',
-                        data: dadosTimeline,
-                        borderColor: '#27ae60',
-                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            console.log('✅ Gráfico de timeline inicializado');
-        } catch (error) {
-            console.error('❌ Erro ao inicializar gráfico de timeline:', error);
-        }
-    }
-
-    calcularEstatisticas() {
-        let total = 0;
-        let naoIniciadas = 0;
-        let pendentes = 0;
-        let andamento = 0;
-        let concluidas = 0;
-        let atrasadas = 0;
-    
-        this.tarefas.forEach(tarefa => {
-            const atividades = tarefa.atividades || [];
-            total += atividades.length;
-            
-            atividades.forEach(atividade => {
-                const status = atividade.status ? atividade.status.toLowerCase().trim() : '';
-                
-                if (status === 'nao_iniciado' || status === 'não iniciado') {
-                    naoIniciadas++;
-                } else if (status === 'pendente') {
-                    pendentes++;
-                } else if (status === 'andamento') {
-                    andamento++;
-                } else if (status === 'concluido' || status === 'concluído') {
-                    concluidas++;
-                }
-            });
-        });
-    
-        console.log('📊 Estatísticas:', { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas });
-        
-        // Atualizar interface
-        document.getElementById('total-atividades').textContent = total;
-        document.getElementById('nao-iniciadas').textContent = naoIniciadas;
-        document.getElementById('pendentes').textContent = pendentes;
-        document.getElementById('andamento').textContent = andamento;
-        document.getElementById('concluidas').textContent = concluidas;
-        document.getElementById('atrasadas').textContent = atrasadas;
-    
-        return { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas };
-    }
-
-    renderizarTarefas() {
-        console.log('🎨 Renderizando tarefas...');
-        const container = document.getElementById('tarefas-container');
-        
-        // Verificar se há tarefas para o usuário atual
-        if (this.tarefas.length === 0) {
-            // Verificar se o usuário pertence a algum grupo
-            const usuarioAtual = this.usuario.usuario;
-            
-            db.collection('grupos')
-                .where('membros', 'array-contains', usuarioAtual)
-                .get()
-                .then(gruposSnapshot => {
-                    const temGrupos = gruposSnapshot.size > 0;
-                    
-                    if (!temGrupos) {
-                        container.innerHTML = `
-                            <div class="empty-tarefas">
-                                <i class="fas fa-users-slash"></i>
-                                <h3>Você não pertence a nenhum grupo</h3>
-                                <p>Para visualizar tarefas, você precisa ser membro de um grupo de trabalho.</p>
-                                <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='workmanager.html'">
-                                    <i class="fas fa-users"></i> Ir para Grupos de Trabalho
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        container.innerHTML = `
-                            <div class="empty-tarefas">
-                                <i class="fas fa-tasks"></i>
-                                <h3>Nenhuma tarefa disponível</h3>
-                                <p>Não há tarefas atribuídas aos seus grupos de trabalho no momento.</p>
-                                <button class="btn btn-primary btn-sm mt-3" onclick="window.location.href='index.html'">
-                                    <i class="fas fa-cog"></i> Ir para Configurações
-                                </button>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    console.error('❌ Erro ao verificar grupos do usuário:', error);
-                    
-                    // Fallback: mostrar mensagem padrão
-                    container.innerHTML = `
-                        <div class="empty-tarefas">
-                            <i class="fas fa-tasks"></i>
-                            <h3>Nenhuma tarefa disponível</h3>
-                            <p>Não foi possível carregar as tarefas do momento.</p>
-                            <button class="btn btn-primary btn-sm mt-3" onclick="window.location.reload()">
-                                <i class="fas fa-sync-alt"></i> Tentar novamente
-                            </button>
-                        </div>
-                    `;
-                });
-            
-            return;
-        }
-        
-        // Salvar estado atual ANTES de re-renderizar
-        manterEstadoExpansaoTarefas();
-        
-        container.innerHTML = this.tarefas.map(tarefa => {
-            // Verificar se esta tarefa estava expandida
-            const estavaExpandida = tarefasExpandidas.has(tarefa.id);
-            
-            // Usar titulo se existir, senão nome
-            const nomeExibicao = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
-            
-            // Obter informações dos grupos da tarefa para exibição
-            const gruposAcessoInfo = this.obterInfoGruposTarefa(tarefa);
-            
-            return `
-                <div class="task-card">
-                    <div class="task-header" onclick="toggleTarefa('${tarefa.id}')">
-                        <div class="task-title-section">
-                            <h2>
-                                <i class="fas fa-tasks" style="color: ${tarefa.cor || '#2C3E50'}"></i>
-                                ${nomeExibicao}
-                            </h2>
-                            ${gruposAcessoInfo ? `
-                                <div class="task-groups-info" title="Grupos com acesso a esta tarefa">
-                                    <i class="fas fa-users"></i>
-                                    <span>${gruposAcessoInfo}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        <div class="task-status">
-                            <div class="status-badges-container">
-                                ${this.getTextoStatusTarefa(tarefa)}
-                            </div>
-                            <i class="fas fa-chevron-${estavaExpandida ? 'up' : 'down'}"></i>
-                        </div>
-                    </div>
-                    <div class="task-body" id="tarefa-${tarefa.id}" style="display: ${estavaExpandida ? 'block' : 'none'};">
-                        ${tarefa.descricao ? `<p class="task-desc">${tarefa.descricao}</p>` : ''}
-                        <div class="activities-grid">
-                            ${this.renderizarAtividadesTarefa(tarefa)}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        console.log(`✅ Renderizadas ${this.tarefas.length} tarefas`);
-        
-        // Restaurar o estado de expansão
-        setTimeout(() => {
-            restaurarEstadoExpansaoTarefas();
-        }, 10);
-    }
-    
-    // Adicione esta função auxiliar para obter informações dos grupos da tarefa
-    obterInfoGruposTarefa(tarefa) {
-        if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-            return null;
-        }
-        
-        // Tentar obter nomes dos grupos
-        const gruposDoUsuario = this.obterGruposUsuarioCache();
-        
-        if (gruposDoUsuario && gruposDoUsuario.length > 0) {
-            const gruposNomes = [];
-            
-            tarefa.gruposAcesso.forEach(grupoId => {
-                const grupo = gruposDoUsuario.find(g => g.id === grupoId);
-                if (grupo) {
-                    gruposNomes.push(grupo.nome || `Grupo ${grupoId.substring(0, 6)}...`);
-                } else {
-                    gruposNomes.push(`Grupo ${grupoId.substring(0, 6)}...`);
-                }
-            });
-            
-            if (gruposNomes.length > 0) {
-                // Limitar a exibição para 2 grupos, mostrar "e mais X" se tiver mais
-                if (gruposNomes.length <= 2) {
-                    return gruposNomes.join(', ');
-                } else {
-                    return `${gruposNomes.slice(0, 2).join(', ')} e mais ${gruposNomes.length - 2}`;
-                }
-            }
-        }
-        
-        // Fallback: mostrar apenas a quantidade de grupos
-        return `${tarefa.gruposAcesso.length} grupo(s)`;
-    }
-    
-    // Adicione esta função para cachear os grupos do usuário (opcional, para performance)
-    obterGruposUsuarioCache() {
-        // Esta função pode ser implementada para cachear os grupos
-        // Por enquanto retornamos null e buscamos quando necessário
-        return null;
-    }
-    
-    calcularEstatisticasTarefa(tarefa) {
-        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
-        const todasAtividades = tarefa.atividades || [];
-        
-        // Filtrar apenas atividades que o usuário pode ver
-        const atividadesVisiveis = todasAtividades.filter(atividade => {
-            // Se tem acesso completo à tarefa, pode ver todas as atividades
-            if (tarefa.acessoCompleto) {
-                return true;
-            }
-            
-            // Se não tem acesso completo, verificar se é observador desta atividade específica
-            const observadores = atividade.observadores || [];
-            return observadores.includes(usuarioAtual);
-        });
-        
-        const total = atividadesVisiveis.length;
-        const naoIniciadas = atividadesVisiveis.filter(a => a.status === 'nao_iniciado').length;
-        const pendentes = atividadesVisiveis.filter(a => a.status === 'pendente').length;
-        const andamento = atividadesVisiveis.filter(a => a.status === 'andamento').length;
-        const concluidas = atividadesVisiveis.filter(a => a.status === 'concluido').length;
-        
-        console.log(`📊 Estatísticas da tarefa "${this.getNomeTarefa(tarefa.id)}": 
-            Total atividades: ${todasAtividades.length}
-            Visíveis para usuário: ${total}
-            Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
-        
-        return {
-            total,
-            naoIniciadas,
-            pendentes,
-            andamento,
-            concluidas,
-            totalTodasAtividades: todasAtividades.length
-        };
-    }
-    
-    renderizarAtividadesTarefa(tarefa) {
-        const atividades = tarefa.atividades || [];
-        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
-        
-        if (atividades.length === 0) {
-            // Verificar se o usuário tem acesso completo para poder adicionar atividades
-            if (tarefa.acessoCompleto) {
-                return `
-                    <div class="empty-activities">
-                        <p>Nenhuma atividade cadastrada para esta tarefa</p>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
-                            <i class="fas fa-plus"></i> Adicionar Atividade
-                        </button>
-                    </div>
-                `;
-            } else {
-                return `
-                    <div class="empty-activities">
-                        <p>Você não tem atividades visíveis nesta tarefa</p>
-                    </div>
-                `;
-            }
-        }
-    
-        // Filtrar atividades que o usuário pode ver
-        const atividadesVisiveis = atividades.filter(atividade => {
-            // Se tem acesso completo à tarefa, pode ver todas as atividades
-            if (tarefa.acessoCompleto) {
-                return true;
-            }
-            
-            // Se não tem acesso completo, verificar se é observador desta atividade específica
-            const observadores = atividade.observadores || [];
-            return observadores.includes(usuarioAtual);
-        });
-        
-        if (atividadesVisiveis.length === 0) {
-            return `
-                <div class="empty-activities">
-                    <p>Você não tem atividades visíveis nesta tarefa</p>
-                </div>
-            `;
-        }
-    
-        // Agrupar por tipo
-        const tipos = ['execucao', 'monitoramento', 'conclusao'];
-        const titulos = {
-            'execucao': 'Execução das Atividades',
-            'monitoramento': 'Monitoramento',
-            'conclusao': 'Conclusão e Revisão'
-        };
-    
-        return tipos.map(tipo => {
-            // Filtrar por tipo
-            const atividadesTipo = atividadesVisiveis.filter(a => a.tipo === tipo);
-            
-            if (atividadesTipo.length === 0) {
-                return ''; // Não mostrar seção se não houver atividades deste tipo
-            }
-            
-            // Ordenar por data de criação
-            atividadesTipo.sort((a, b) => {
-                const getTimestamp = (atividade) => {
-                    if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
-                        return atividade.dataRegistro.toDate().getTime();
-                    }
-                    if (atividade.dataRegistro) {
-                        return new Date(atividade.dataRegistro).getTime();
-                    }
-                    if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
-                        return atividade.dataCriacao.toDate().getTime();
-                    }
-                    if (atividade.dataCriacao) {
-                        return new Date(atividade.dataCriacao).getTime();
-                    }
-                    return 0;
-                };
-                return getTimestamp(a) - getTimestamp(b);
-            });
-            
-            return `
-                <div class="activity-section">
-                    <div class="section-header">
-                        <h3>
-                            <i class="fas fa-list-check"></i> ${titulos[tipo]}
-                            ${!tarefa.acessoCompleto ? 
-                                '<span class="badge badge-acesso-parcial" style="margin-left: 10px; font-size: 12px;"><i class="fas fa-eye"></i> Acesso como observador</span>' : 
-                                ''
-                            }
-                        </h3>
-                        ${tarefa.acessoCompleto ? 
-                            `<button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
-                                <i class="fas fa-plus"></i> Nova Atividade
-                            </button>` : ''
-                        }
-                    </div>
-                    <div class="checklist">
-                        ${atividadesTipo.map(atividade => {
-                            const status = atividade.status || 'nao_iniciado';
-                            const atividadesVinculadas = atividade.atividadesVinculadas || [];
-                            const temVinculos = atividadesVinculadas.length > 0;
-                            const observadores = atividade.observadores || [];
-                            const temObservadores = observadores.length > 0;
-                            const totalObservadores = observadores.length;
-                            
-                            // Verificar se o usuário atual é observador desta atividade
-                            const isObservador = usuarioAtual && observadores.includes(usuarioAtual);
-                            
-                            // Verificar permissões do usuário atual
-                            const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
-                            const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
-                            const podeEditarExcluir = tarefa.acessoCompleto || isResponsavel || isCriador;
-                            const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
-                            
-                            // Obter nomes formatados dos usuários
-                            const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
-                            const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
-                            
-                            const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
-                            const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
-                            
-                            // Título escapado para uso no select
-                            const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                            
-                            // Limitar exibição para 2 observadores, mostrar "e mais X"
-                            let observadoresHTML = '';
-                            let verMaisHTML = '';
-                            
-                            if (temObservadores) {
-                                // Limitar a 2 observadores
-                                const observadoresLimitados = totalObservadores > 2 ? 
-                                    observadores.slice(0, 2) : observadores;
-                                
-                                observadoresHTML = observadoresLimitados.map(obs => {
-                                    const usuarioObj = this.usuarios.find(u => u.usuario === obs);
-                                    const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-                                    return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
-                                }).join('');
-                                
-                                // Adicionar botão "Ver mais" se tiver mais de 2
-                                if (totalObservadores > 2) {
-                                    const restantes = totalObservadores - 2;
-                                    verMaisHTML = `
-                                        <button class="btn-ver-mais-observadores" 
-                                                data-atividade-id="${atividade.id}" 
-                                                onclick="mostrarTodosObservadores('${atividade.id}')"
-                                                title="Clique para ver todos os observadores">
-                                            <span class="observador-tag observador-ver-mais">
-                                                <i class="fas fa-users"></i> +${restantes}
-                                            </span>
-                                        </button>
-                                    `;
-                                }
-                            }
-                            
-                            const opcoesStatus = [
-                                {value: 'nao_iniciado', label: 'Não Iniciado'},
-                                {value: 'pendente', label: 'Pendente'},
-                                {value: 'andamento', label: 'Em Andamento'},
-                                {value: 'concluido', label: 'Concluído'}
-                            ];
-                            
-                            // Gerar conteúdo do controle de status (APENAS se for responsável)
-                            let statusControlHTML = '';
-                            if (podeAlterarStatus) {
-                                // Responsável: select normal
-                                const optionsHTML = opcoesStatus.map(opcao => `
-                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
-                                        ${opcao.label}
-                                    </option>
-                                `).join('');
-                                
-                                statusControlHTML = `
-                                    <div class="status-control">
-                                        <select class="status-select" 
-                                                data-id="${atividade.id}"
-                                                data-titulo="${tituloEscapado}"
-                                                onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                            ${optionsHTML}
-                                        </select>
-                                    </div>
-                                `;
-                            }
-                            
-                            // Classe adicional para atividades onde o usuário é apenas observador
-                            const classeAcesso = !tarefa.acessoCompleto && isObservador ? 'acesso-observador' : '';
-                            
-                            return `
-                                <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''} ${classeAcesso}">
-                                    <div class="item-info">
-                                        <div class="item-title">
-                                            ${atividade.titulo}
-                                            ${!tarefa.acessoCompleto && isObservador ? 
-                                                `<span class="badge badge-acesso-parcial" style="margin-left: 8px; font-size: 10px;">
-                                                    <i class="fas fa-eye"></i> Observador
-                                                </span>` : ''
-                                            }
-                                            ${temVinculos ? 
-                                                `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
-                                                    <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
-                                                </span>`
-                                                : ''
-                                            }
-                                        </div>
-                                        ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                                        <div class="item-meta">
-                                            <span class="responsavel-info">
-                                                <i class="fas fa-user"></i> 
-                                                <strong>Responsável:</strong> ${responsavelNome || atividade.responsavel || 'Não definido'}
-                                            </span>
-                                            ${atividade.criadoPor ? 
-                                                `<span class="criador-info" title="Criado por ${criadorNome || atividade.criadoPor}">
-                                                    <i class="fas fa-user-plus"></i> 
-                                                    <strong>Criador:</strong> ${criadorNome || atividade.criadoPor}
-                                                </span>` 
-                                                : ''
-                                            }
-                                            ${temObservadores ? 
-                                                `<span class="observadores-container">
-                                                    <i class="fas fa-eye"></i> 
-                                                    <strong>Observadores:</strong> 
-                                                    ${observadoresHTML}
-                                                    ${verMaisHTML}
-                                                </span>` 
-                                                : ''
-                                            }
-                                            <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                            
-                                            <!-- SEMPRE mostrar o badge do status no item-meta -->
-                                            <span class="badge status-${status} status-meta-badge">
-                                                ${getLabelStatus(status)}
-                                            </span>
-                                            
-                                            ${temVinculos ? 
-                                                `<span class="vinculos-badge">
-                                                    <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
-                                                </span>` 
-                                                : ''
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="item-actions">
-                                        <!-- Controle de status: APENAS se for responsável (select) -->
-                                        ${statusControlHTML}
-                                        
-                                        <!-- Botões de ação -->
-                                        <div class="action-buttons">
-                                            ${podeEditarExcluir ? 
-                                                `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>`
-                                                :
-                                                `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>`
-                                            }
-                                            ${podeEditarExcluir && (tarefa.acessoCompleto || isCriador) ? 
-                                                `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>`
-                                                :
-                                                ''
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    getTextoStatusTarefa(tarefa) {
-        const stats = this.calcularEstatisticasTarefa(tarefa);
-        const total = stats.total;
-        
-        // Se não há atividades visíveis para o usuário
-        if (total === 0) {
-            if (tarefa.acessoCompleto) {
-                // Usuário tem acesso completo mas não há atividades
-                return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
-            } else {
-                // Usuário não tem acesso completo nem é observador de nenhuma atividade
-                return '<span class="status-mini-badge badge-sem-acesso">Sem acesso às atividades</span>';
-            }
-        }
-        
-        const badges = [];
-        
-        // Adicionar badge indicando tipo de acesso
-        if (tarefa.acessoCompleto) {
-            badges.push(`<span class="status-mini-badge badge-acesso-completo" title="Você tem acesso completo a todas as atividades desta tarefa">
-                            <i class="fas fa-users"></i> Membro do grupo
-                        </span>`);
-        } else {
-            // Apenas observador em algumas atividades
-            badges.push(`<span class="status-mini-badge badge-acesso-parcial" title="Você é observador apenas de algumas atividades">
-                            <i class="fas fa-eye"></i> Acesso como observador
-                        </span>`);
-        }
-        
-        // Contadores de status (apenas atividades visíveis)
-        const statusConfigs = [
-            { 
-                key: 'naoIniciadas', 
-                label: 'Não Iniciado', 
-                badgeClass: 'badge-nao_iniciado',
-                icon: 'fas fa-pause-circle'
-            },
-            { 
-                key: 'pendentes', 
-                label: 'Pendente', 
-                badgeClass: 'badge-pendente',
-                icon: 'fas fa-clock'
-            },
-            { 
-                key: 'andamento', 
-                label: 'Em Andamento', 
-                badgeClass: 'badge-andamento',
-                icon: 'fas fa-spinner'
-            },
-            { 
-                key: 'concluidas', 
-                label: 'Concluído', 
-                badgeClass: 'badge-concluido',
-                icon: 'fas fa-check-circle'
-            }
-        ];
-        
-        // Adicionar badges apenas para status com atividades
-        statusConfigs.forEach(config => {
-            const count = stats[config.key];
-            if (count > 0) {
-                badges.push(`
-                    <span class="status-mini-badge ${config.badgeClass}" title="${config.label}: ${count} de ${total} atividade(s)">
-                        <i class="${config.icon}"></i> ${config.label} (${count}/${total})
-                    </span>
-                `);
-            }
-        });
-        
-        // Se o usuário tem acesso parcial, mostrar quantas atividades pode ver
-        if (!tarefa.acessoCompleto && total > 0) {
-            const totalAtividadesTarefa = tarefa.atividades ? tarefa.atividades.length : 0;
-            if (totalAtividadesTarefa > total) {
-                badges.push(`
-                    <span class="status-mini-badge badge-info" title="Você pode ver ${total} de ${totalAtividadesTarefa} atividades desta tarefa">
-                        <i class="fas fa-eye"></i> ${total}/${totalAtividadesTarefa} visíveis
-                    </span>
-                `);
-            }
-        }
-        
-        // Se todas as atividades visíveis estão concluídas e o usuário tem acesso completo
-        if (tarefa.acessoCompleto && stats.concluidas === total && total > 0) {
-            badges.push(`<span class="status-mini-badge badge-sucesso">
-                            <i class="fas fa-trophy"></i> Tarefa completa!
-                        </span>`);
-        }
-        
-        return badges.join(' ');
-    }
-
-    configurarListeners() {
-        console.log('🎧 Configurando listeners...');
-        
-        // Listener para atualizações de atividades
-        db.collection('atividades').onSnapshot(() => {
-            console.log('🔄 Atualizando atividades em tempo real...');
-            this.carregarDados().then(() => {
-                this.renderizarTarefas();
-                this.atualizarGraficos();
-            });
-        });
-        
-        // Listener para tarefas
-        db.collection('tarefas').onSnapshot(() => {
-            console.log('🔄 Atualizando lista de tarefas...');
-            this.carregarDados().then(() => {
-                this.renderizarTarefas();
-                this.atualizarGraficos();
-            });
-        });
-        
-        configurarListenerConclusoes();
-    }
-    
-    atualizarGraficos() {
-        console.log('📈 Atualizando gráficos...');
-        
-        if (this.charts.status) {
-            const dados = this.calcularEstatisticas();
-            
-            this.charts.status.data.datasets[0].data = [
-                dados.naoIniciadas,
-                dados.pendentes,
-                dados.andamento,
-                dados.concluidas,
-                dados.atrasadas
-            ];
-            
-            this.charts.status.update();
-        }
-    
-        if (this.charts.progress) {
-            const tarefasProgresso = this.tarefas.map(tarefa => {
-                const atividades = tarefa.atividades || [];
-                if (atividades.length === 0) return 0;
-                const concluidas = atividades.filter(a => a.status === 'concluido').length;
-                const andamento = atividades.filter(a => a.status === 'andamento').length;
-                const total = atividades.length;
-                const progresso = concluidas + andamento;
-                return (progresso / total) * 100;
-            });
-            
-            this.charts.progress.data.datasets[0].data = tarefasProgresso;
-            this.charts.progress.update();
-        }
-    }
-
-    async processarConclusaoAtividade(atividadeId) {
-        try {
-            console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
-            
-            // PRIMEIRO: Buscar a atividade que foi concluída
-            const atividadeConcluidaDoc = await db.collection('atividades').doc(atividadeId).get();
-            
-            if (!atividadeConcluidaDoc.exists) {
-                console.log(`❌ Atividade ${atividadeId} não encontrada`);
-                return;
-            }
-            
-            const atividadeConcluida = atividadeConcluidaDoc.data();
-            
-            // AGORA: Buscar as atividades que ESTÃO nos vínculos da atividade concluída
-            // Ou seja: atividades cujos IDs estão em atividadesVinculadas da atividade concluída
-            const atividadesVinculadasIds = atividadeConcluida.atividadesVinculadas || [];
-            
-            console.log(`📋 Atividade ${atividadeId} tem ${atividadesVinculadasIds.length} atividade(s) em seus vínculos:`, atividadesVinculadasIds);
-            
-            if (atividadesVinculadasIds.length > 0) {
-                console.log(`🔄 Processando ${atividadesVinculadasIds.length} atividades que estão nos vínculos de ${atividadeId}`);
-                
-                const batch = db.batch();
-                let atualizadas = 0;
-                
-                // Para cada ID que está na lista de vínculos da atividade concluída
-                for (const vinculadaId of atividadesVinculadasIds) {
-                    const atividadeVinculadaRef = db.collection('atividades').doc(vinculadaId);
-                    const vinculadaDoc = await atividadeVinculadaRef.get();
-                    
-                    if (vinculadaDoc.exists) {
-                        const vinculadaData = vinculadaDoc.data();
-                        
-                        // Verificar se a atividade NÃO está concluída
-                        if (vinculadaData.status !== 'concluido') {
-                            batch.update(atividadeVinculadaRef, {
-                                status: 'pendente',
-                                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            atualizadas++;
-                            console.log(`✅ Marcando atividade ${vinculadaId} (que está no vínculo de ${atividadeId}) como pendente`);
-                        } else {
-                            console.log(`ℹ️ Atividade ${vinculadaId} já está concluída, mantendo status`);
-                        }
-                    }
-                }
-                
-                if (atualizadas > 0) {
-                    await batch.commit();
-                    console.log(`✅ ${atualizadas} atividades foram atualizadas para "pendente"`);
-                } else {
-                    console.log(`ℹ️ Nenhuma atividade precisa ser atualizada para pendente`);
-                }
-                
-                // Recarregar dados após atualização
-                setTimeout(() => {
-                    this.carregarDados().then(() => {
-                        restaurarEstadoExpansaoTarefas();
-                        this.renderizarTarefas();
-                        this.atualizarGraficos();
-                    });
-                }, 1000);
-            } else {
-                console.log(`ℹ️ Atividade ${atividadeId} não tem atividades em seus vínculos`);
-            }
-            
-        } catch (error) {
-            console.error('❌ Erro ao processar conclusão:', error);
-        }
-    }
-
-    async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
-        console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
-        this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
-        
-        const modal = document.getElementById('modalAtividade');
-        const titulos = {
-            'execucao': 'Execução das Atividades',
-            'monitoramento': 'Monitoramento',
-            'conclusao': 'Conclusão e Revisão'
-        };
-        
-        const tituloModal = atividadeExistente 
-            ? `Editar Atividade - ${titulos[tipo]}` 
-            : `Nova Atividade - ${titulos[tipo]}`;
-        
-        document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
-        
-        const usuariosOptions = this.usuarios.map(user => {
-            const nomeExibicao = user.nome || user.usuario;
-            return `<option value="${user.usuario}">${nomeExibicao}</option>`;
-        }).join('');
-        
-        const formatarDataParaInput = (dataString) => {
-            if (!dataString) return '';
-            return dataString.split('T')[0];
-        };
-        
-        // Preparar observadores selecionados
-        const observadoresSelecionados = atividadeExistente && atividadeExistente.observadores 
-            ? atividadeExistente.observadores 
-            : [];
-        
-        let atividadesVinculadasHTML = '';
-        if (this.atividadesDisponiveis.length > 0) {
-            const atividadesParaVincular = this.atividadesDisponiveis.filter(atv => 
-                !atividadeExistente || atv.id !== atividadeExistente.id
-            );
-            
-            const atividadesVinculadasIds = atividadeExistente && atividadeExistente.atividadesVinculadas 
-                ? atividadeExistente.atividadesVinculadas 
-                : [];
-            
-            atividadesVinculadasHTML = `
-                <div class="form-group">
-                    <label for="vinculosAtividade">
-                        <i class="fas fa-link"></i> Vincular Atividade (opcional)
-                        <small class="form-text">Ao selecionar atividades abaixo, esta atividade será adicionada como vínculo NAS ATIVIDADES SELECIONADAS. Quando as atividades selecionadas forem concluídas, esta atividade será alterada para "Pendente".</small>
-                    </label>
-                    <div class="vinculos-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-                        ${atividadesParaVincular.map(atv => {
-                            // Verificar se ESTA atividade (a que está sendo editada) já é vínculo da atividade atv
-                            let checked = false;
-                            if (atv.atividadesVinculadas && atividadeExistente) {
-                                // A atividade atv tem atividadeExistente em seus vínculos?
-                                checked = atv.atividadesVinculadas.includes(atividadeExistente.id);
-                            }
-                            
-                            return `
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="${atv.id}" id="vinculo-${atv.id}" ${checked ? 'checked' : ''}>
-                                    <label class="form-check-label" for="vinculo-${atv.id}" style="font-size: 14px;">
-                                        <strong>${atv.titulo}</strong>
-                                        <small class="text-muted"> (${atv.tarefaNome || 'Tarefa'}) - ${getLabelStatus(atv.status)}</small>
-                                    </label>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    ${atividadesParaVincular.length === 0 ? 
-                        '<p class="text-muted small">Não há outras atividades disponíveis para vínculo</p>' : ''}
-                </div>
-            `;
-        }
-        
-        document.getElementById('modalAtividadeBody').innerHTML = `
-            <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
-                <div class="form-group">
-                    <label for="tituloAtividade">Título *</label>
-                    <input type="text" id="tituloAtividade" class="form-control" required 
-                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="descricaoAtividade">Descrição</label>
-                    <textarea id="descricaoAtividade" class="form-control" rows="3">${atividadeExistente ? this.escapeHtml(atividadeExistente.descricao || '') : ''}</textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="responsavelAtividade">Responsável *</label>
-                        <select id="responsavelAtividade" class="form-control" required>
-                            <option value="">Selecione um responsável</option>
-                            ${usuariosOptions}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="dataPrevista">Data Prevista</label>
-                        <input type="date" id="dataPrevista" class="form-control" 
-                               value="${atividadeExistente ? formatarDataParaInput(atividadeExistente.dataPrevista) : new Date().toISOString().split('T')[0]}">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="prioridadeAtividade">Prioridade</label>
-                        <select id="prioridadeAtividade" class="form-control">
-                            <option value="baixa" ${atividadeExistente && atividadeExistente.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
-                            <option value="media" ${(!atividadeExistente || atividadeExistente.prioridade === 'media') ? 'selected' : ''}>Média</option>
-                            <option value="alta" ${atividadeExistente && atividadeExistente.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="observadorAtividade">Observadores (opcional)</label>
-                        <div class="multi-select-wrapper">
-                            <div class="multi-select-preview" onclick="toggleMultiSelect('observadorAtividade')">
-                                <span id="observadoresPreview">Nenhum observador selecionado</span>
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
-                            <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
-                                ${usuariosOptions}
-                            </select>
-                        </div>
-                        <small class="form-text">Clique para selecionar múltiplos observadores (Ctrl+Clique para seleção múltipla)</small>
-                    </div>
-                </div>
-                
-                ${atividadesVinculadasHTML}
-                
-                <div class="alert alert-info" id="alertVinculos" style="display: none; margin-top: 15px;">
-                    <i class="fas fa-info-circle"></i> 
-                    <span id="alertVinculosText"></span>
-                </div>
-                
-                <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-                    <button type="button" class="btn btn-outline" onclick="fecharModalAtividade()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> ${atividadeExistente ? 'Atualizar' : 'Salvar'} Atividade
-                    </button>
-                </div>
-            </form>
-        `;
-        
-        modal.style.display = 'flex';
-        
-        // Configurar valores após o DOM ser renderizado
-        setTimeout(() => {
-            // Configurar responsável
-            const selectResponsavel = document.getElementById('responsavelAtividade');
-            if (selectResponsavel && atividadeExistente && atividadeExistente.responsavel) {
-                selectResponsavel.value = atividadeExistente.responsavel;
-            }
-            
-            // Configurar observadores
-            const selectObservadores = document.getElementById('observadorAtividade');
-            if (selectObservadores && observadoresSelecionados.length > 0) {
-                observadoresSelecionados.forEach(obs => {
-                    for (let i = 0; i < selectObservadores.options.length; i++) {
-                        if (selectObservadores.options[i].value === obs) {
-                            selectObservadores.options[i].selected = true;
-                            break;
-                        }
-                    }
-                });
-            }
-            
-            // Configurar o multi-select
-            configurarMultiSelectBehavior();
-            
-            // Atualizar preview inicial
-            atualizarPreviewObservadores();
-        }, 100);
-        
-        verificarConclusaoVinculos();
-    }
-        
-}
-
-// ========== FUNÇÕES RESTANTES ==========
-
-async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
-    if (gestorAtividades) {
-        // Verificar se o usuário tem permissão para criar/editar atividades nesta tarefa
-        const tarefa = gestorAtividades.tarefas.find(t => t.id === tarefaId);
-        
-        if (!tarefa) {
-            alert('Tarefa não encontrada');
-            return;
-        }
-        
-        // Apenas usuários com acesso completo (membros do grupo) podem criar novas atividades
-        if (!atividadeExistente && !tarefa.acessoCompleto) {
-            alert('❌ Apenas membros do grupo podem criar novas atividades');
-            return;
-        }
-        
-        await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
-    }
-}
-
-async function salvarAtividade(tarefaId, tipo) {
-    console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
-    
-    const titulo = document.getElementById('tituloAtividade').value;
-    const responsavel = document.getElementById('responsavelAtividade').value;
-    
-    if (!titulo || !responsavel) {
-        alert('Preencha todos os campos obrigatórios');
-        return;
-    }
-    
-    // Coletar múltiplos observadores selecionados
-    const observadoresSelect = document.getElementById('observadorAtividade');
-    const observadores = [];
-    if (observadoresSelect) {
-        for (let i = 0; i < observadoresSelect.options.length; i++) {
-            if (observadoresSelect.options[i].selected) {
-                observadores.push(observadoresSelect.options[i].value);
-            }
-        }
-    }
-    
-    // Coletar IDs das atividades selecionadas para vincular
-    const atividadesParaVincular = [];
-    const checkboxes = document.querySelectorAll('.vinculos-container input[type="checkbox"]:checked');
-    checkboxes.forEach(checkbox => {
-        atividadesParaVincular.push(checkbox.value);
     });
     
-    // Definir dados da atividade
-    const atividade = {
-        tarefaId: tarefaId,
-        tipo: tipo,
-        titulo: titulo,
-        descricao: document.getElementById('descricaoAtividade').value,
-        responsavel: responsavel,
-        dataPrevista: document.getElementById('dataPrevista').value,
-        prioridade: document.getElementById('prioridadeAtividade').value,
-        observadores: observadores, // Array com múltiplos observadores
-        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    // IMPORTANTE: NÃO alterar o status na edição
-    if (gestorAtividades && gestorAtividades.atividadeEditando) {
-        // Se está editando, NÃO incluir o status nos dados
-        // O status permanece o mesmo
-    } else {
-        // Se está criando nova, definir como 'nao_iniciado'
-        atividade.status = 'nao_iniciado';
-        // Adicionar quem criou a atividade
-        atividade.criadoPor = gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido';
-    }
-    
-    try {
-        let atividadeId;
-        
-        if (gestorAtividades && gestorAtividades.atividadeEditando) {
-            // Se está editando, usar update mantendo o status atual
-            atividadeId = gestorAtividades.atividadeEditando;
-            
-            // 1. Buscar vínculos antigos para remover
-            const atividadeAntiga = await db.collection('atividades').doc(atividadeId).get();
-            const antigosVinculosIds = atividadeAntiga.exists ? 
-                atividadeAntiga.data().atividadesVinculadas || [] : [];
-            
-            // 2. Atualizar a atividade principal (exceto status e criadoPor)
-            await db.collection('atividades').doc(atividadeId).update(atividade);
-            console.log(`✅ Atividade ${atividadeId} atualizada`);
-            
-            // 3. REMOVER vínculos antigos das atividades
-            for (const vinculoId of antigosVinculosIds) {
-                const vinculoRef = db.collection('atividades').doc(vinculoId);
-                const vinculoDoc = await vinculoRef.get();
-                
-                if (vinculoDoc.exists) {
-                    const vinculoData = vinculoDoc.data();
-                    const novasAtividadesVinculadas = (vinculoData.atividadesVinculadas || [])
-                        .filter(id => id !== atividadeId);
-                    
-                    await vinculoRef.update({
-                        atividadesVinculadas: novasAtividadesVinculadas,
-                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log(`🔄 Removido vínculo de ${atividadeId} na atividade ${vinculoId}`);
-                }
-            }
-            
-        } else {
-            // Criar nova atividade (com status 'nao_iniciado' e criadoPor)
-            const docRef = await db.collection('atividades').add({
-                ...atividade,
-                dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            atividadeId = docRef.id;
-            console.log(`✅ Nova atividade ${atividadeId} criada por ${atividade.criadoPor}`);
-        }
-        
-        // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
-        if (atividadesParaVincular.length > 0) {
-            console.log(`🔗 Adicionando vínculo da atividade ${atividadeId} em ${atividadesParaVincular.length} atividades selecionadas`);
-            
-            const batch = db.batch();
-            let atualizadas = 0;
-            
-            for (const selecionadaId of atividadesParaVincular) {
-                const atividadeSelecionadaRef = db.collection('atividades').doc(selecionadaId);
-                const selecionadaDoc = await atividadeSelecionadaRef.get();
-                
-                if (selecionadaDoc.exists) {
-                    const selecionadaData = selecionadaDoc.data();
-                    const atividadesVinculadasAtuais = selecionadaData.atividadesVinculadas || [];
-                    
-                    // Adicionar o ID desta atividade se ainda não estiver na lista
-                    if (!atividadesVinculadasAtuais.includes(atividadeId)) {
-                        batch.update(atividadeSelecionadaRef, {
-                            atividadesVinculadas: [...atividadesVinculadasAtuais, atividadeId],
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        atualizadas++;
-                        console.log(`✅ Adicionado vínculo de ${atividadeId} na atividade ${selecionadaId}`);
-                    }
-                }
-            }
-            
-            if (atualizadas > 0) {
-                await batch.commit();
-                console.log(`✅ ${atualizadas} atividades tiveram a atividade ${atividadeId} adicionada como vínculo`);
-            }
-        }
-        
-        fecharModalAtividade();
-        
-        if (gestorAtividades) {
-            await gestorAtividades.carregarDados();
-            await gestorAtividades.carregarAtividadesParaVinculo();
-            gestorAtividades.renderizarTarefas();
-            gestorAtividades.atualizarGraficos();
-        }
-        
-        alert(atividadeId ? '✅ Atividade atualizada com sucesso!' : '✅ Atividade criada com sucesso!');
-        
-    } catch (error) {
-        console.error('❌ Erro ao salvar atividade:', error);
-        alert('Erro ao salvar atividade: ' + error.message);
-    }
-}
-    
-async function editarAtividade(atividadeId) {
-    console.log(`✏️ Editando atividade: ${atividadeId}`);
-    
-    try {
-        // Verificar permissões antes de editar
-        if (!gestorAtividades || !gestorAtividades.usuario) {
-            alert('❌ Usuário não identificado');
-            return;
-        }
-        
-        const usuarioAtual = gestorAtividades.usuario.usuario;
-        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-        
-        if (!atividadeDoc.exists) {
-            alert('Atividade não encontrada');
-            return;
-        }
-        
-        const atividade = atividadeDoc.data();
-        
-        // Verificar se o usuário é o responsável OU criador
-        const isResponsavel = atividade.responsavel === usuarioAtual;
-        const isCriador = atividade.criadoPor === usuarioAtual;
-        
-        if (!isResponsavel && !isCriador) {
-            alert('❌ Apenas o responsável ou criador da atividade podem editá-la.');
-            return;
-        }
-        
-        if (gestorAtividades) {
-            await gestorAtividades.carregarAtividadesParaVinculo();
-        }
-        
-        const atividadeCompleta = {
-            id: atividadeDoc.id,
-            ...atividade
-        };
-        
-        await abrirModalAtividade(atividade.tarefaId, atividade.tipo, atividadeCompleta);
-        
-    } catch (error) {
-        console.error('❌ Erro ao buscar atividade:', error);
-        alert('Erro ao carregar atividade: ' + error.message);
-    }
-}
-
-async function excluirAtividade(atividadeId) {
-    // Verificar permissões
-    if (!gestorAtividades || !gestorAtividades.usuario) {
-        alert('❌ Usuário não identificado');
-        return;
-    }
-    
-    try {
-        const usuarioAtual = gestorAtividades.usuario.usuario;
-        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-        
-        if (!atividadeDoc.exists) {
-            alert('Atividade não encontrada');
-            return;
-        }
-        
-        const atividade = atividadeDoc.data();
-        
-        // Verificar se o usuário é o responsável OU criador
-        const isResponsavel = atividade.responsavel === usuarioAtual;
-        const isCriador = atividade.criadoPor === usuarioAtual;
-        
-        if (!isResponsavel && !isCriador) {
-            alert('❌ Apenas o responsável ou criador da atividade podem excluí-la.');
-            return;
-        }
-        
-        if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
-        
-        await db.collection('atividades').doc(atividadeId).delete();
-        console.log(`🗑️ Atividade ${atividadeId} excluída`);
-        alert('✅ Atividade excluída com sucesso!');
-        
-        if (gestorAtividades) {
-            await gestorAtividades.carregarDados();
-            gestorAtividades.renderizarTarefas();
-            gestorAtividades.atualizarGraficos();
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao excluir atividade:', error);
-        alert('Erro ao excluir atividade: ' + error.message);
-    }
-}
-
-async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
-    console.log(`🔄 Alterando status da atividade ${atividadeId} para ${novoStatus}`);
-    
-    // Verificar se o usuário é o responsável
-    if (!gestorAtividades || !gestorAtividades.usuario) {
-        alert('❌ Usuário não identificado');
-        return;
-    }
-    
-    const usuarioAtual = gestorAtividades.usuario.usuario;
-    
-    try {
-        // Buscar a atividade para verificar o responsável
-        const atividadeDoc = await db.collection('atividades').doc(atividadeId).get();
-        
-        if (!atividadeDoc.exists) {
-            alert('Atividade não encontrada');
-            return;
-        }
-        
-        const atividade = atividadeDoc.data();
-        
-        // Verificar se o usuário atual é o responsável
-        if (atividade.responsavel !== usuarioAtual) {
-            alert('❌ Apenas o responsável pela atividade pode alterar o status.');
-            
-            // Resetar o select para o valor anterior
-            const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-            if (select) {
-                select.value = atividade.status || 'nao_iniciado';
-            }
-            
-            return;
-        }
-        
-        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-        const statusAnterior = select ? select.value : 'nao_iniciado';
-        
-        if (novoStatus === 'concluido') {
-            const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
-            
-            if (!confirmar) {
-                if (select) select.value = statusAnterior;
-                return;
-            }
-        }
-        
-        if (select) {
-            select.classList.add('processing');
-            select.disabled = true;
-        }
-        
-        await db.collection('atividades').doc(atividadeId).update({
-            status: novoStatus,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+    // Se clicou fora, fechar todos os dropdowns
+    if (!clickDentroDeAlerta) {
+        containers.forEach(container => {
+            container.classList.remove('show');
         });
-        
-        console.log(`✅ Status da atividade "${tituloAtividade}" alterado para: ${novoStatus}`);
-        
-        const checklistItem = select ? select.closest('.checklist-item') : null;
-        if (checklistItem) {
-            const badge = checklistItem.querySelector('.badge[class*="status-"]');
-            if (badge) {
-                badge.className = `badge status-${novoStatus}`;
-                badge.textContent = getLabelStatus(novoStatus);
-            }
-        }
-        
-        if (novoStatus === 'concluido' && gestorAtividades) {
-            await gestorAtividades.processarConclusaoAtividade(atividadeId);
-        }
-        
-        if (gestorAtividades) {
-            setTimeout(() => {
-                gestorAtividades.calcularEstatisticas();
-                gestorAtividades.atualizarGraficos();
-            }, 500);
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao alterar status:', error);
-        
-        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-        if (select) {
-            select.value = atividade ? atividade.status : 'nao_iniciado';
-            alert('Erro ao alterar status: ' + error.message);
-        }
-        
-    } finally {
-        const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-        if (select) {
-            select.classList.remove('processing');
-            select.disabled = false;
-        }
     }
-}
-
-// ========== INICIALIZAÇÃO ==========
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📄 DOM carregado, inicializando...');
-    
-    // Criar instância do gestor
-    gestorAtividades = new GestorAtividades();
-    
-    // Inicializar o gestor
-    gestorAtividades.init();
-
-    // Configurar listener para conclusões
-    setTimeout(() => {
-        console.log('⏰ Configurando listener para conclusões...');
-        configurarListenerConclusoes();
-    }, 3000);
 });
 
-// Fechar modais clicando fora
+// Fechar modal clicando fora
 window.onclick = function(event) {
-    const modalAtividade = document.getElementById('modalAtividade');
-    
-    if (event.target === modalAtividade) {
-        fecharModalAtividade();
+    const modal = document.getElementById('modalTarefa');
+    if (event.target === modal) {
+        fecharModalTarefa();
     }
-};
+}
+
+// Função para recarregar atividades
+async function recarregarAtividades() {
+    await carregarAtividadesParaTodasTarefas();
+    atualizarListaTarefas();
+}
+
+// Torna as funções globais
+window.adicionarAtividade = adicionarAtividade;
+window.alternarAtividade = alternarAtividade;
+window.atualizarAtividadeTexto = atualizarAtividadeTexto;
+window.removerAtividade = removerAtividade;
+window.abrirModalTarefa = abrirModalTarefa;
+window.fecharModalTarefa = fecharModalTarefa;
+window.salvarTarefa = salvarTarefa;
+window.excluirTarefa = excluirTarefa;
+window.logout = logout;
