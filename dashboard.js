@@ -752,13 +752,6 @@ class GestorAtividades {
             
             const gruposIdsUsuario = gruposUsuario.map(g => g.id);
             console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
-            
-            // Se o usuário não pertence a nenhum grupo, ainda pode ver atividades onde é observador
-            if (gruposIdsUsuario.length === 0) {
-                console.log('⚠️ Usuário não é membro de nenhum grupo');
-            } else {
-                console.log(`✅ Usuário é membro de ${gruposIdsUsuario.length} grupo(s)`);
-            }
     
             // Carregar TODAS as tarefas
             const tarefasSnapshot = await db.collection('tarefas').get();
@@ -792,26 +785,25 @@ class GestorAtividades {
     
             // 2. Filtrar tarefas baseadas no acesso do usuário
             const tarefasFiltradas = todasTarefas.filter(tarefa => {
-                // Se o usuário não tem grupos de acesso, verificar se tem atividades como observador nesta tarefa
-                if (gruposIdsUsuario.length === 0) {
-                    // Verificar se há atividades nesta tarefa onde o usuário é observador
-                    const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                    const temAtividadeComoObservador = atividadesTarefa.some(a => 
-                        a.observadores && a.observadores.includes(usuarioAtual)
-                    );
-                    return temAtividadeComoObservador;
-                }
-                
-                // Se o usuário tem grupos, verificar acesso normal
-                if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-                    console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
-                    return false;
-                }
-                
+                // A PRIMEIRA CONDIÇÃO: Se o usuário pertence a algum grupo envolvido na tarefa
                 // Verificar se há interseção entre grupos da tarefa e grupos do usuário
-                return tarefa.gruposAcesso.some(grupoId => 
-                    gruposIdsUsuario.includes(grupoId)
+                if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso) && tarefa.gruposAcesso.length > 0) {
+                    const pertenceAoGrupo = tarefa.gruposAcesso.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId)
+                    );
+                    
+                    if (pertenceAoGrupo) {
+                        return true; // Usuário pertence a um grupo envolvido na tarefa
+                    }
+                }
+                
+                // SEGUNDA CONDIÇÃO: Se não pertence a grupo, verificar se tem atividades como observador nesta tarefa
+                const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
+                const temAtividadeComoObservador = atividadesTarefa.some(a => 
+                    a.observadores && a.observadores.includes(usuarioAtual)
                 );
+                
+                return temAtividadeComoObservador;
             });
     
             console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
@@ -822,15 +814,10 @@ class GestorAtividades {
                 const atividadesDaTarefa = todasAtividades.filter(atividade => {
                     if (atividade.tarefaId !== tarefa.id) return false;
                     
-                    // Se o usuário é membro do grupo, pode ver TODAS as atividades da tarefa
-                    if (gruposIdsUsuario.length > 0) {
-                        // Verificar se a tarefa pertence a algum grupo do usuário
-                        const tarefaPertenceAoGrupo = tarefa.gruposAcesso && 
-                            tarefa.gruposAcesso.some(grupoId => gruposIdsUsuario.includes(grupoId));
-                        
-                        if (tarefaPertenceAoGrupo) {
-                            return true; // Usuário é membro do grupo, pode ver todas atividades
-                        }
+                    // Se o usuário pertence a algum grupo da tarefa, pode ver TODAS as atividades da tarefa
+                    if (tarefa.gruposAcesso && tarefa.gruposAcesso.some(grupoId => 
+                        gruposIdsUsuario.includes(grupoId))) {
+                        return true; // Usuário é membro do grupo, pode ver todas atividades
                     }
                     
                     // Se não for membro, verificar se é observador desta atividade específica
