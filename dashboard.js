@@ -667,6 +667,22 @@ class GestorAtividades {
         }
     }
 
+    usuarioPodeVerAtividade(atividade) {
+            const usuarioAtual = this.usuario ? this.usuario.usuario : null;
+            if (!usuarioAtual) return false;
+            
+            // Se o usuário é membro de algum grupo com acesso à tarefa
+            const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
+            if (tarefa && tarefa.acessoCompleto) {
+                return true; // Tem acesso completo à tarefa (é membro do grupo)
+            }
+            
+            // Se não tem acesso completo, verificar se é observador desta atividade específica
+            const observadores = atividade.observadores || [];
+            return observadores.includes(usuarioAtual);
+    }
+    
+
     getNomeTarefa(tarefaId) {
         const tarefa = this.tarefas.find(t => t.id === tarefaId);
         
@@ -735,55 +751,23 @@ class GestorAtividades {
             }));
             
             const gruposIdsUsuario = gruposUsuario.map(g => g.id);
-            console.log(`📌 IDs dos grupos do usuário:`, gruposIdsUsuario);
+            console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
             
-            // Se o usuário não pertence a nenhum grupo, mostrar todas as tarefas
-            // (isso é para compatibilidade, mas você pode querer mostrar uma mensagem)
+            // Se o usuário não pertence a nenhum grupo, ainda pode ver atividades onde é observador
             if (gruposIdsUsuario.length === 0) {
-                console.log('⚠️ Usuário não pertence a nenhum grupo, mostrando todas as tarefas');
+                console.log('⚠️ Usuário não é membro de nenhum grupo');
+            } else {
+                console.log(`✅ Usuário é membro de ${gruposIdsUsuario.length} grupo(s)`);
             }
     
             // Carregar TODAS as tarefas
             const tarefasSnapshot = await db.collection('tarefas').get();
-            
-            // Filtrar tarefas que o usuário tem acesso
-            this.tarefas = tarefasSnapshot.docs
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }))
-                .filter(tarefa => {
-                    // Se o usuário não tem grupos, mostrar todas (compatibilidade)
-                    if (gruposIdsUsuario.length === 0) return true;
-                    
-                    // Se a tarefa não tem gruposAcesso, o usuário não tem acesso
-                    if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-                        console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
-                        return false;
-                    }
-                    
-                    // Verificar se há interseção entre grupos da tarefa e grupos do usuário
-                    const temAcesso = tarefa.gruposAcesso.some(grupoId => 
-                        gruposIdsUsuario.includes(grupoId)
-                    );
-                    
-                    if (!temAcesso) {
-                        console.log(`🚫 Usuário NÃO tem acesso à tarefa: ${tarefa.titulo || tarefa.nome}`);
-                    } else {
-                        console.log(`✅ Usuário TEM acesso à tarefa: ${tarefa.titulo || tarefa.nome}`);
-                    }
-                    
-                    return temAcesso;
-                });
-            
-            console.log(`✅ ${this.tarefas.length} tarefas filtradas do(s) grupo(s) do usuário:`);
-            this.tarefas.forEach(t => {
-                const gruposAcesso = t.gruposAcesso || [];
-                console.log(`  - ${t.id}: ${t.titulo || t.nome || 'Sem nome'} 
-                    (GruposAcesso: ${gruposAcesso.join(', ')})`);
-            });
+            const todasTarefas = tarefasSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
     
-            // Carregar atividades
+            // Carregar TODAS as atividades
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -793,13 +777,84 @@ class GestorAtividades {
                     tarefaNome: this.getNomeTarefa(data.tarefaId)
                 };
             });
+    
+            console.log(`✅ ${todasAtividades.length} atividades carregadas no total`);
+            console.log(`✅ ${todasTarefas.length} tarefas carregadas no total`);
+    
+            // Filtrar atividades que o usuário tem acesso:
+            // 1. Atividades onde o usuário é observador
+            const atividadesComoObservador = todasAtividades.filter(atividade => {
+                const observadores = atividade.observadores || [];
+                return observadores.includes(usuarioAtual);
+            });
             
-            console.log(`✅ ${todasAtividades.length} atividades carregadas`);
+            console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
+    
+            // 2. Filtrar tarefas baseadas no acesso do usuário
+            const tarefasFiltradas = todasTarefas.filter(tarefa => {
+                // Se o usuário não tem grupos de acesso, verificar se tem atividades como observador nesta tarefa
+                if (gruposIdsUsuario.length === 0) {
+                    // Verificar se há atividades nesta tarefa onde o usuário é observador
+                    const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
+                    const temAtividadeComoObservador = atividadesTarefa.some(a => 
+                        a.observadores && a.observadores.includes(usuarioAtual)
+                    );
+                    return temAtividadeComoObservador;
+                }
+                
+                // Se o usuário tem grupos, verificar acesso normal
+                if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+                    console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
+                    return false;
+                }
+                
+                // Verificar se há interseção entre grupos da tarefa e grupos do usuário
+                return tarefa.gruposAcesso.some(grupoId => 
+                    gruposIdsUsuario.includes(grupoId)
+                );
+            });
+    
+            console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
             
-            // Agrupar atividades por tarefa (apenas tarefas que o usuário tem acesso)
+            // Agrupar atividades por tarefa, considerando o acesso do usuário
+            this.tarefas = tarefasFiltradas.map(tarefa => {
+                // Para cada tarefa, filtrar as atividades que o usuário pode ver
+                const atividadesDaTarefa = todasAtividades.filter(atividade => {
+                    if (atividade.tarefaId !== tarefa.id) return false;
+                    
+                    // Se o usuário é membro do grupo, pode ver TODAS as atividades da tarefa
+                    if (gruposIdsUsuario.length > 0) {
+                        // Verificar se a tarefa pertence a algum grupo do usuário
+                        const tarefaPertenceAoGrupo = tarefa.gruposAcesso && 
+                            tarefa.gruposAcesso.some(grupoId => gruposIdsUsuario.includes(grupoId));
+                        
+                        if (tarefaPertenceAoGrupo) {
+                            return true; // Usuário é membro do grupo, pode ver todas atividades
+                        }
+                    }
+                    
+                    // Se não for membro, verificar se é observador desta atividade específica
+                    const observadores = atividade.observadores || [];
+                    return observadores.includes(usuarioAtual);
+                });
+                
+                return {
+                    ...tarefa,
+                    atividades: atividadesDaTarefa,
+                    // Marcar se o usuário é membro do grupo (pode ver todas) ou apenas observador (ver apenas algumas)
+                    acessoCompleto: gruposIdsUsuario.some(grupoId => 
+                        tarefa.gruposAcesso && tarefa.gruposAcesso.includes(grupoId)
+                    )
+                };
+            });
+    
+            // Remover tarefas que não têm atividades visíveis para o usuário
+            this.tarefas = this.tarefas.filter(tarefa => tarefa.atividades.length > 0);
+            
+            console.log(`✅ Após filtragem: ${this.tarefas.length} tarefas com atividades visíveis para o usuário`);
+            
             this.tarefas.forEach(tarefa => {
-                tarefa.atividades = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades`);
+                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
             });
     
             // Atualizar status
@@ -1141,34 +1196,83 @@ class GestorAtividades {
         return null;
     }
     
-
     calcularEstatisticasTarefa(tarefa) {
-        const atividades = tarefa.atividades || [];
-        const total = atividades.length;
-        const naoIniciadas = atividades.filter(a => a.status === 'nao_iniciado').length;
-        const pendentes = atividades.filter(a => a.status === 'pendente').length;
-        const andamento = atividades.filter(a => a.status === 'andamento').length;
-        const concluidas = atividades.filter(a => a.status === 'concluido').length;
+        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
+        const todasAtividades = tarefa.atividades || [];
+        
+        // Filtrar apenas atividades que o usuário pode ver
+        const atividadesVisiveis = todasAtividades.filter(atividade => {
+            // Se tem acesso completo à tarefa, pode ver todas as atividades
+            if (tarefa.acessoCompleto) {
+                return true;
+            }
+            
+            // Se não tem acesso completo, verificar se é observador desta atividade específica
+            const observadores = atividade.observadores || [];
+            return observadores.includes(usuarioAtual);
+        });
+        
+        const total = atividadesVisiveis.length;
+        const naoIniciadas = atividadesVisiveis.filter(a => a.status === 'nao_iniciado').length;
+        const pendentes = atividadesVisiveis.filter(a => a.status === 'pendente').length;
+        const andamento = atividadesVisiveis.filter(a => a.status === 'andamento').length;
+        const concluidas = atividadesVisiveis.filter(a => a.status === 'concluido').length;
+        
+        console.log(`📊 Estatísticas da tarefa "${this.getNomeTarefa(tarefa.id)}": 
+            Total atividades: ${todasAtividades.length}
+            Visíveis para usuário: ${total}
+            Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
         
         return {
             total,
             naoIniciadas,
             pendentes,
             andamento,
-            concluidas
+            concluidas,
+            totalTodasAtividades: todasAtividades.length
         };
     }
     
     renderizarAtividadesTarefa(tarefa) {
         const atividades = tarefa.atividades || [];
+        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
         
         if (atividades.length === 0) {
+            // Verificar se o usuário tem acesso completo para poder adicionar atividades
+            if (tarefa.acessoCompleto) {
+                return `
+                    <div class="empty-activities">
+                        <p>Nenhuma atividade cadastrada para esta tarefa</p>
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
+                            <i class="fas fa-plus"></i> Adicionar Atividade
+                        </button>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="empty-activities">
+                        <p>Você não tem atividades visíveis nesta tarefa</p>
+                    </div>
+                `;
+            }
+        }
+    
+        // Filtrar atividades que o usuário pode ver
+        const atividadesVisiveis = atividades.filter(atividade => {
+            // Se tem acesso completo à tarefa, pode ver todas as atividades
+            if (tarefa.acessoCompleto) {
+                return true;
+            }
+            
+            // Se não tem acesso completo, verificar se é observador desta atividade específica
+            const observadores = atividade.observadores || [];
+            return observadores.includes(usuarioAtual);
+        });
+        
+        if (atividadesVisiveis.length === 0) {
             return `
                 <div class="empty-activities">
-                    <p>Nenhuma atividade cadastrada para esta tarefa</p>
-                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
-                        <i class="fas fa-plus"></i> Adicionar Atividade
-                    </button>
+                    <p>Você não tem atividades visíveis nesta tarefa</p>
                 </div>
             `;
         }
@@ -1182,250 +1286,313 @@ class GestorAtividades {
         };
     
         return tipos.map(tipo => {
-            // Filtrar por tipo e ordenar por data de criação (mais antiga primeiro)
-            const atividadesTipo = atividades
-                .filter(a => a.tipo === tipo)
-                .sort((a, b) => {
-                    // Função para obter timestamp de uma atividade
-                    const getTimestamp = (atividade) => {
-                        // Tentar diferentes campos de data, em ordem de prioridade
-                        if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
-                            return atividade.dataRegistro.toDate().getTime();
-                        }
-                        if (atividade.dataRegistro) {
-                            return new Date(atividade.dataRegistro).getTime();
-                        }
-                        if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
-                            return atividade.dataCriacao.toDate().getTime();
-                        }
-                        if (atividade.dataCriacao) {
-                            return new Date(atividade.dataCriacao).getTime();
-                        }
-                        if (atividade.criadoEm && atividade.criadoEm.toDate) {
-                            return atividade.criadoEm.toDate().getTime();
-                        }
-                        if (atividade.criadoEm) {
-                            return new Date(atividade.criadoEm).getTime();
-                        }
-                        if (atividade.dataAtualizacao && atividade.dataAtualizacao.toDate) {
-                            return atividade.dataAtualizacao.toDate().getTime();
-                        }
-                        if (atividade.dataAtualizacao) {
-                            return new Date(atividade.dataAtualizacao).getTime();
-                        }
-                        // Se não tiver data, usar timestamp 0 (bem antigo)
-                        return 0;
-                    };
-    
-                    const timestampA = getTimestamp(a);
-                    const timestampB = getTimestamp(b);
-                    
-                    // Ordenar: mais antiga (menor timestamp) primeiro
-                    return timestampA - timestampB;
-                });
+            // Filtrar por tipo
+            const atividadesTipo = atividadesVisiveis.filter(a => a.tipo === tipo);
+            
+            if (atividadesTipo.length === 0) {
+                return ''; // Não mostrar seção se não houver atividades deste tipo
+            }
+            
+            // Ordenar por data de criação
+            atividadesTipo.sort((a, b) => {
+                const getTimestamp = (atividade) => {
+                    if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
+                        return atividade.dataRegistro.toDate().getTime();
+                    }
+                    if (atividade.dataRegistro) {
+                        return new Date(atividade.dataRegistro).getTime();
+                    }
+                    if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
+                        return atividade.dataCriacao.toDate().getTime();
+                    }
+                    if (atividade.dataCriacao) {
+                        return new Date(atividade.dataCriacao).getTime();
+                    }
+                    return 0;
+                };
+                return getTimestamp(a) - getTimestamp(b);
+            });
             
             return `
                 <div class="activity-section">
                     <div class="section-header">
-                        <h3><i class="fas fa-list-check"></i> ${titulos[tipo]}</h3>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
-                            <i class="fas fa-plus"></i> Nova Atividade
-                        </button>
+                        <h3>
+                            <i class="fas fa-list-check"></i> ${titulos[tipo]}
+                            ${!tarefa.acessoCompleto ? 
+                                '<span class="badge badge-acesso-parcial" style="margin-left: 10px; font-size: 12px;"><i class="fas fa-eye"></i> Acesso como observador</span>' : 
+                                ''
+                            }
+                        </h3>
+                        ${tarefa.acessoCompleto ? 
+                            `<button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
+                                <i class="fas fa-plus"></i> Nova Atividade
+                            </button>` : ''
+                        }
                     </div>
                     <div class="checklist">
-                        ${atividadesTipo.length > 0 ? 
-                            atividadesTipo.map(atividade => {
-                                const status = atividade.status || 'nao_iniciado';
-                                const atividadesVinculadas = atividade.atividadesVinculadas || [];
-                                const temVinculos = atividadesVinculadas.length > 0;
-                                const observadores = atividade.observadores || [];
-                                const temObservadores = observadores.length > 0;
-                                const totalObservadores = observadores.length;
+                        ${atividadesTipo.map(atividade => {
+                            const status = atividade.status || 'nao_iniciado';
+                            const atividadesVinculadas = atividade.atividadesVinculadas || [];
+                            const temVinculos = atividadesVinculadas.length > 0;
+                            const observadores = atividade.observadores || [];
+                            const temObservadores = observadores.length > 0;
+                            const totalObservadores = observadores.length;
+                            
+                            // Verificar se o usuário atual é observador desta atividade
+                            const isObservador = usuarioAtual && observadores.includes(usuarioAtual);
+                            
+                            // Verificar permissões do usuário atual
+                            const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
+                            const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
+                            const podeEditarExcluir = tarefa.acessoCompleto || isResponsavel || isCriador;
+                            const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
+                            
+                            // Obter nomes formatados dos usuários
+                            const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
+                            const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
+                            
+                            const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
+                            const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
+                            
+                            // Título escapado para uso no select
+                            const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
+                            
+                            // Limitar exibição para 2 observadores, mostrar "e mais X"
+                            let observadoresHTML = '';
+                            let verMaisHTML = '';
+                            
+                            if (temObservadores) {
+                                // Limitar a 2 observadores
+                                const observadoresLimitados = totalObservadores > 2 ? 
+                                    observadores.slice(0, 2) : observadores;
                                 
-                                // Verificar permissões do usuário atual
-                                const usuarioAtual = this.usuario ? this.usuario.usuario : null;
-                                const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
-                                const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
-                                const podeEditarExcluir = isResponsavel || isCriador;
-                                const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
+                                observadoresHTML = observadoresLimitados.map(obs => {
+                                    const usuarioObj = this.usuarios.find(u => u.usuario === obs);
+                                    const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
+                                    return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
+                                }).join('');
                                 
-                                // Obter nomes formatados dos usuários
-                                const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
-                                const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
-                                
-                                const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
-                                const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
-                                
-                                // Título escapado para uso no select
-                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                                
-                                // Limitar exibição para 2 observadores, mostrar "e mais X"
-                                let observadoresHTML = '';
-                                let verMaisHTML = '';
-                                
-                                if (temObservadores) {
-                                    // Limitar a 2 observadores
-                                    const observadoresLimitados = totalObservadores > 2 ? 
-                                        observadores.slice(0, 2) : observadores;
-                                    
-                                    observadoresHTML = observadoresLimitados.map(obs => {
-                                        const usuarioObj = this.usuarios.find(u => u.usuario === obs);
-                                        const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-                                        return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
-                                    }).join('');
-                                    
-                                    // Adicionar botão "Ver mais" se tiver mais de 2
-                                    if (totalObservadores > 2) {
-                                        const restantes = totalObservadores - 2;
-                                        verMaisHTML = `
-                                            <button class="btn-ver-mais-observadores" 
-                                                    data-atividade-id="${atividade.id}" 
-                                                    onclick="mostrarTodosObservadores('${atividade.id}')"
-                                                    title="Clique para ver todos os observadores">
-                                                <span class="observador-tag observador-ver-mais">
-                                                    <i class="fas fa-users"></i> +${restantes}
-                                                </span>
-                                            </button>
-                                        `;
-                                    }
-                                }
-                                
-                                const opcoesStatus = [
-                                    {value: 'nao_iniciado', label: 'Não Iniciado'},
-                                    {value: 'pendente', label: 'Pendente'},
-                                    {value: 'andamento', label: 'Em Andamento'},
-                                    {value: 'concluido', label: 'Concluído'}
-                                ];
-                                
-                                // Gerar conteúdo do controle de status (APENAS se for responsável)
-                                let statusControlHTML = '';
-                                if (podeAlterarStatus) {
-                                    // Responsável: select normal
-                                    const optionsHTML = opcoesStatus.map(opcao => `
-                                        <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
-                                            ${opcao.label}
-                                        </option>
-                                    `).join('');
-                                    
-                                    statusControlHTML = `
-                                        <div class="status-control">
-                                            <select class="status-select" 
-                                                    data-id="${atividade.id}"
-                                                    data-titulo="${tituloEscapado}"
-                                                    onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                                ${optionsHTML}
-                                            </select>
-                                        </div>
+                                // Adicionar botão "Ver mais" se tiver mais de 2
+                                if (totalObservadores > 2) {
+                                    const restantes = totalObservadores - 2;
+                                    verMaisHTML = `
+                                        <button class="btn-ver-mais-observadores" 
+                                                data-atividade-id="${atividade.id}" 
+                                                onclick="mostrarTodosObservadores('${atividade.id}')"
+                                                title="Clique para ver todos os observadores">
+                                            <span class="observador-tag observador-ver-mais">
+                                                <i class="fas fa-users"></i> +${restantes}
+                                            </span>
+                                        </button>
                                     `;
                                 }
-                                // Se não for responsável, statusControlHTML fica vazio
+                            }
+                            
+                            const opcoesStatus = [
+                                {value: 'nao_iniciado', label: 'Não Iniciado'},
+                                {value: 'pendente', label: 'Pendente'},
+                                {value: 'andamento', label: 'Em Andamento'},
+                                {value: 'concluido', label: 'Concluído'}
+                            ];
+                            
+                            // Gerar conteúdo do controle de status (APENAS se for responsável)
+                            let statusControlHTML = '';
+                            if (podeAlterarStatus) {
+                                // Responsável: select normal
+                                const optionsHTML = opcoesStatus.map(opcao => `
+                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
+                                        ${opcao.label}
+                                    </option>
+                                `).join('');
                                 
-                                return `
-                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''}">
-                                        <div class="item-info">
-                                            <div class="item-title">
-                                                ${atividade.titulo}
-                                                ${temVinculos ? 
-                                                    `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
-                                                        <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
-                                                    </span>`
-                                                    : ''
-                                                }
-                                            </div>
-                                            ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                                            <div class="item-meta">
-                                                <span class="responsavel-info">
-                                                    <i class="fas fa-user"></i> 
-                                                    <strong>Responsável:</strong> ${responsavelNome || atividade.responsavel || 'Não definido'}
-                                                </span>
-                                                ${atividade.criadoPor ? 
-                                                    `<span class="criador-info" title="Criado por ${criadorNome || atividade.criadoPor}">
-                                                        <i class="fas fa-user-plus"></i> 
-                                                        <strong>Criador:</strong> ${criadorNome || atividade.criadoPor}
-                                                    </span>` 
-                                                    : ''
-                                                }
-                                                ${temObservadores ? 
-                                                    `<span class="observadores-container">
-                                                        <i class="fas fa-eye"></i> 
-                                                        <strong>Observadores:</strong> 
-                                                        ${observadoresHTML}
-                                                        ${verMaisHTML}
-                                                    </span>` 
-                                                    : ''
-                                                }
-                                                <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                                
-                                                <!-- SEMPRE mostrar o badge do status no item-meta -->
-                                                <span class="badge status-${status} status-meta-badge">
-                                                    ${getLabelStatus(status)}
-                                                </span>
-                                                
-                                                ${temVinculos ? 
-                                                    `<span class="vinculos-badge">
-                                                        <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
-                                                    </span>` 
-                                                    : ''
-                                                }
-                                            </div>
-                                        </div>
-                                        <div class="item-actions">
-                                            <!-- Controle de status: APENAS se for responsável (select) -->
-                                            ${statusControlHTML}
-                                            
-                                            <!-- Botões de ação -->
-                                            <div class="action-buttons">
-                                                ${podeEditarExcluir ? 
-                                                    `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>`
-                                                    :
-                                                    `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
-                                                        <i class="fas fa-eye"></i>
-                                                    </button>`
-                                                }
-                                                ${podeEditarExcluir ? 
-                                                    `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>`
-                                                    :
-                                                    ''
-                                                }
-                                            </div>
-                                        </div>
+                                statusControlHTML = `
+                                    <div class="status-control">
+                                        <select class="status-select" 
+                                                data-id="${atividade.id}"
+                                                data-titulo="${tituloEscapado}"
+                                                onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
+                                            ${optionsHTML}
+                                        </select>
                                     </div>
                                 `;
-                            }).join('') :
-                            '<div class="checklist-item"><div class="item-desc">Nenhuma atividade cadastrada</div></div>'
-                        }
+                            }
+                            
+                            // Classe adicional para atividades onde o usuário é apenas observador
+                            const classeAcesso = !tarefa.acessoCompleto && isObservador ? 'acesso-observador' : '';
+                            
+                            return `
+                                <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''} ${classeAcesso}">
+                                    <div class="item-info">
+                                        <div class="item-title">
+                                            ${atividade.titulo}
+                                            ${!tarefa.acessoCompleto && isObservador ? 
+                                                `<span class="badge badge-acesso-parcial" style="margin-left: 8px; font-size: 10px;">
+                                                    <i class="fas fa-eye"></i> Observador
+                                                </span>` : ''
+                                            }
+                                            ${temVinculos ? 
+                                                `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
+                                                    <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
+                                                </span>`
+                                                : ''
+                                            }
+                                        </div>
+                                        ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
+                                        <div class="item-meta">
+                                            <span class="responsavel-info">
+                                                <i class="fas fa-user"></i> 
+                                                <strong>Responsável:</strong> ${responsavelNome || atividade.responsavel || 'Não definido'}
+                                            </span>
+                                            ${atividade.criadoPor ? 
+                                                `<span class="criador-info" title="Criado por ${criadorNome || atividade.criadoPor}">
+                                                    <i class="fas fa-user-plus"></i> 
+                                                    <strong>Criador:</strong> ${criadorNome || atividade.criadoPor}
+                                                </span>` 
+                                                : ''
+                                            }
+                                            ${temObservadores ? 
+                                                `<span class="observadores-container">
+                                                    <i class="fas fa-eye"></i> 
+                                                    <strong>Observadores:</strong> 
+                                                    ${observadoresHTML}
+                                                    ${verMaisHTML}
+                                                </span>` 
+                                                : ''
+                                            }
+                                            <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
+                                            
+                                            <!-- SEMPRE mostrar o badge do status no item-meta -->
+                                            <span class="badge status-${status} status-meta-badge">
+                                                ${getLabelStatus(status)}
+                                            </span>
+                                            
+                                            ${temVinculos ? 
+                                                `<span class="vinculos-badge">
+                                                    <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
+                                                </span>` 
+                                                : ''
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="item-actions">
+                                        <!-- Controle de status: APENAS se for responsável (select) -->
+                                        ${statusControlHTML}
+                                        
+                                        <!-- Botões de ação -->
+                                        <div class="action-buttons">
+                                            ${podeEditarExcluir ? 
+                                                `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>`
+                                                :
+                                                `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>`
+                                            }
+                                            ${podeEditarExcluir && (tarefa.acessoCompleto || isCriador) ? 
+                                                `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>`
+                                                :
+                                                ''
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-
     getTextoStatusTarefa(tarefa) {
         const stats = this.calcularEstatisticasTarefa(tarefa);
         const total = stats.total;
         
+        // Se não há atividades visíveis para o usuário
         if (total === 0) {
-            return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
+            if (tarefa.acessoCompleto) {
+                // Usuário tem acesso completo mas não há atividades
+                return '<span class="status-mini-badge badge-sem-atividades">Sem atividades</span>';
+            } else {
+                // Usuário não tem acesso completo nem é observador de nenhuma atividade
+                return '<span class="status-mini-badge badge-sem-acesso">Sem acesso às atividades</span>';
+            }
         }
         
         const badges = [];
         
-        if (stats.naoIniciadas > 0) {
-            badges.push(`<span class="status-mini-badge badge-nao_iniciado">Não Iniciado (${stats.naoIniciadas}/${total})</span>`);
+        // Adicionar badge indicando tipo de acesso
+        if (tarefa.acessoCompleto) {
+            badges.push(`<span class="status-mini-badge badge-acesso-completo" title="Você tem acesso completo a todas as atividades desta tarefa">
+                            <i class="fas fa-users"></i> Membro do grupo
+                        </span>`);
+        } else {
+            // Apenas observador em algumas atividades
+            badges.push(`<span class="status-mini-badge badge-acesso-parcial" title="Você é observador apenas de algumas atividades">
+                            <i class="fas fa-eye"></i> Acesso como observador
+                        </span>`);
         }
-        if (stats.pendentes > 0) {
-            badges.push(`<span class="status-mini-badge badge-pendente">Pendente (${stats.pendentes}/${total})</span>`);
+        
+        // Contadores de status (apenas atividades visíveis)
+        const statusConfigs = [
+            { 
+                key: 'naoIniciadas', 
+                label: 'Não Iniciado', 
+                badgeClass: 'badge-nao_iniciado',
+                icon: 'fas fa-pause-circle'
+            },
+            { 
+                key: 'pendentes', 
+                label: 'Pendente', 
+                badgeClass: 'badge-pendente',
+                icon: 'fas fa-clock'
+            },
+            { 
+                key: 'andamento', 
+                label: 'Em Andamento', 
+                badgeClass: 'badge-andamento',
+                icon: 'fas fa-spinner'
+            },
+            { 
+                key: 'concluidas', 
+                label: 'Concluído', 
+                badgeClass: 'badge-concluido',
+                icon: 'fas fa-check-circle'
+            }
+        ];
+        
+        // Adicionar badges apenas para status com atividades
+        statusConfigs.forEach(config => {
+            const count = stats[config.key];
+            if (count > 0) {
+                badges.push(`
+                    <span class="status-mini-badge ${config.badgeClass}" title="${config.label}: ${count} de ${total} atividade(s)">
+                        <i class="${config.icon}"></i> ${config.label} (${count}/${total})
+                    </span>
+                `);
+            }
+        });
+        
+        // Se o usuário tem acesso parcial, mostrar quantas atividades pode ver
+        if (!tarefa.acessoCompleto && total > 0) {
+            const totalAtividadesTarefa = tarefa.atividades ? tarefa.atividades.length : 0;
+            if (totalAtividadesTarefa > total) {
+                badges.push(`
+                    <span class="status-mini-badge badge-info" title="Você pode ver ${total} de ${totalAtividadesTarefa} atividades desta tarefa">
+                        <i class="fas fa-eye"></i> ${total}/${totalAtividadesTarefa} visíveis
+                    </span>
+                `);
+            }
         }
-        if (stats.andamento > 0) {
-            badges.push(`<span class="status-mini-badge badge-andamento">Em Andamento (${stats.andamento}/${total})</span>`);
-        }
-        if (stats.concluidas > 0) {
-            badges.push(`<span class="status-mini-badge badge-concluido">Concluído (${stats.concluidas}/${total})</span>`);
+        
+        // Se todas as atividades visíveis estão concluídas e o usuário tem acesso completo
+        if (tarefa.acessoCompleto && stats.concluidas === total && total > 0) {
+            badges.push(`<span class="status-mini-badge badge-sucesso">
+                            <i class="fas fa-trophy"></i> Tarefa completa!
+                        </span>`);
         }
         
         return badges.join(' ');
@@ -1738,8 +1905,21 @@ class GestorAtividades {
 
 async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
     if (gestorAtividades) {
+        // Verificar se o usuário tem permissão para criar/editar atividades nesta tarefa
+        const tarefa = gestorAtividades.tarefas.find(t => t.id === tarefaId);
+        
+        if (!tarefa) {
+            alert('Tarefa não encontrada');
+            return;
+        }
+        
+        // Apenas usuários com acesso completo (membros do grupo) podem criar novas atividades
+        if (!atividadeExistente && !tarefa.acessoCompleto) {
+            alert('❌ Apenas membros do grupo podem criar novas atividades');
+            return;
+        }
+        
         await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
-        // Adicione 'async' na declaração e 'await' na chamada
     }
 }
 
