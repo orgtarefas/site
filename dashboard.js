@@ -8,21 +8,6 @@ let ctrlPressed = false; // Variável global para controlar Ctrl
 
 // ========== FUNÇÕES AUXILIARES ==========
 
-usuarioPodeVerAtividade(atividade) {
-    const usuarioAtual = this.usuario ? this.usuario.usuario : null;
-    if (!usuarioAtual) return false;
-    
-    // Se o usuário é membro de algum grupo com acesso à tarefa
-    const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
-    if (tarefa && tarefa.acessoCompleto) {
-        return true; // Tem acesso completo à tarefa (é membro do grupo)
-    }
-    
-    // Se não tem acesso completo, verificar se é observador desta atividade específica
-    const observadores = atividade.observadores || [];
-    return observadores.includes(usuarioAtual);
-}
-
 // Função para visualizar atividade (para usuários não-responsáveis)
 async function visualizarAtividade(atividadeId) {
     console.log(`👁️ Visualizando atividade: ${atividadeId}`);
@@ -680,6 +665,21 @@ class GestorAtividades {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
             this.atividadesDisponiveis = [];
         }
+    }
+
+    usuarioPodeVerAtividade(atividade) {
+        const usuarioAtual = this.usuario ? this.usuario.usuario : null;
+        if (!usuarioAtual) return false;
+        
+        // Se o usuário é membro de algum grupo com acesso à tarefa
+        const tarefa = this.tarefas.find(t => t.id === atividade.tarefaId);
+        if (tarefa && tarefa.acessoCompleto) {
+            return true; // Tem acesso completo à tarefa (é membro do grupo)
+        }
+        
+        // Se não tem acesso completo, verificar se é observador desta atividade específica
+        const observadores = atividade.observadores || [];
+        return observadores.includes(usuarioAtual);
     }
 
     getNomeTarefa(tarefaId) {
