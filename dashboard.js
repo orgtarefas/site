@@ -814,10 +814,15 @@ class GestorAtividades {
                 const atividadesDaTarefa = todasAtividades.filter(atividade => {
                     if (atividade.tarefaId !== tarefa.id) return false;
                     
-                    // Se o usuário pertence a algum grupo da tarefa, pode ver TODAS as atividades da tarefa
-                    if (tarefa.gruposAcesso && tarefa.gruposAcesso.some(grupoId => 
-                        gruposIdsUsuario.includes(grupoId))) {
-                        return true; // Usuário é membro do grupo, pode ver todas atividades
+                    // Se o usuário é membro do grupo, pode ver TODAS as atividades da tarefa
+                    if (gruposIdsUsuario.length > 0) {
+                        // Verificar se a tarefa pertence a algum grupo do usuário
+                        const tarefaPertenceAoGrupo = tarefa.gruposAcesso && 
+                            tarefa.gruposAcesso.some(grupoId => gruposIdsUsuario.includes(grupoId));
+                        
+                        if (tarefaPertenceAoGrupo) {
+                            return true; // Usuário é membro do grupo, pode ver todas atividades
+                        }
                     }
                     
                     // Se não for membro, verificar se é observador desta atividade específica
@@ -835,10 +840,9 @@ class GestorAtividades {
                 };
             });
     
-            // Remover tarefas que não têm atividades visíveis para o usuário
-            this.tarefas = this.tarefas.filter(tarefa => tarefa.atividades.length > 0);
-            
-            console.log(`✅ Após filtragem: ${this.tarefas.length} tarefas com atividades visíveis para o usuário`);
+            // NÃO REMOVER tarefas que não têm atividades visíveis
+            // As tarefas devem aparecer mesmo sem atividades se o usuário tiver acesso
+            console.log(`📊 Total de tarefas disponíveis: ${this.tarefas.length}`);
             
             this.tarefas.forEach(tarefa => {
                 console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
