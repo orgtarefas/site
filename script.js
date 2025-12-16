@@ -56,7 +56,13 @@ function inicializarSistema() {
     try {
         carregarUsuarios();
         carregarGrupos();
+        carregarAlertasLidos(); // ← ADICIONE ESTA LINHA
         configurarFirebase();
+        
+        // Iniciar verificação de alertas após 5 segundos
+        setTimeout(() => {
+            verificarAlertas();
+        }, 5000);
         
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
@@ -172,6 +178,34 @@ function configurarFirebase() {
                 mostrarErro('Erro ao carregar tarefas: ' + error.message);
             }
         );
+    
+    // LISTENER PARA ATIVIDADES (para alertas em tempo real)
+    db.collection("atividades")
+        .onSnapshot((snapshot) => {
+            console.log('🔄 Atualização de atividades recebida');
+            
+            // Verificar se há usuário logado
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            if (usuarioLogado) {
+                // Verificar se há alterações relevantes
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified') {
+                        const atividade = change.doc.data();
+                        
+                        // Verificar se é uma atividade que o usuário observa ou é responsável
+                        const usuarioAtual = usuarioLogado.usuario;
+                        const isObservador = atividade.observadores && 
+                                           atividade.observadores.includes(usuarioAtual);
+                        const isResponsavel = atividade.responsavel === usuarioAtual;
+                        
+                        if (isObservador || isResponsavel) {
+                            // Forçar nova verificação de alertas
+                            setTimeout(verificarAlertas, 2000);
+                        }
+                    }
+                });
+            }
+        });
 }
 
 async function carregarAtividadesParaTodasTarefas() {
@@ -210,6 +244,405 @@ async function carregarAtividadesParaTodasTarefas() {
         console.error('❌ Erro ao carregar atividades:', error);
     }
 }
+
+// ========== FUNÇÕES DE ALERTAS ==========
+
+// Função para verificar alertas
+async function verificarAlertas() {
+    console.log('🔔 Verificando alertas...');
+    
+    try {
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) return;
+        
+        const usuarioAtual = usuarioLogado.usuario;
+        
+        // 1. BUSCAR ALERTAS DE OBSERVADOR
+        await verificarAlertasObservador(usuarioAtual);
+        
+        // 2. BUSCAR ALERTAS DE RESPONSÁVEL
+        await verificarAlertasResponsavel(usuarioAtual);
+        
+        // Atualizar interface
+        atualizarContadoresAlertas();
+        
+        // Agendar próxima verificação em 30 segundos
+        setTimeout(verificarAlertas, 30000);
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas:', error);
+    }
+}
+
+// Função para verificar alertas de observador
+async function verificarAlertasObservador(usuarioAtual) {
+    try {
+        // Buscar atividades onde o usuário é observador
+        const snapshot = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual)
+            .get();
+        
+        const atividadesComoObservador = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
+        
+        // Carregar histórico de alterações de status
+        await carregarHistoricoStatus(usuarioAtual);
+        
+        // Processar cada atividade
+        const novosAlertas = [];
+        
+        atividadesComoObservador.forEach(atividade => {
+            // Verificar se houve alteração recente de status
+            const historicoAtividade = historicoStatus[atividade.id];
+            
+            if (historicoAtividade && historicoAtividade.ultimaAlteracao) {
+                const ultimaAlteracao = historicoAtividade.ultimaAlteracao.toDate
+                    ? historicoAtividade.ultimaAlteracao.toDate()
+                    : new Date(historicoAtividade.ultimaAlteracao);
+                
+                // Verificar se é uma alteração recente (últimas 24 horas)
+                const agora = new Date();
+                const horasDesdeAlteracao = (agora - ultimaAlteracao) / (1000 * 60 * 60);
+                
+                if (horasDesdeAlteracao <= 24) {
+                    // Verificar se já viu este alerta
+                    const alertaId = `obs_${atividade.id}_${ultimaAlteracao.getTime()}`;
+                    
+                    if (!alertasLidosObservador.has(alertaId)) {
+                        novosAlertas.push({
+                            id: alertaId,
+                            atividadeId: atividade.id,
+                            titulo: atividade.titulo || 'Atividade sem título',
+                            statusAntigo: historicoAtividade.statusAnterior,
+                            statusNovo: atividade.status || 'nao_iniciado',
+                            dataAlteracao: ultimaAlteracao,
+                            tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                            tipo: 'observador'
+                        });
+                    }
+                }
+            }
+        });
+        
+        // Adicionar novos alertas
+        alertasObservador = [...novosAlertas.reverse(), ...alertasObservador];
+        
+        // Manter apenas os últimos 50 alertas
+        alertasObservador = alertasObservador.slice(0, 50);
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas de observador:', error);
+    }
+}
+
+// Função para verificar alertas de responsável
+async function verificarAlertasResponsavel(usuarioAtual) {
+    try {
+        // Buscar atividades onde o usuário é responsável
+        const snapshot = await db.collection('atividades')
+            .where('responsavel', '==', usuarioAtual)
+            .get();
+        
+        const atividadesComoResponsavel = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
+        
+        // Filtrar atividades pendentes
+        const atividadesPendentes = atividadesComoResponsavel.filter(atividade => 
+            atividade.status && atividade.status.toLowerCase() === 'pendente'
+        );
+        
+        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
+        
+        // Criar alertas para atividades pendentes
+        const novosAlertas = atividadesPendentes.map(atividade => {
+            const alertaId = `resp_${atividade.id}`;
+            
+            return {
+                id: alertaId,
+                atividadeId: atividade.id,
+                titulo: atividade.titulo || 'Atividade sem título',
+                status: 'pendente',
+                dataCriacao: new Date(),
+                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                tipo: 'responsavel',
+                dataPrevista: atividade.dataPrevista
+            };
+        });
+        
+        // Adicionar novos alertas (remover duplicados)
+        alertasResponsavel = novosAlertas;
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar alertas de responsável:', error);
+    }
+}
+
+// Variável para histórico de status
+let historicoStatus = {};
+
+// Função para carregar histórico de alterações de status
+async function carregarHistoricoStatus(usuarioAtual) {
+    try {
+        // Buscar histórico das últimas 24 horas
+        const vinteQuatroHorasAtras = new Date();
+        vinteQuatroHorasAtras.setHours(vinteQuatroHorasAtras.getHours() - 24);
+        
+        const snapshot = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual)
+            .where('dataAtualizacao', '>=', vinteQuatroHorasAtras)
+            .get();
+        
+        historicoStatus = {};
+        
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            historicoStatus[doc.id] = {
+                ultimaAlteracao: data.dataAtualizacao,
+                statusAnterior: data.statusAnterior || 'nao_iniciado',
+                statusAtual: data.status || 'nao_iniciado'
+            };
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico de status:', error);
+    }
+}
+
+// Função para atualizar contadores de alertas
+function atualizarContadoresAlertas() {
+    // Contar alertas não lidos
+    const naoLidosObservador = alertasObservador.filter(alerta => 
+        !alertasLidosObservador.has(alerta.id)
+    ).length;
+    
+    const naoLidosResponsavel = alertasResponsavel.filter(alerta => 
+        !alertasLidosResponsavel.has(alerta.id)
+    ).length;
+    
+    // Atualizar contadores na interface
+    document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
+    document.getElementById('responsavelAlertCount').textContent = naoLidosResponsavel;
+    
+    // Mostrar/ocultar contadores
+    document.getElementById('observadorAlertCount').style.display = 
+        naoLidosObservador > 0 ? 'flex' : 'none';
+    document.getElementById('responsavelAlertCount').style.display = 
+        naoLidosResponsavel > 0 ? 'flex' : 'none';
+}
+
+// Função para abrir dropdown de alertas de observador
+function abrirAlertasObservador() {
+    const container = document.getElementById('observadorAlertsContainer');
+    const dropdown = document.getElementById('observadorAlertDropdown');
+    const otherContainers = document.querySelectorAll('.alerts-container.show');
+    
+    // Fechar outros dropdowns
+    otherContainers.forEach(other => {
+        if (other !== container) {
+            other.classList.remove('show');
+        }
+    });
+    
+    // Alternar este dropdown
+    container.classList.toggle('show');
+    
+    // Renderizar alertas
+    renderizarAlertasObservador();
+}
+
+// Função para renderizar alertas de observador
+function renderizarAlertasObservador() {
+    const container = document.getElementById('observadorAlertList');
+    
+    if (alertasObservador.length === 0) {
+        container.innerHTML = '<div class="no-alerts">Nenhum alerta</div>';
+        return;
+    }
+    
+    const alertasHTML = alertasObservador.map(alerta => {
+        const isLido = alertasLidosObservador.has(alerta.id);
+        const tempoAtras = formatarTempoAtras(alerta.dataAlteracao);
+        
+        return `
+            <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
+                <div class="alert-item-header">
+                    <div class="alert-item-title">${alerta.titulo}</div>
+                    <div class="alert-item-time">${tempoAtras}</div>
+                </div>
+                <div class="alert-item-body">
+                    Status alterado em <strong>${alerta.tarefaNome}</strong>
+                </div>
+                <div class="alert-item-details">
+                    <div class="alert-status-change">
+                        <span class="alert-status-badge badge-de">${getLabelStatus(alerta.statusAntigo)}</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span class="alert-status-badge badge-para">${getLabelStatus(alerta.statusNovo)}</span>
+                    </div>
+                </div>
+                <div class="alert-actions">
+                    ${!isLido ? `
+                        <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'observador')">
+                            <i class="fas fa-check"></i> Marcar como lido
+                        </button>
+                    ` : ''}
+                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> Ver atividade
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = alertasHTML;
+}
+
+// Função para abrir dropdown de alertas de responsável
+function abrirAlertasResponsavel() {
+    const container = document.getElementById('responsavelAlertsContainer');
+    const dropdown = document.getElementById('responsavelAlertDropdown');
+    const otherContainers = document.querySelectorAll('.alerts-container.show');
+    
+    // Fechar outros dropdowns
+    otherContainers.forEach(other => {
+        if (other !== container) {
+            other.classList.remove('show');
+        }
+    });
+    
+    // Alternar este dropdown
+    container.classList.toggle('show');
+    
+    // Renderizar alertas
+    renderizarAlertasResponsavel();
+}
+
+// Função para renderizar alertas de responsável
+function renderizarAlertasResponsavel() {
+    const container = document.getElementById('responsavelAlertList');
+    
+    if (alertasResponsavel.length === 0) {
+        container.innerHTML = '<div class="no-alerts">Nenhuma pendência</div>';
+        return;
+    }
+    
+    const alertasHTML = alertasResponsavel.map(alerta => {
+        const isLido = alertasLidosResponsavel.has(alerta.id);
+        const tempoAtras = formatarTempoAtras(alerta.dataCriacao);
+        const dataPrevista = alerta.dataPrevista ? 
+            `Data prevista: ${formatarData(alerta.dataPrevista)}` : 
+            'Sem data prevista';
+        
+        return `
+            <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
+                <div class="alert-item-header">
+                    <div class="alert-item-title">${alerta.titulo}</div>
+                    <div class="alert-item-time">${tempoAtras}</div>
+                </div>
+                <div class="alert-item-body">
+                    Pendente em <strong>${alerta.tarefaNome}</strong>
+                </div>
+                <div class="alert-item-details">
+                    <span class="badge alert-status-badge badge-pendente">PENDENTE</span>
+                    <span>${dataPrevista}</span>
+                </div>
+                <div class="alert-actions">
+                    ${!isLido ? `
+                        <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
+                            <i class="fas fa-check"></i> Marcar como visualizado
+                        </button>
+                    ` : ''}
+                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> Resolver atividade
+                    </a>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = alertasHTML;
+}
+
+// Função para marcar alerta como lido
+function marcarAlertaComoLido(alertaId, tipo) {
+    if (tipo === 'observador') {
+        alertasLidosObservador.add(alertaId);
+        localStorage.setItem('alertasLidosObservador', JSON.stringify([...alertasLidosObservador]));
+    } else {
+        alertasLidosResponsavel.add(alertaId);
+        localStorage.setItem('alertasLidosResponsavel', JSON.stringify([...alertasLidosResponsavel]));
+    }
+    
+    // Atualizar interface
+    atualizarContadoresAlertas();
+    
+    // Re-renderizar lista
+    if (tipo === 'observador') {
+        renderizarAlertasObservador();
+    } else {
+        renderizarAlertasResponsavel();
+    }
+}
+
+// Função para marcar todos os alertas de observador como lido
+function marcarTodosAlertasObservadorComoLido() {
+    alertasObservador.forEach(alerta => {
+        alertasLidosObservador.add(alerta.id);
+    });
+    
+    localStorage.setItem('alertasLidosObservador', JSON.stringify([...alertasLidosObservador]));
+    atualizarContadoresAlertas();
+    renderizarAlertasObservador();
+}
+
+// Função para marcar todas as pendências como visualizado
+function marcarTodasPendenciasComoLido() {
+    alertasResponsavel.forEach(alerta => {
+        alertasLidosResponsavel.add(alerta.id);
+    });
+    
+    localStorage.setItem('alertasLidosResponsavel', JSON.stringify([...alertasLidosResponsavel]));
+    atualizarContadoresAlertas();
+    renderizarAlertasResponsavel();
+}
+
+// Função para formatar tempo atrás
+function formatarTempoAtras(data) {
+    const agora = new Date();
+    const dataAlerta = new Date(data);
+    const diferencaMinutos = Math.floor((agora - dataAlerta) / (1000 * 60));
+    
+    if (diferencaMinutos < 1) return 'Agora mesmo';
+    if (diferencaMinutos < 60) return `${diferencaMinutos} min atrás`;
+    
+    const diferencaHoras = Math.floor(diferencaMinutos / 60);
+    if (diferencaHoras < 24) return `${diferencaHoras} h atrás`;
+    
+    const diferencaDias = Math.floor(diferencaHoras / 24);
+    return `${diferencaDias} d atrás`;
+}
+
+// Carregar alertas lidos do localStorage
+function carregarAlertasLidos() {
+    try {
+        const lidosObservador = JSON.parse(localStorage.getItem('alertasLidosObservador') || '[]');
+        const lidosResponsavel = JSON.parse(localStorage.getItem('alertasLidosResponsavel') || '[]');
+        
+        alertasLidosObservador = new Set(lidosObservador);
+        alertasLidosResponsavel = new Set(lidosResponsavel);
+    } catch (error) {
+        console.error('❌ Erro ao carregar alertas lidos:', error);
+    }
+}
+
+
 
 // FUNÇÃO: Buscar atividades específicas de uma tarefa
 async function buscarAtividadesDaTarefa(tarefaId) {
@@ -877,6 +1310,26 @@ function logout() {
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
+
+// Fechar dropdowns de alerta ao clicar fora
+document.addEventListener('click', function(event) {
+    // Verificar se o clique foi fora de um container de alerta
+    const containers = document.querySelectorAll('.alerts-container');
+    let clickDentroDeAlerta = false;
+    
+    containers.forEach(container => {
+        if (container.contains(event.target)) {
+            clickDentroDeAlerta = true;
+        }
+    });
+    
+    // Se clicou fora, fechar todos os dropdowns
+    if (!clickDentroDeAlerta) {
+        containers.forEach(container => {
+            container.classList.remove('show');
+        });
+    }
+});
 
 // Configurar event listeners
 document.addEventListener('DOMContentLoaded', function() {
