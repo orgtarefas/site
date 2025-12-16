@@ -341,14 +341,46 @@ body {
     font-weight: 600;
 }
 
+/* Estilos para badges de status */
 .badge-de {
-    background-color: #e74c3c;
+    background: #6c757d;
     color: white;
 }
 
 .badge-para {
-    background-color: #27ae60;
+    background: #007bff;
     color: white;
+}
+
+/* Estilos específicos para cada tipo de status */
+.status-nao_iniciado {
+    background: #6c757d;
+    color: white;
+}
+
+.status-pendente {
+    background: #ffc107;
+    color: #212529;
+}
+
+.status-andamento {
+    background: #17a2b8;
+    color: white;
+}
+
+.status-concluido {
+    background: #28a745;
+    color: white;
+}
+
+/* Alertas de responsável (pendentes) */
+.alert-item[data-alerta-id*="resp_"] {
+    border-left: 4px solid #ffc107;
+}
+
+/* Alertas de observador (alterações) */
+.alert-item[data-alerta-id*="obs_"] {
+    border-left: 4px solid #007bff;
 }
 
 .no-alerts {
