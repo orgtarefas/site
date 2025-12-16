@@ -70,7 +70,7 @@ function inicializarSistema() {
     // Aguardar Firebase carregar
     if (!window.db) {
         console.log('⏳ Aguardando Firebase...');
-        setTimeout(inicializarSistema, 500);
+        setTimeout(inicializarSistema, 200);
         return;
     }
 
