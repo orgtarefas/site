@@ -212,18 +212,22 @@ function configurarFirebase() {
             }
         );
     
-    // Listener SIMPLES para atividades
-    db.collection("atividades")
-        .onSnapshot((snapshot) => {
-            console.log('🔄 Atualização de atividades');
-            
-            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            if (!usuarioLogado) return;
-            
-            // Verificar se há mudanças de status
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'modified') {
-                    const novaAtividade = change.doc.data();
+// Listener SIMPLES para atividades
+db.collection("atividades")
+    .onSnapshot((snapshot) => {
+        console.log('🔄 Atualização de atividades');
+        
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) return;
+        
+        // Verificar se há mudanças de status
+        snapshot.docChanges().forEach(change => {
+            // Só processar modificações
+            if (change.type === 'modified') {
+                const novaAtividade = change.doc.data();
+                
+                // Verificar se há estado anterior disponível
+                if (change.doc.previous && typeof change.doc.previous.data === 'function') {
                     const atividadeAntiga = change.doc.previous.data();
                     
                     // Se o status mudou, atualizar statusAnterior
@@ -236,12 +240,16 @@ function configurarFirebase() {
                             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                         });
                     }
+                } else {
+                    // Para novas atividades, definir statusAnterior como 'nao_iniciado'
+                    console.log(`📝 Nova atividade detectada: ${novaAtividade.titulo}`);
                 }
-            });
-            
-            // Verificar alertas a cada mudança
-            setTimeout(verificarAlertas, 500);
+            }
         });
+        
+        // Verificar alertas a cada mudança
+        setTimeout(verificarAlertas, 500);
+    });
 }
 
 async function carregarAtividadesParaTodasTarefas() {
