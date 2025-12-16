@@ -1904,8 +1904,21 @@ class GestorAtividades {
 
 async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
     if (gestorAtividades) {
+        // Verificar se o usuário tem permissão para criar/editar atividades nesta tarefa
+        const tarefa = gestorAtividades.tarefas.find(t => t.id === tarefaId);
+        
+        if (!tarefa) {
+            alert('Tarefa não encontrada');
+            return;
+        }
+        
+        // Apenas usuários com acesso completo (membros do grupo) podem criar novas atividades
+        if (!atividadeExistente && !tarefa.acessoCompleto) {
+            alert('❌ Apenas membros do grupo podem criar novas atividades');
+            return;
+        }
+        
         await gestorAtividades.abrirModalAtividade(tarefaId, tipo, atividadeExistente);
-        // Adicione 'async' na declaração e 'await' na chamada
     }
 }
 
