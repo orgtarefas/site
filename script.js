@@ -306,7 +306,7 @@ async function verificarAlertas() {
     }
 }
 
-// Função para verificar alertas de observador
+// Função para verificar alertas de observador - QUALQUER ALTERAÇÃO DE STATUS
 async function verificarAlertasObservador(usuarioAtual) {
     try {
         // Buscar atividades onde o usuário é observador
@@ -342,9 +342,10 @@ async function verificarAlertasObservador(usuarioAtual) {
                 
                 if (horasDesdeAlteracao <= 24) {
                     // Verificar se já viu este alerta
-                    const alertaId = `obs_${atividade.id}_${ultimaAlteracao.getTime()}`;
+                    const alertaId = `obs_${atividade.id}_${historicoAtividade.ultimaAlteracao}`;
                     
                     if (!alertasLidosObservador.has(alertaId)) {
+                        // ALERTA PARA QUALQUER ALTERAÇÃO, não importa os status
                         novosAlertas.push({
                             id: alertaId,
                             atividadeId: atividade.id,
@@ -353,7 +354,8 @@ async function verificarAlertasObservador(usuarioAtual) {
                             statusNovo: atividade.status || 'nao_iniciado',
                             dataAlteracao: ultimaAlteracao,
                             tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
-                            tipo: 'observador'
+                            tipo: 'observador',
+                            descricao: atividade.descricao || ''
                         });
                     }
                 }
@@ -371,7 +373,7 @@ async function verificarAlertasObservador(usuarioAtual) {
     }
 }
 
-// Função para verificar alertas de responsável
+// Função para verificar alertas de responsável - APENAS PENDENTES
 async function verificarAlertasResponsavel(usuarioAtual) {
     try {
         // Buscar atividades onde o usuário é responsável
@@ -386,24 +388,23 @@ async function verificarAlertasResponsavel(usuarioAtual) {
         
         console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
         
-        // Filtrar atividades pendentes (com status 'pendente' ou não iniciadas)
+        // FILTRAR APENAS STATUS "pendente" (exatamente esse termo)
         const atividadesPendentes = atividadesComoResponsavel.filter(atividade => {
-            const status = (atividade.status || '').toLowerCase();
-            return status === 'pendente' || status === 'nao_iniciado' || status === 'não iniciado';
+            const status = (atividade.status || '').toLowerCase().trim();
+            return status === 'pendente'; // APENAS "pendente"
         });
         
-        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes/não iniciadas`);
+        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
         
         // Criar alertas para atividades pendentes
         const novosAlertas = atividadesPendentes.map(atividade => {
-            const alertaId = `resp_${atividade.id}`;
-            const status = (atividade.status || '').toLowerCase();
+            const alertaId = `resp_${atividade.id}_${Date.now()}`;
             
             return {
                 id: alertaId,
                 atividadeId: atividade.id,
                 titulo: atividade.titulo || 'Atividade sem título',
-                status: status,
+                status: 'pendente',
                 dataCriacao: new Date(),
                 tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
                 tipo: 'responsavel',
@@ -542,6 +543,13 @@ function atualizarContadoresAlertas() {
         naoLidosObservador > 0 ? 'flex' : 'none';
     document.getElementById('responsavelAlertCount').style.display = 
         naoLidosResponsavel > 0 ? 'flex' : 'none';
+    
+    // Mostrar notificação apenas para pendências (responsável)
+    if (naoLidosResponsavel > 0) {
+        setTimeout(() => {
+            mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
+        }, 1000);
+    }
 }
 
 // Função para abrir dropdown de alertas de observador
@@ -564,12 +572,12 @@ function abrirAlertasObservador() {
     renderizarAlertasObservador();
 }
 
-// Função para renderizar alertas de observador
+// Função para renderizar alertas de observador (QUALQUER ALTERAÇÃO)
 function renderizarAlertasObservador() {
     const container = document.getElementById('observadorAlertList');
     
     if (alertasObservador.length === 0) {
-        container.innerHTML = '<div class="no-alerts">Nenhum alerta</div>';
+        container.innerHTML = '<div class="no-alerts">Nenhuma alteração recente</div>';
         return;
     }
     
@@ -585,12 +593,17 @@ function renderizarAlertasObservador() {
                 </div>
                 <div class="alert-item-body">
                     Status alterado em <strong>${alerta.tarefaNome}</strong>
+                    ${alerta.descricao ? `<p class="alert-descricao">${alerta.descricao}</p>` : ''}
                 </div>
                 <div class="alert-item-details">
                     <div class="alert-status-change">
-                        <span class="alert-status-badge badge-de">${getLabelStatus(alerta.statusAntigo)}</span>
+                        <span class="alert-status-badge badge-de ${normalizarStatusParaClasse(alerta.statusAntigo)}">
+                            ${getLabelStatus(alerta.statusAntigo)}
+                        </span>
                         <i class="fas fa-arrow-right"></i>
-                        <span class="alert-status-badge badge-para">${getLabelStatus(alerta.statusNovo)}</span>
+                        <span class="alert-status-badge badge-para ${normalizarStatusParaClasse(alerta.statusNovo)}">
+                            ${getLabelStatus(alerta.statusNovo)}
+                        </span>
                     </div>
                 </div>
                 <div class="alert-actions">
@@ -599,9 +612,9 @@ function renderizarAlertasObservador() {
                             <i class="fas fa-check"></i> Marcar como lido
                         </button>
                     ` : ''}
-                    <a href="dashboard.html" class="btn-go-to-activity" target="_blank">
-                        <i class="fas fa-external-link-alt"></i> Ver atividade
-                    </a>
+                    <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
+                        <i class="fas fa-eye"></i> Ver atividade
+                    </button>
                 </div>
             </div>
         `;
@@ -630,12 +643,12 @@ function abrirAlertasResponsavel() {
     renderizarAlertasResponsavel();
 }
 
-// Função para renderizar alertas de responsável
+// Função para renderizar alertas de responsável (APENAS PENDENTES)
 function renderizarAlertasResponsavel() {
     const container = document.getElementById('responsavelAlertList');
     
     if (alertasResponsavel.length === 0) {
-        container.innerHTML = '<div class="no-alerts">Nenhuma pendência</div>';
+        container.innerHTML = '<div class="no-alerts">Nenhuma atividade pendente</div>';
         return;
     }
     
@@ -648,9 +661,6 @@ function renderizarAlertasResponsavel() {
                 ${formatarData(alerta.dataPrevista)}
             </div>` : 
             '';
-        
-        const statusLabel = getLabelStatus(alerta.status);
-        const statusClass = normalizarStatusParaClasse(alerta.status);
         
         return `
             <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
@@ -666,7 +676,7 @@ function renderizarAlertasResponsavel() {
                     ${alerta.descricao ? `<p class="alert-descricao">${alerta.descricao}</p>` : ''}
                 </div>
                 <div class="alert-item-details">
-                    <span class="badge alert-status-badge status-${statusClass}">${statusLabel}</span>
+                    <span class="badge alert-status-badge status-pendente">PENDENTE</span>
                     ${dataPrevista}
                 </div>
                 <div class="alert-actions">
