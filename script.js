@@ -9,6 +9,13 @@ let atividadesPorTarefa = {};
 let editandoTarefaId = null;
 let modoEdicao = false;
 
+// Estado global dos alertas
+let alertasObservador = [];
+let alertasResponsavel = [];
+let alertasLidosObservador = new Set();
+let alertasLidosResponsavel = new Set();
+let ultimaVerificacaoAlertas = null;
+
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando sistema...');
