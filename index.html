@@ -42,6 +42,44 @@
                     
                     <!-- Status e informações do usuário -->
                     <div class="header-status">
+                        <!-- SINO 1: ALERTAS DE OBSERVADOR -->
+                        <div class="alerts-container" id="observadorAlertsContainer">
+                            <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
+                                <i class="fas fa-bell"></i>
+                                <span class="alert-count" id="observadorAlertCount">0</span>
+                            </button>
+                            <div class="alert-dropdown" id="observadorAlertDropdown">
+                                <div class="alert-dropdown-header">
+                                    <h4><i class="fas fa-eye"></i> Alterações em Atividades Observadas</h4>
+                                    <button class="mark-all-read" onclick="marcarTodosAlertasObservadorComoLido()">
+                                        <i class="fas fa-check-double"></i> Marcar todos como lido
+                                    </button>
+                                </div>
+                                <div class="alert-dropdown-content" id="observadorAlertList">
+                                    <div class="no-alerts">Nenhum alerta</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SINO 2: ALERTAS DE RESPONSÁVEL -->
+                        <div class="alerts-container" id="responsavelAlertsContainer">
+                            <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
+                                <i class="fas fa-clock"></i>
+                                <span class="alert-count" id="responsavelAlertCount">0</span>
+                            </button>
+                            <div class="alert-dropdown" id="responsavelAlertDropdown">
+                                <div class="alert-dropdown-header">
+                                    <h4><i class="fas fa-user"></i> Suas Atividades Pendentes</h4>
+                                    <button class="mark-all-read" onclick="marcarTodasPendenciasComoLido()">
+                                        <i class="fas fa-check-double"></i> Marcar como visualizado
+                                    </button>
+                                </div>
+                                <div class="alert-dropdown-content" id="responsavelAlertList">
+                                    <div class="no-alerts">Nenhuma pendência</div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Status de conexão -->
                         <span class="status-sync" id="status-sincronizacao">
                             <i class="fas fa-bolt"></i> Conectado
@@ -53,7 +91,6 @@
                                 <i class="fas fa-user-circle"></i>
                             </div>
                             <div class="user-details">
-                                <!-- Nome do usuário logado (preenchido pelo JavaScript) -->
                                 <span id="userName" class="username"></span>
                                 <button class="btn-logout" onclick="logout()" title="Sair">
                                     <i class="fas fa-sign-out-alt"></i>
