@@ -70,7 +70,7 @@ function inicializarSistema() {
     // Aguardar Firebase carregar
     if (!window.db) {
         console.log('⏳ Aguardando Firebase...');
-        setTimeout(inicializarSistema, 200);
+        setTimeout(inicializarSistema, 100);
         return;
     }
 
@@ -79,13 +79,23 @@ function inicializarSistema() {
     try {
         carregarUsuarios();
         carregarGrupos();
-        carregarAlertasLidos();
         configurarFirebase();
         
-        // INICIAR VERIFICAÇÃO IMEDIATA APÓS 1 SEGUNDO
-        setTimeout(() => {
-            verificarAlertas();
-        }, 1000);
+        // VERIFICAR SE É A PÁGINA HOME (index.html) ANTES DE INICIAR ALERTAS
+        const isHomePage = window.location.pathname.includes('index.html') || 
+                          window.location.pathname.endsWith('/');
+        
+        if (isHomePage) {
+            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
+            carregarAlertasLidos();
+            
+            // Iniciar verificação de alertas após 1 segundo
+            setTimeout(() => {
+                verificarAlertas();
+            }, 1000);
+        } else {
+            console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
+        }
         
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
@@ -274,6 +284,15 @@ async function carregarAtividadesParaTodasTarefas() {
 async function verificarAlertas() {
     console.log('🔔 Verificando alertas...');
     
+    // VERIFICAR SE ESTAMOS NA PÁGINA HOME
+    const isHomePage = window.location.pathname.includes('index.html') || 
+                      window.location.pathname.endsWith('/');
+    
+    if (!isHomePage) {
+        console.log('⏸️ Não é página Home - Pulando verificação de alertas');
+        return;
+    }
+    
     try {
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
         if (!usuarioLogado) return;
@@ -303,6 +322,7 @@ async function verificarAlertas() {
         
     } catch (error) {
         console.error('❌ Erro ao verificar alertas:', error);
+        // Não interromper o sistema por erro nos alertas
     }
 }
 
@@ -523,8 +543,16 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Função para atualizar contadores de alertas
+// Função para atualizar contadores de alertas (SÓ NO INDEX.HTML)
 function atualizarContadoresAlertas() {
+    // VERIFICAR SE ESTAMOS NA PÁGINA HOME
+    const isHomePage = window.location.pathname.includes('index.html') || 
+                      window.location.pathname.endsWith('/');
+    
+    if (!isHomePage) {
+        return; // Sair se não for a página home
+    }
+    
     // Contar alertas não lidos
     const naoLidosObservador = alertasObservador.filter(alerta => 
         !alertasLidosObservador.has(alerta.id)
@@ -534,7 +562,7 @@ function atualizarContadoresAlertas() {
         !alertasLidosResponsavel.has(alerta.id)
     ).length;
     
-    // Atualizar contadores na interface
+    // Atualizar contadores na interface (já sabemos que elementos existem)
     document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
     document.getElementById('responsavelAlertCount').textContent = naoLidosResponsavel;
     
@@ -554,8 +582,16 @@ function atualizarContadoresAlertas() {
 
 // Função para abrir dropdown de alertas de observador
 function abrirAlertasObservador() {
+    // VERIFICAR SE ESTAMOS NA PÁGINA HOME
+    const isHomePage = window.location.pathname.includes('index.html') || 
+                      window.location.pathname.endsWith('/');
+    
+    if (!isHomePage) {
+        console.log('⚠️ Função disponível apenas na página Home');
+        return;
+    }
+    
     const container = document.getElementById('observadorAlertsContainer');
-    const dropdown = document.getElementById('observadorAlertDropdown');
     const otherContainers = document.querySelectorAll('.alerts-container.show');
     
     // Fechar outros dropdowns
@@ -571,6 +607,7 @@ function abrirAlertasObservador() {
     // Renderizar alertas
     renderizarAlertasObservador();
 }
+
 
 // Função para renderizar alertas de observador (QUALQUER ALTERAÇÃO)
 function renderizarAlertasObservador() {
@@ -625,8 +662,16 @@ function renderizarAlertasObservador() {
 
 // Função para abrir dropdown de alertas de responsável
 function abrirAlertasResponsavel() {
+    // VERIFICAR SE ESTAMOS NA PÁGINA HOME
+    const isHomePage = window.location.pathname.includes('index.html') || 
+                      window.location.pathname.endsWith('/');
+    
+    if (!isHomePage) {
+        console.log('⚠️ Função disponível apenas na página Home');
+        return;
+    }
+    
     const container = document.getElementById('responsavelAlertsContainer');
-    const dropdown = document.getElementById('responsavelAlertDropdown');
     const otherContainers = document.querySelectorAll('.alerts-container.show');
     
     // Fechar outros dropdowns
@@ -1151,11 +1196,21 @@ function atualizarEstatisticas() {
     const andamento = tarefasVisiveis.filter(t => t.status === 'andamento').length;
     const concluidas = tarefasVisiveis.filter(t => t.status === 'concluido').length;
 
-    document.getElementById('total-tarefas').textContent = total;
-    document.getElementById('tarefas-naoiniciadas').textContent = naoiniciadas;
-    document.getElementById('tarefas-pendentes').textContent = pendentes;
-    document.getElementById('tarefas-andamento').textContent = andamento;
-    document.getElementById('tarefas-concluidas').textContent = concluidas;
+    // VERIFICAR SE OS ELEMENTOS EXISTEM ANTES DE ATUALIZAR
+    const elementos = {
+        'total-tarefas': total,
+        'tarefas-naoiniciadas': naoiniciadas,
+        'tarefas-pendentes': pendentes,
+        'tarefas-andamento': andamento,
+        'tarefas-concluidas': concluidas
+    };
+    
+    Object.keys(elementos).forEach(id => {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+            elemento.textContent = elementos[id];
+        }
+    });
 }
 
 function atualizarListaTarefas() {
