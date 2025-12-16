@@ -15,6 +15,7 @@ let alertasResponsavel = [];
 let alertasLidosObservador = new Set();
 let alertasLidosResponsavel = new Set();
 let ultimaVerificacaoAlertas = null;
+let ultimoStatusNotificado = {};
 
 // Inicialização
 // Configurar event listeners
@@ -220,29 +221,24 @@ db.collection("atividades")
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
         if (!usuarioLogado) return;
         
-        // Verificar se há mudanças de status
         snapshot.docChanges().forEach(change => {
-            // Só processar modificações
             if (change.type === 'modified') {
                 const novaAtividade = change.doc.data();
                 
-                // Verificar se há estado anterior disponível
                 if (change.doc.previous && typeof change.doc.previous.data === 'function') {
                     const atividadeAntiga = change.doc.previous.data();
                     
-                    // Se o status mudou, atualizar statusAnterior
                     if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
                         console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
                         
-                        // Salvar status anterior
+                        // Salvar status anterior SEMPRE que detectar mudança
                         db.collection('atividades').doc(change.doc.id).update({
                             statusAnterior: atividadeAntiga.status,
                             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                        }).then(() => {
+                            console.log('✅ statusAnterior salvo como:', atividadeAntiga.status);
                         });
                     }
-                } else {
-                    // Para novas atividades, definir statusAnterior como 'nao_iniciado'
-                    console.log(`📝 Nova atividade detectada: ${novaAtividade.titulo}`);
                 }
             }
         });
@@ -340,41 +336,147 @@ async function verificarAlertasObservador(usuarioAtual) {
         }));
         
         console.log(`📋 Atividades encontradas:`, atividades.length);
-        console.log(`📊 Detalhes das atividades:`);
-        atividades.forEach(atividade => {
-            console.log(`   - ${atividade.titulo}: Status=${atividade.status}, StatusAnterior=${atividade.statusAnterior}`);
-        });
         
-        // Verificar se alguma atividade tem statusAnterior diferente do status atual
-        const atividadesComMudanca = atividades.filter(atividade => {
-            // Se não tem statusAnterior, não sabemos se mudou
-            if (!atividade.statusAnterior) return false;
+        // Verificar quais atividades mudaram
+        const atividadesComMudanca = [];
+        const atividadesParaAtualizar = [];
+        
+        console.log('🔎 ANALISANDO MUDANÇAS:');
+        
+        for (const atividade of atividades) {
+            console.log(`\n📊 ${atividade.titulo || 'Sem título'}:`);
+            console.log(`   ID: ${atividade.id}`);
+            console.log(`   Status atual: "${atividade.status}"`);
+            console.log(`   statusAnterior no Firestore: "${atividade.statusAnterior || '(não definido)'}"`);
             
-            // Se são diferentes, houve mudança
-            return atividade.statusAnterior !== atividade.status;
-        });
+            // Primeiro, verificar se tem statusAnterior no Firestore
+            if (atividade.statusAnterior) {
+                // Temos statusAnterior no Firestore - comparar com status atual
+                if (atividade.statusAnterior !== atividade.status) {
+                    console.log(`   ✅ MUDANÇA DETECTADA NO FIRESTORE: ${atividade.statusAnterior} → ${atividade.status}`);
+                    
+                    atividadesComMudanca.push(atividade);
+                    
+                    // Marcar para atualizar statusAnterior depois (para não detectar de novo)
+                    atividadesParaAtualizar.push({
+                        id: atividade.id,
+                        novoStatusAnterior: atividade.status
+                    });
+                } else {
+                    console.log(`   ⏸️ Status igual ao anterior: ${atividade.status}`);
+                    
+                    // Verificar se já notificamos essa mudança antes
+                    const ultimoNotificado = ultimoStatusNotificado[atividade.id];
+                    if (ultimoNotificado !== atividade.status) {
+                        console.log(`   📝 Primeira notificação deste status`);
+                        atividadesComMudanca.push(atividade);
+                        ultimoStatusNotificado[atividade.id] = atividade.status;
+                    }
+                }
+            } else {
+                // Não tem statusAnterior no Firestore
+                console.log(`   ⚠️ Sem statusAnterior no Firestore`);
+                
+                // Verificar se o status atual é diferente do último notificado
+                const ultimoNotificado = ultimoStatusNotificado[atividade.id];
+                
+                if (!ultimoNotificado) {
+                    // Primeira vez vendo esta atividade
+                    console.log(`   📝 Primeira vez vendo esta atividade`);
+                    
+                    // Se o status não for "nao_iniciado", consideramos como mudança
+                    if (atividade.status !== 'nao_iniciado') {
+                        console.log(`   ✅ Status inicial diferente de 'nao_iniciado': ${atividade.status}`);
+                        atividadesComMudanca.push(atividade);
+                    }
+                    
+                    // Marcar para criar statusAnterior no Firestore
+                    atividadesParaAtualizar.push({
+                        id: atividade.id,
+                        novoStatusAnterior: atividade.status
+                    });
+                    
+                    // Atualizar cache
+                    ultimoStatusNotificado[atividade.id] = atividade.status;
+                    
+                } else if (ultimoNotificado !== atividade.status) {
+                    // Status mudou desde a última notificação
+                    console.log(`   ✅ MUDANÇA DETECTADA NO CACHE: ${ultimoNotificado} → ${atividade.status}`);
+                    
+                    atividadesComMudanca.push(atividade);
+                    
+                    // Marcar para atualizar no Firestore
+                    atividadesParaAtualizar.push({
+                        id: atividade.id,
+                        novoStatusAnterior: atividade.status
+                    });
+                    
+                    // Atualizar cache
+                    ultimoStatusNotificado[atividade.id] = atividade.status;
+                } else {
+                    console.log(`   ⏸️ Status igual ao último notificado: ${atividade.status}`);
+                }
+            }
+        }
         
-        console.log(`🔄 Atividades com mudança:`, atividadesComMudanca.length);
+        console.log(`\n🔄 RESUMO: ${atividadesComMudanca.length} atividades com mudança`);
+        
+        // Atualizar statusAnterior no Firestore para evitar detecções repetidas
+        if (atividadesParaAtualizar.length > 0) {
+            console.log(`📝 Atualizando ${atividadesParaAtualizar.length} atividades no Firestore...`);
+            
+            for (const item of atividadesParaAtualizar) {
+                try {
+                    await db.collection('atividades').doc(item.id).update({
+                        statusAnterior: item.novoStatusAnterior,
+                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log(`   ✅ ${item.id}: statusAnterior = ${item.novoStatusAnterior}`);
+                } catch (error) {
+                    console.error(`   ❌ Erro ao atualizar ${item.id}:`, error);
+                }
+            }
+        }
         
         // Criar alertas para todas as mudanças encontradas
         alertasObservador = atividadesComMudanca.map(atividade => {
             const dataAlteracao = atividade.dataAtualizacao?.toDate() || new Date();
             const alertaId = `obs_${atividade.id}_${dataAlteracao.getTime()}`;
             
+            // Determinar status antigo para mostrar no alerta
+            let statusAntigoParaAlerta;
+            
+            if (atividade.statusAnterior && atividade.statusAnterior !== atividade.status) {
+                // Se temos statusAnterior no Firestore e são diferentes
+                statusAntigoParaAlerta = atividade.statusAnterior;
+            } else {
+                // Usar o último notificado do cache
+                statusAntigoParaAlerta = ultimoStatusNotificado[atividade.id] || 'nao_iniciado';
+            }
+            
             return {
                 id: alertaId,
                 atividadeId: atividade.id,
                 titulo: atividade.titulo || 'Atividade sem título',
-                statusAntigo: atividade.statusAnterior,
+                statusAntigo: statusAntigoParaAlerta,
                 statusNovo: atividade.status,
                 dataAlteracao: dataAlteracao,
                 tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
                 tipo: 'observador',
-                descricao: atividade.descricao || ''
+                descricao: atividade.descricao || '',
+                responsavel: atividade.responsavel || ''
             };
         });
         
         console.log(`✅ Alertas criados:`, alertasObservador.length);
+        
+        // DEBUG: Mostrar alertas criados
+        if (alertasObservador.length > 0) {
+            console.log('📋 ALERTAS CRIADOS:');
+            alertasObservador.forEach((alerta, index) => {
+                console.log(`   ${index + 1}. ${alerta.titulo}: ${alerta.statusAntigo} → ${alerta.statusNovo}`);
+            });
+        }
         
         // Atualizar interface
         atualizarContadoresAlertas();
@@ -382,6 +484,12 @@ async function verificarAlertasObservador(usuarioAtual) {
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
     }
+}
+
+// Função para limpar o cache (opcional, para testes)
+function limparCacheAlertas() {
+    ultimoStatusNotificado = {};
+    console.log('🧹 Cache de alertas limpo');
 }
 
 // Função para verificar alertas de responsável - APENAS PENDENTES
