@@ -301,16 +301,14 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        // 1. BUSCAR ALERTAS DE OBSERVADOR - CORRIGIDO
+        // Verificar ambos tipos de alertas
         await verificarAlertasObservador(usuarioAtual);
-        
-        // 2. BUSCAR ALERTAS DE RESPONSÁVEL
         await verificarAlertasResponsavel(usuarioAtual);
         
-        // 3. Atualizar interface
+        // Atualizar interface
         atualizarContadoresAlertas();
         
-        // 4. Agendar próxima verificação em 30 segundos
+        // Verificar novamente em 30 segundos
         setTimeout(verificarAlertas, 30000);
         
     } catch (error) {
@@ -321,85 +319,60 @@ async function verificarAlertas() {
 // Função para verificar alertas de observador
 async function verificarAlertasObservador(usuarioAtual) {
     try {
-        console.log(`🔍 Verificando alertas para observador: ${usuarioAtual}`);
+        console.log(`🔍 Buscando atividades do observador: ${usuarioAtual}`);
         
-        // Buscar atividades onde o usuário é observador
+        // Buscar TUDO onde o usuário é observador
         const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual)
-            .orderBy('dataAtualizacao', 'desc')
-            .limit(50)
             .get();
         
-        const atividadesComoObservador = snapshot.docs.map(doc => ({
+        const atividades = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
         
-        console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
-        
-        // Criar novos alertas para alterações recentes
-        const novosAlertas = [];
-        const agora = new Date();
-        
-        atividadesComoObservador.forEach(atividade => {
-            // Verificar se tem data de atualização
-            if (atividade.dataAtualizacao) {
-                const dataAtualizacao = atividade.dataAtualizacao.toDate 
-                    ? atividade.dataAtualizacao.toDate()
-                    : new Date(atividade.dataAtualizacao);
-                
-                // Verificar se é uma atualização recente (últimas 24 horas)
-                const horasDesdeAtualizacao = (agora - dataAtualizacao) / (1000 * 60 * 60);
-                
-                if (horasDesdeAtualizacao <= 24) {
-                    // Verificar se esta atividade já teve mudança de status
-                    // Criar ID único para esta alteração
-                    const alertaId = `obs_${atividade.id}_${dataAtualizacao.getTime()}`;
-                    
-                    // Verificar se o usuário já viu este alerta
-                    if (!alertasLidosObservador.has(alertaId)) {
-                        
-                        // Obter informação do status anterior (se disponível)
-                        const statusAnterior = atividade.statusAnterior || 'desconhecido';
-                        const statusAtual = atividade.status || 'nao_iniciado';
-                        
-                        // Só criar alerta se houver mudança real de status
-                        if (statusAnterior !== 'desconhecido' && statusAnterior !== statusAtual) {
-                            console.log(`📊 Status alterado: ${statusAnterior} → ${statusAtual}`);
-                            
-                            novosAlertas.push({
-                                id: alertaId,
-                                atividadeId: atividade.id,
-                                titulo: atividade.titulo || 'Atividade sem título',
-                                statusAntigo: statusAnterior,
-                                statusNovo: statusAtual,
-                                dataAlteracao: dataAtualizacao,
-                                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
-                                tipo: 'observador',
-                                descricao: atividade.descricao || '',
-                                responsavel: atividade.responsavel || 'Não definido'
-                            });
-                        }
-                    }
-                }
-            }
+        console.log(`📋 Atividades encontradas:`, atividades.length);
+        console.log(`📊 Detalhes das atividades:`);
+        atividades.forEach(atividade => {
+            console.log(`   - ${atividade.titulo}: Status=${atividade.status}, StatusAnterior=${atividade.statusAnterior}`);
         });
         
-        // Combinar novos alertas com os existentes
-        // Remover alertas duplicados (por atividade)
-        const alertasUnicos = {};
-        [...novosAlertas, ...alertasObservador].forEach(alerta => {
-            alertasUnicos[alerta.id] = alerta;
+        // Verificar se alguma atividade tem statusAnterior diferente do status atual
+        const atividadesComMudanca = atividades.filter(atividade => {
+            // Se não tem statusAnterior, não sabemos se mudou
+            if (!atividade.statusAnterior) return false;
+            
+            // Se são diferentes, houve mudança
+            return atividade.statusAnterior !== atividade.status;
         });
         
-        alertasObservador = Object.values(alertasUnicos)
-            .sort((a, b) => new Date(b.dataAlteracao) - new Date(a.dataAlteracao))
-            .slice(0, 50); // Manter apenas os 50 mais recentes
+        console.log(`🔄 Atividades com mudança:`, atividadesComMudanca.length);
         
-        console.log(`✅ ${novosAlertas.length} novos alertas de observador encontrados`);
+        // Criar alertas para todas as mudanças encontradas
+        alertasObservador = atividadesComMudanca.map(atividade => {
+            const dataAlteracao = atividade.dataAtualizacao?.toDate() || new Date();
+            const alertaId = `obs_${atividade.id}_${dataAlteracao.getTime()}`;
+            
+            return {
+                id: alertaId,
+                atividadeId: atividade.id,
+                titulo: atividade.titulo || 'Atividade sem título',
+                statusAntigo: atividade.statusAnterior,
+                statusNovo: atividade.status,
+                dataAlteracao: dataAlteracao,
+                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                tipo: 'observador',
+                descricao: atividade.descricao || ''
+            };
+        });
+        
+        console.log(`✅ Alertas criados:`, alertasObservador.length);
+        
+        // Atualizar interface
+        atualizarContadoresAlertas();
         
     } catch (error) {
-        console.error('❌ Erro ao verificar alertas de observador:', error);
+        console.error('❌ Erro em alertas de observador:', error);
     }
 }
 
