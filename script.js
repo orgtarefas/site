@@ -225,9 +225,9 @@ function configurarFirebase() {
                 if (change.type === 'modified') {
                     const novaAtividade = change.doc.data();
                     
-                    // Obter dados antigos se disponíveis
-                    if (change.doc.previous && typeof change.doc.previous.data === 'function') {
-                        const atividadeAntiga = change.doc.previous.data();
+                    // Obter dados antigos
+                    if (change.doc._previousData) {
+                        const atividadeAntiga = change.doc._previousData;
                         
                         if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
                             console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
@@ -239,6 +239,10 @@ function configurarFirebase() {
                     }
                 }
             });
+            
+            // Verificar alertas a cada mudança
+            setTimeout(verificarAlertas, 1000);
+        });
             
             // Verificar alertas a cada mudança (com delay para evitar loops)
             setTimeout(() => {
@@ -560,9 +564,19 @@ async function verificarAlertasResponsavel(usuarioAtual) {
         
         console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
         
-        // Criar alertas para atividades pendentes
+        // Atualizar array de alertas (substituir completamente)
         alertasResponsavel = atividadesPendentes.map(atividade => {
             const alertaId = `resp_${atividade.id}`;
+            
+            // Buscar nome da tarefa
+            let tarefaNome = 'Tarefa desconhecida';
+            if (atividade.tarefaId) {
+                // Buscar em cache local
+                const tarefa = tarefas.find(t => t.id === atividade.tarefaId);
+                if (tarefa) {
+                    tarefaNome = tarefa.titulo || 'Tarefa desconhecida';
+                }
+            }
             
             return {
                 id: alertaId,
@@ -570,7 +584,7 @@ async function verificarAlertasResponsavel(usuarioAtual) {
                 titulo: atividade.titulo || 'Atividade sem título',
                 status: 'pendente',
                 dataCriacao: new Date(),
-                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
+                tarefaNome: tarefaNome,
                 tipo: 'responsavel',
                 dataPrevista: atividade.dataPrevista,
                 descricao: atividade.descricao || '',
@@ -893,7 +907,6 @@ function renderizarAlertasResponsavel() {
     }
     
     const alertasHTML = alertasResponsavel.map(alerta => {
-        const isLido = alertasLidosResponsavel.has(alerta.id);
         const tempoAtras = formatarTempoAtras(alerta.dataCriacao);
         const dataPrevista = alerta.dataPrevista ? 
             `<div class="alert-data-prevista">
@@ -903,7 +916,7 @@ function renderizarAlertasResponsavel() {
             '';
         
         return `
-            <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
+            <div class="alert-item unread" data-alerta-id="${alerta.id}">
                 <div class="alert-item-header">
                     <div class="alert-item-title">
                         <i class="fas fa-user-check"></i>
@@ -920,11 +933,9 @@ function renderizarAlertasResponsavel() {
                     ${dataPrevista}
                 </div>
                 <div class="alert-actions">
-                    ${!isLido ? `
-                        <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
-                            <i class="fas fa-check"></i> Visualizado
-                        </button>
-                    ` : ''}
+                    <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
+                        <i class="fas fa-check"></i> Visualizado
+                    </button>
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
                         <i class="fas fa-external-link-alt"></i> Resolver
                     </button>
