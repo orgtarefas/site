@@ -65,6 +65,20 @@ document.addEventListener('DOMContentLoaded', function() {
 function inicializarSistema() {
     console.log('🔥 Inicializando Firebase...');
     document.getElementById('loadingText').textContent = 'Conectando ao banco de dados...';
+
+    // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
+    const observadorCountEl = document.getElementById('observadorAlertCount');
+    const responsavelCountEl = document.getElementById('responsavelAlertCount');
+    
+    if (observadorCountEl) {
+        observadorCountEl.textContent = '0';
+        observadorCountEl.style.display = 'none';
+    }
+    
+    if (responsavelCountEl) {
+        responsavelCountEl.textContent = '0';
+        responsavelCountEl.style.display = 'none';
+    }
     
     // Aguardar Firebase carregar
     if (!window.db) {
@@ -812,37 +826,35 @@ function atualizarContadoresAlertas() {
         return; // Sair se não for a página home
     }
     
+    // Inicializa as variáveis se não existirem
+    alertasObservador = alertasObservador || [];
+    alertasResponsavel = alertasResponsavel || [];
+    
     // Para observador: todos os alertas na lista são não lidos
     const naoLidosObservador = alertasObservador.length;
     
     // Para responsável: todos os alertas na lista são não lidos
     const naoLidosResponsavel = alertasResponsavel.length;
     
-    // Atualizar contadores na interface
-    document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
-    document.getElementById('responsavelAlertCount').textContent = naoLidosResponsavel;
+    // DEBUG: Log para verificar valores
+    console.log(`🔢 Contadores: Observador=${naoLidosObservador}, Responsável=${naoLidosResponsavel}`);
     
-    // Mostrar/ocultar contadores
-    document.getElementById('observadorAlertCount').style.display = 
-        naoLidosObservador > 0 ? 'flex' : 'none';
-    document.getElementById('responsavelAlertCount').style.display = 
-        naoLidosResponsavel > 0 ? 'flex' : 'none';
-
-    // aqui2
-    // Mostrar notificação apenas para pendências (responsável)
-    //if (naoLidosResponsavel > 0) {
-     //   setTimeout(() => {
-      //      mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
-       // }, 1000);
-    // }
-
-    // aqui3
-    // Mostrar notificação para observador também
-    //if (naoLidosObservador > 0) {
-    //    setTimeout(() => {
-    //        mostrarNotificacaoRapida(`${naoLidosObservador} atividade(s) tiveram mudança de status`);
-    //    }, 1500);
-    // }
+    // Obter elementos DOM
+    const observadorCountEl = document.getElementById('observadorAlertCount');
+    const responsavelCountEl = document.getElementById('responsavelAlertCount');
+    
+    // Verificar se elementos existem antes de atualizar
+    if (observadorCountEl) {
+        observadorCountEl.textContent = naoLidosObservador;
+        observadorCountEl.style.display = naoLidosObservador > 0 ? 'flex' : 'none';
+    }
+    
+    if (responsavelCountEl) {
+        responsavelCountEl.textContent = naoLidosResponsavel;
+        responsavelCountEl.style.display = naoLidosResponsavel > 0 ? 'flex' : 'none';
+    }
+    
+    console.log('✅ Contadores atualizados');
 }
 
 // Função para abrir dropdown de alertas de observador
