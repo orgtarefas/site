@@ -80,25 +80,6 @@ function inicializarSistema() {
         carregarGrupos();
         configurarFirebase();
         
-        // VERIFICAR SE É A PÁGINA HOME (index.html) ANTES DE INICIAR ALERTAS
-        const isHomePage = window.location.pathname.includes('index.html') || 
-                          window.location.pathname.endsWith('/');
-        
-        if (isHomePage) {
-            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
-            
-            // Iniciar verificação de alertas após 3 segundos
-            setTimeout(() => {
-                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-                if (usuarioLogado) {
-                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
-                    verificarAlertas();
-                }
-            }, 3000);
-        } else {
-            console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
-        }
-        
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
         document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline';
