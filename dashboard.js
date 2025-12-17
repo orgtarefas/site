@@ -2198,13 +2198,12 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         }
         
         const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
-        const statusAnterior = select ? select.value : 'nao_iniciado';
         
         if (novoStatus === 'concluido') {
             const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
             
             if (!confirmar) {
-                if (select) select.value = statusAnterior;
+                if (select) select.value = atividade.status;
                 return;
             }
         }
@@ -2214,18 +2213,29 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             select.disabled = true;
         }
         
-        // IMPORTANTE: Atualizar statusAnterior e status
+        // IMPORTANTE: Preparar observadores com asterisco
+        const observadores = atividade.observadores || [];
+        const observadoresComAsterisco = observadores.map(obs => {
+            // Se já tem asterisco, mantém
+            if (obs.endsWith('*')) {
+                return obs;
+            }
+            // Se não tem asterisco, adiciona
+            return obs + '*';
+        });
+        
+        console.log(`📝 Observadores com asterisco:`, observadoresComAsterisco);
+        
+        // Atualizar no Firestore com statusAnterior, status E observadores
         await db.collection('atividades').doc(atividadeId).update({
             statusAnterior: atividade.status, // Salvar status anterior
             status: novoStatus, // Definir novo status
+            observadores: observadoresComAsterisco, // Adicionar asterisco aos observadores
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-            // NÃO atualize os observadores aqui - isso será feito pelo listener
         });
         
         console.log(`✅ Status da atividade "${tituloAtividade}" alterado: ${atividade.status} → ${novoStatus}`);
-        
-        // Log para debugging
-        console.log(`📝 StatusAnterior salvo como: ${atividade.status}`);
+        console.log(`✅ Asterisco adicionado a ${observadores.length} observador(es)`);
         
         const checklistItem = select ? select.closest('.checklist-item') : null;
         if (checklistItem) {
