@@ -236,9 +236,18 @@ body {
 
 
 /* Estilos para os sinos de alerta */
+/* Garantir que os dropdowns não se sobreponham */
 .alerts-container {
     position: relative;
     display: inline-block;
+}
+
+#observadorAlertDropdown {
+    right: 0;
+}
+
+#responsavelAlertDropdown {
+    right: 0;
 }
 
 .alert-bell {
@@ -255,6 +264,7 @@ body {
 }
 
 .alert-bell:hover {
+    transform: scale(1.1);
     background-color: rgba(0, 120, 212, 0.1);
     color: #0078d4;
 }
@@ -270,8 +280,8 @@ body {
 
 .alert-count {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: -3px; /* Ajustado */
+    right: -3px; /* Ajustado */
     background: #e74c3c;
     color: white;
     font-size: 0.7rem;
@@ -283,6 +293,8 @@ body {
     align-items: center;
     justify-content: center;
     padding: 2px;
+    z-index: 11; /* Acima do botão */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .observador-bell .alert-count {
