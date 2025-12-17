@@ -2219,6 +2219,7 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             statusAnterior: atividade.status, // Salvar status anterior
             status: novoStatus, // Definir novo status
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            // NÃO atualize os observadores aqui - isso será feito pelo listener
         });
         
         console.log(`✅ Status da atividade "${tituloAtividade}" alterado: ${atividade.status} → ${novoStatus}`);
