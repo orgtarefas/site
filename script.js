@@ -935,7 +935,7 @@ function renderizarAlertasObservador() {
                         <i class="fas fa-check-circle"></i> Marcar como Lido
                     </button>
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
-                        <i class="fas fa-external-link-alt"></i> Ver atividade
+                        <i class="fas fa-external-link-alt"></i> Ver Atividade
                     </button>
                 </div>
             </div>
@@ -1011,7 +1011,7 @@ function renderizarAlertasResponsavel() {
                 </div>
                 <div class="alert-actions">
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
-                        <i class="fas fa-external-link-alt"></i> Ver atividade
+                        <i class="fas fa-external-link-alt"></i> Ver Atividade
                     </button>
                 </div>
             </div>
