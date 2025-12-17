@@ -86,7 +86,9 @@ function inicializarSistema() {
         
         if (isHomePage) {
             console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
-            carregarAlertasLidos();
+            
+            // REMOVA ESTA LINHA:
+            // carregarAlertasLidos(); // ← REMOVER ESTA LINHA
             
             // Iniciar verificação de alertas após 1 segundo
             setTimeout(() => {
@@ -733,13 +735,11 @@ function atualizarContadoresAlertas() {
         return; // Sair se não for a página home
     }
     
-    // Contar alertas de observador (todos são não lidos)
+    // Para observador: todos os alertas na lista são não lidos
     const naoLidosObservador = alertasObservador.length;
     
-    // Para responsável (manter lógica antiga se necessário)
-    const naoLidosResponsavel = alertasResponsavel.filter(alerta => 
-        !alertasLidosResponsavel.has(alerta.id)
-    ).length;
+    // Para responsável: todos os alertas na lista são não lidos
+    const naoLidosResponsavel = alertasResponsavel.length;
     
     // Atualizar contadores na interface
     document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
@@ -981,8 +981,7 @@ async function marcarAlertaComoLido(alertaId, tipo) {
                 alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
             }
         } else {
-            // Para alertas de responsável (manter lógica existente se necessário)
-            alertasLidosResponsavel.add(alertaId);
+            alertasResponsavel = alertasResponsavel.filter(a => a.id !== alertaId);
         }
         
         // Atualizar interface
