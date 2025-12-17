@@ -367,6 +367,11 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         // Atualizar contadores
         atualizarContadoresAlertas();
         
+        // Mostrar notificação rápida
+        setTimeout(() => {
+            mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
+        }, 500);
+        
     } catch (error) {
         console.error('❌ Erro ao gerar alertas para observadores:', error);
     }
@@ -568,6 +573,12 @@ async function verificarAlertasObservador(usuarioAtual) {
         // Atualizar interface
         atualizarContadoresAlertas();
         
+        // Se houver novos alertas, mostrar notificação
+        if (alertasObservador.length > 0) {
+            setTimeout(() => {
+                mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
+            }, 1000);
+        }
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
@@ -781,7 +792,20 @@ function atualizarContadoresAlertas() {
         naoLidosObservador > 0 ? 'flex' : 'none';
     document.getElementById('responsavelAlertCount').style.display = 
         naoLidosResponsavel > 0 ? 'flex' : 'none';
-
+    
+    // Mostrar notificação apenas para pendências (responsável)
+    if (naoLidosResponsavel > 0) {
+        setTimeout(() => {
+            mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
+        }, 1000);
+    }
+    
+    // Mostrar notificação para observador também
+    if (naoLidosObservador > 0) {
+        setTimeout(() => {
+            mostrarNotificacaoRapida(`${naoLidosObservador} atividade(s) tiveram mudança de status`);
+        }, 1500);
+    }
 }
 
 // Função para abrir dropdown de alertas de observador
