@@ -1956,13 +1956,14 @@ async function salvarAtividade(tarefaId, tipo) {
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // IMPORTANTE: NÃO alterar o status na edição
+    // IMPORTANTE: Definir status anterior e status atual
     if (gestorAtividades && gestorAtividades.atividadeEditando) {
-        // Se está editando, NÃO incluir o status nos dados
-        // O status permanece o mesmo
+        // Se está editando, NÃO alterar o status e statusAnterior
+        // Esses campos permanecem como estão no Firestore
     } else {
-        // Se está criando nova, definir como 'nao_iniciado'
+        // Se está criando nova, definir ambos como 'nao_iniciado'
         atividade.status = 'nao_iniciado';
+        atividade.statusAnterior = 'nao_iniciado'; // ← NOVO CAMPO
         // Adicionar quem criou a atividade
         atividade.criadoPor = gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido';
     }
@@ -1971,7 +1972,7 @@ async function salvarAtividade(tarefaId, tipo) {
         let atividadeId;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
-            // Se está editando, usar update mantendo o status atual
+            // Se está editando, usar update mantendo status e statusAnterior
             atividadeId = gestorAtividades.atividadeEditando;
             
             // 1. Buscar vínculos antigos para remover
@@ -1979,7 +1980,10 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal (exceto status e criadoPor)
+            // 2. Atualizar a atividade principal (NÃO incluir status ou statusAnterior)
+            delete atividade.status; // Remover para não atualizar
+            delete atividade.statusAnterior; // Remover para não atualizar
+            
             await db.collection('atividades').doc(atividadeId).update(atividade);
             console.log(`✅ Atividade ${atividadeId} atualizada`);
             
@@ -2002,13 +2006,13 @@ async function salvarAtividade(tarefaId, tipo) {
             }
             
         } else {
-            // Criar nova atividade (com status 'nao_iniciado' e criadoPor)
+            // Criar nova atividade (com status e statusAnterior como 'nao_iniciado')
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
             atividadeId = docRef.id;
-            console.log(`✅ Nova atividade ${atividadeId} criada por ${atividade.criadoPor}`);
+            console.log(`✅ Nova atividade ${atividadeId} criada com statusAnterior: nao_iniciado`);
         }
         
         // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
@@ -2187,6 +2191,12 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             return;
         }
         
+        // Verificar se realmente há mudança de status
+        if (atividade.status === novoStatus) {
+            console.log(`ℹ️ Status já é ${novoStatus}, sem alteração necessária`);
+            return;
+        }
+        
         const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
         const statusAnterior = select ? select.value : 'nao_iniciado';
         
@@ -2204,12 +2214,17 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             select.disabled = true;
         }
         
+        // IMPORTANTE: Atualizar statusAnterior e status
         await db.collection('atividades').doc(atividadeId).update({
-            status: novoStatus,
+            statusAnterior: atividade.status, // Salvar status anterior
+            status: novoStatus, // Definir novo status
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log(`✅ Status da atividade "${tituloAtividade}" alterado para: ${novoStatus}`);
+        console.log(`✅ Status da atividade "${tituloAtividade}" alterado: ${atividade.status} → ${novoStatus}`);
+        
+        // Log para debugging
+        console.log(`📝 StatusAnterior salvo como: ${atividade.status}`);
         
         const checklistItem = select ? select.closest('.checklist-item') : null;
         if (checklistItem) {
@@ -2248,6 +2263,7 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
         }
     }
 }
+
 
 // ========== INICIALIZAÇÃO ==========
 
