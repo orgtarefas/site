@@ -90,19 +90,14 @@ function inicializarSistema() {
             // Configurar listener específico para observadores
             configurarListenerObservadores();
             
-            // Iniciar verificação de alertas
+            // Iniciar verificação de alertas após 3 segundos
             setTimeout(() => {
-                verificarInicialAlertas();
-                
-                // Verificação periódica a cada 30 segundos
-                setInterval(() => {
-                    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-                    if (usuarioLogado) {
-                        verificarAlertasObservador(usuarioLogado.usuario);
-                        verificarAlertasResponsavel(usuarioLogado.usuario);
-                    }
-                }, 30000);
-            }, 2000);
+                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+                if (usuarioLogado) {
+                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
+                    verificarAlertas();
+                }
+            }, 3000);
         } else {
             console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
@@ -279,10 +274,12 @@ async function sincronizarAsteriscosObservadores() {
         
         console.log('🔄 Sincronizando asteriscos para observadores...');
         
-        // Buscar atividades onde o usuário é observador
+        // Buscar atividades onde o usuário é observador (sem asterisco)
         const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual)
             .get();
+        
+        console.log(`📋 Encontradas ${snapshot.docs.length} atividades onde o usuário é observador (sem asterisco)`);
         
         const batch = db.batch();
         let atualizadas = 0;
@@ -296,22 +293,24 @@ async function sincronizarAsteriscosObservadores() {
             const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
             
             if (status !== statusAnterior) {
-                // Adicionar asterisco apenas para este usuário
-                const observadoresAtualizados = observadores.map(obs => {
-                    if (obs === usuarioAtual && !obs.endsWith('*')) {
-                        return obs + '*';
-                    }
-                    return obs;
-                });
+                // Verificar se JÁ TEM asterisco
+                const jaTemAsterisco = observadores.includes(usuarioAtual + '*');
                 
-                // Se houve mudança, atualizar
-                if (JSON.stringify(observadores) !== JSON.stringify(observadoresAtualizados)) {
+                if (!jaTemAsterisco) {
+                    // Adicionar asterisco apenas para este usuário
+                    const observadoresAtualizados = observadores.map(obs => {
+                        if (obs === usuarioAtual) {
+                            return obs + '*'; // Adiciona asterisco
+                        }
+                        return obs;
+                    });
+                    
                     batch.update(doc.ref, {
                         observadores: observadoresAtualizados,
                         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     atualizadas++;
-                    console.log(`✅ Adicionado asterisco para ${usuarioAtual} na atividade ${doc.id}`);
+                    console.log(`✅ Adicionado asterisco para ${usuarioAtual} na atividade "${atividade.titulo}" (${statusAnterior} → ${status})`);
                 }
             }
         });
@@ -320,7 +319,7 @@ async function sincronizarAsteriscosObservadores() {
             await batch.commit();
             console.log(`✅ ${atualizadas} atividades atualizadas com asterisco`);
         } else {
-            console.log('ℹ️ Nenhuma atividade precisa de asterisco');
+            console.log('ℹ️ Nenhuma atividade precisa de asterisco (todas já sincronizadas ou status iguais)');
         }
         
     } catch (error) {
@@ -359,6 +358,24 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         }
         
         console.log(`👥 Observadores encontrados:`, observadores);
+        
+        // IMPORTANTE: Primeiro, garantir que todos os observadores têm asterisco
+        const observadoresComAsterisco = observadores.map(obs => {
+            // Se já tem asterisco, mantém
+            if (obs.endsWith('*')) {
+                return obs;
+            }
+            // Adiciona asterisco
+            return obs + '*';
+        });
+        
+        // Atualizar no Firestore com os asteriscos
+        await db.collection('atividades').doc(atividadeId).update({
+            observadores: observadoresComAsterisco,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log(`✅ Asteriscos adicionados aos observadores`);
         
         // Obter usuário logado
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -424,7 +441,6 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         console.error('❌ Erro ao gerar alertas para observadores:', error);
     }
 }
-
 
 
 // Função para forçar verificação de alertas (pode ser chamada manualmente)
@@ -497,28 +513,6 @@ function configurarListenerObservadores() {
         });
 }
 
-// Função para limpar alertas antigos
-function limparAlertasAntigos(usuarioAtual) {
-    const agora = new Date();
-    const umaHoraAtras = agora.getTime() - (60 * 60 * 1000); // 1 hora atrás
-    
-    // Limpar alertas de observador antigos
-    alertasObservador = alertasObservador.filter(alerta => {
-        const dataAlerta = new Date(alerta.dataAlteracao).getTime();
-        return dataAlerta > umaHoraAtras;
-    });
-    
-    // Limpar IDs lidos antigos (mantém apenas últimos 100)
-    const alertasLidosArray = [...alertasLidosObservador];
-    if (alertasLidosArray.length > 100) {
-        const novosLidos = new Set(alertasLidosArray.slice(0, 100));
-        alertasLidosObservador = novosLidos;
-        localStorage.setItem('alertasLidosObservador', JSON.stringify([...novosLidos]));
-    }
-    
-    console.log(`🧹 Alertas limpos: ${alertasObservador.length} ativos, ${alertasLidosObservador.size} lidos`);
-}
-
 async function carregarAtividadesParaTodasTarefas() {
     console.log('📋 Carregando atividades para todas as tarefas...');
     
@@ -578,8 +572,13 @@ async function verificarAlertas() {
         
         console.log('🔄 Iniciando verificação completa de alertas...');
         
-        // Primeiro, verificar ambos tipos de alertas
+        // PRIMEIRO: Sincronizar asteriscos para atividades que precisam
+        await sincronizarAsteriscosObservadores();
+        
+        // SEGUNDO: Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
+        
+        // TERCEIRO: Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
         // Atualizar interface
@@ -600,60 +599,32 @@ async function verificarAlertas() {
 async function verificarAlertasObservador(usuarioAtual) {
     try {
         console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
-                
-        // Primeiro, buscar atividades onde o usuário é observador SEM asterisco
-        const snapshotSemAsterisco = await db.collection('atividades')
-            .where('observadores', 'array-contains', usuarioAtual)
-            .get();
         
-        // Segundo, buscar atividades onde o usuário é observador COM asterisco
-        const snapshotComAsterisco = await db.collection('atividades')
+        // Buscar atividades onde o usuário é observador COM asterisco
+        const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual + '*')
             .get();
         
-        // Combinar resultados únicos
-        const todasAtividades = new Map();
+        console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
         
-        // Adicionar atividades sem asterisco
-        snapshotSemAsterisco.docs.forEach(doc => {
-            todasAtividades.set(doc.id, {
-                id: doc.id,
-                ...doc.data()
-            });
+        // DEBUG: Mostrar o que foi encontrado
+        snapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
+            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
         });
         
-        // Adicionar atividades com asterisco (substitui se já existir)
-        snapshotComAsterisco.docs.forEach(doc => {
-            todasAtividades.set(doc.id, {
-                id: doc.id,
-                ...doc.data()
-            });
-        });
+        const atividades = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         
-        const atividadesArray = Array.from(todasAtividades.values());
-        
-        console.log(`📋 Total de atividades únicas: ${atividadesArray.length}`);
-        
-        // Filtrar atividades onde o usuário TEM asterisco (não viu) E status mudou
-        const atividadesComAlerta = atividadesArray.filter(atividade => {
-            const observadores = atividade.observadores || [];
-            
-            // Verificar se o usuário tem asterisco
-            const temAsterisco = observadores.includes(usuarioAtual + '*');
-            
-            if (!temAsterisco) return false;
-            
-            // Verificar se realmente houve mudança de status
+        // Filtrar atividades onde status é diferente de statusAnterior
+        const atividadesComAlerta = atividades.filter(atividade => {
             const status = atividade.status || 'nao_iniciado';
             const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
             
-            const statusDiferente = status !== statusAnterior;
-            
-            if (statusDiferente) {
-                console.log(`🔄 Atividade "${atividade.titulo}": ${statusAnterior} → ${status} [TEM ASTERISCO]`);
-            }
-            
-            return statusDiferente;
+            return status !== statusAnterior;
         });
         
         console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
@@ -818,69 +789,8 @@ async function verificarAlertasResponsavel(usuarioAtual) {
     }
 }
 
-// função para rastrear mudanças de status nas atividades
-async function monitorarMudancasStatusAtividades() {
-    console.log('🔄 Monitorando mudanças de status em atividades...');
-    
-    // Listener para atividades
-    db.collection('atividades')
-        .onSnapshot((snapshot) => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'modified') {
-                    const novaAtividade = change.doc.data();
-                    const atividadeAntiga = change.doc.previous.data();
-                    
-                    // Verificar se o status mudou
-                    if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
-                        console.log(`🔄 Status alterado na atividade ${change.doc.id}:`, 
-                                  atividadeAntiga.status, '→', novaAtividade.status);
-                        
-                        // Atualizar histórico de status
-                        db.collection('atividades').doc(change.doc.id).update({
-                            statusAnterior: atividadeAntiga.status,
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        }).then(() => {
-                            console.log('✅ Histórico de status atualizado');
-                            // Forçar nova verificação de alertas
-                            setTimeout(verificarAlertas, 1000);
-                        });
-                    }
-                }
-            });
-        });
-}
-
-
 // Variável para histórico de status
 let historicoStatus = {};
-
-// Função para carregar histórico de alterações de status
-async function carregarHistoricoStatus(usuarioAtual) {
-    try {
-        // Buscar histórico das últimas 24 horas
-        const vinteQuatroHorasAtras = new Date();
-        vinteQuatroHorasAtras.setHours(vinteQuatroHorasAtras.getHours() - 24);
-        
-        const snapshot = await db.collection('atividades')
-            .where('observadores', 'array-contains', usuarioAtual)
-            .where('dataAtualizacao', '>=', vinteQuatroHorasAtras)
-            .get();
-        
-        historicoStatus = {};
-        
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            historicoStatus[doc.id] = {
-                ultimaAlteracao: data.dataAtualizacao,
-                statusAnterior: data.statusAnterior || 'nao_iniciado',
-                statusAtual: data.status || 'nao_iniciado'
-            };
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar histórico de status:', error);
-    }
-}
 
 // Função para mostrar notificação rápida
 // Atualize a função mostrarNotificacaoRapida:
@@ -1250,28 +1160,6 @@ async function marcarAlertaComoLido(alertaId, tipo) {
     } catch (error) {
         console.error('❌ Erro ao marcar alerta como lido:', error);
     }
-}
-
-// Função para marcar todos os alertas de observador como lido
-function marcarTodosAlertasObservadorComoLido() {
-    alertasObservador.forEach(alerta => {
-        alertasLidosObservador.add(alerta.id);
-    });
-    
-    localStorage.setItem('alertasLidosObservador', JSON.stringify([...alertasLidosObservador]));
-    atualizarContadoresAlertas();
-    renderizarAlertasObservador();
-}
-
-// Função para marcar todas as pendências como visualizado
-function marcarTodasPendenciasComoLido() {
-    alertasResponsavel.forEach(alerta => {
-        alertasLidosResponsavel.add(alerta.id);
-    });
-    
-    localStorage.setItem('alertasLidosResponsavel', JSON.stringify([...alertasLidosResponsavel]));
-    atualizarContadoresAlertas();
-    renderizarAlertasResponsavel();
 }
 
 // Função para formatar tempo atrás
