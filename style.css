@@ -260,11 +260,12 @@ body {
 }
 
 .observador-bell {
-    color: #f39c12; /* Laranja para observador */
+    color: #e74c3c; /* Vermelho para observador */
 }
 
+
 .responsavel-bell {
-    color: #e74c3c; /* Vermelho para responsável */
+    color: #f39c12; /* Laranja para pendente responsável */
 }
 
 .alert-count {
@@ -285,11 +286,11 @@ body {
 }
 
 .observador-bell .alert-count {
-    background: #f39c12; /* Laranja para observador */
+    background: #e74c3c; /* Vermelho para observador */
 }
 
 .responsavel-bell .alert-count {
-    background: #e74c3c; /* Vermelho para responsável */
+    background: #f39c3c; /* Laranja para responsável */
 }
 
 .alert-dropdown {
