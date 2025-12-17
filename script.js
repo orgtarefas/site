@@ -85,13 +85,19 @@ function inicializarSistema() {
                           window.location.pathname.endsWith('/');
         
         if (isHomePage) {
-            console.log('🏠 Página Home detectada - Configurando sistema de alertas');
+            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
             
             // Configurar listener específico para observadores
             configurarListenerObservadores();
             
-            // NÃO iniciar verificação automática de alertas
-            // O usuário pode chamar manualmente se quiser
+            // Iniciar verificação de alertas após 3 segundos
+            setTimeout(() => {
+                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+                if (usuarioLogado) {
+                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
+                    verificarAlertas();
+                }
+            }, 3000);
         } else {
             console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
@@ -199,8 +205,8 @@ function configurarFirebase() {
                 
                 atualizarInterface();
                 
-                // REMOVIDO: Não iniciar alertas automaticamente aqui
-                // setTimeout(verificarAlertas, 1000);
+                // Iniciar alertas
+                setTimeout(verificarAlertas, 1000);
             },
             (error) => {
                 console.error('❌ Erro no Firestore:', error);
@@ -235,6 +241,8 @@ function configurarFirebase() {
                         
                         if (statusAntigo !== statusNovo) {
                             console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
+                            console.log(`📋 Dados antigos:`, atividadeAntiga);
+                            console.log(`📋 Dados novos:`, novaAtividade);
                             
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
@@ -245,7 +253,15 @@ function configurarFirebase() {
                 }
             });
             
+            // Verificar alertas após mudanças
+            setTimeout(() => {
+                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+                if (usuarioLogado) {
+                    verificarAlertas();
+                }
+            }, 1500);
         });
+
 }
 
 // Torna a função global
@@ -412,9 +428,20 @@ function configurarListenerObservadores() {
                         
                         if (!tinhaAsteriscoAntes && temAsteriscoAgora) {
                             console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
-                            // APENAS atualizar contadores, não forçar verificação completa
-                            atualizarContadoresAlertas();
+                            // Forçar verificação completa
+                            setTimeout(() => {
+                                verificarAlertasObservador(usuarioAtual);
+                            }, 1000);
                         }
+                    }
+                    
+                    // Verificar também se o status mudou (para garantir)
+                    if (atividadeAntiga.status !== novaAtividade.status) {
+                        console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+                        // Forçar verificação
+                        setTimeout(() => {
+                            verificarAlertasObservador(usuarioAtual);
+                        }, 1500);
                     }
                 }
             });
@@ -480,12 +507,6 @@ async function verificarAlertas() {
         
         console.log('🔄 Iniciando verificação completa de alertas...');
         
-        // RESETAR CONTADORES ANTES DE CARREGAR
-        document.getElementById('observadorAlertCount').style.display = 'none';
-        document.getElementById('observadorAlertCount').textContent = '0';
-        
-        document.getElementById('responsavelAlertCount').style.display = 'none';
-        document.getElementById('responsavelAlertCount').textContent = '0';
         
         // Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
@@ -493,14 +514,14 @@ async function verificarAlertas() {
         // Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
-        // Atualizar interface APENAS DEPOIS de carregar tudo
+        // Atualizar interface
         atualizarContadoresAlertas();
         
         // DEBUG: Mostrar estado atual dos alertas
         console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
         
-        // REMOVIDO: Não verificar novamente automaticamente
-        // setTimeout(verificarAlertas, 30000);
+        // Verificar novamente em 30 segundos
+        setTimeout(verificarAlertas, 30000);
         
     } catch (error) {
         console.error('❌ Erro ao verificar alertas:', error);
@@ -512,15 +533,19 @@ async function verificarAlertasObservador(usuarioAtual) {
     try {
         console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
         
-        // Limpar alertas ANTES de buscar novos
-        alertasObservador = [];
-        
-        // BUSCAR COM PROMISE PARA GARANTIR SINCORNIZAÇÃO
+        // Buscar atividades onde o usuário é observador COM asterisco
         const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual + '*')
             .get();
         
         console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
+        
+        // DEBUG: Mostrar o que foi encontrado
+        snapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
+            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
+        });
         
         const atividades = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -536,6 +561,9 @@ async function verificarAlertasObservador(usuarioAtual) {
         });
         
         console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
+        
+        // Limpar alertas anteriores
+        alertasObservador = [];
         
         // Criar alertas para cada atividade
         for (const atividade of atividadesComAlerta) {
@@ -574,13 +602,19 @@ async function verificarAlertasObservador(usuarioAtual) {
             console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
-        // NÃO ATUALIZAR AQUI - será atualizado pela função principal
-        console.log(`✅ Carregamento observador concluído: ${alertasObservador.length} alertas`);
+        // Atualizar interface
+        atualizarContadoresAlertas();
+
+        // aqui1
+        // Se houver novos alertas, mostrar notificação
+        //if (alertasObservador.length > 0) {
+        //    setTimeout(() => {
+        //        mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
+        //    }, 1000);
+        //}
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
-        // Mesmo com erro, garantir que array está vazio
-        alertasObservador = [];
     }
 }
 
@@ -964,6 +998,9 @@ function renderizarAlertasResponsavel() {
                     ${dataPrevista}
                 </div>
                 <div class="alert-actions">
+                    <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
+                        <i class="fas fa-check"></i> Visualizado
+                    </button>
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
                         <i class="fas fa-external-link-alt"></i> Resolver
                     </button>
