@@ -216,40 +216,111 @@ function configurarFirebase() {
     // Listener para detectar mudanças de status e gerar alertas automáticos
     db.collection("atividades")
         .onSnapshot((snapshot) => {
-            console.log('🔄 Atualização de atividades');
+            console.log('🔄 Atualização de atividades - Total de documentos:', snapshot.size);
             
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             if (!usuarioLogado) return;
             
             snapshot.docChanges().forEach(change => {
+                console.log(`📝 Mudança tipo: ${change.type} - ID: ${change.doc.id}`);
+                
                 if (change.type === 'modified') {
                     const novaAtividade = change.doc.data();
                     
-                    // Obter dados antigos
+                    // Obter dados antigos da forma correta
                     if (change.doc._previousData) {
                         const atividadeAntiga = change.doc._previousData;
                         
-                        if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
-                            console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
-                            console.log(`📝 ID da atividade: ${change.doc.id}`);
+                        // Verificar se houve mudança de status
+                        const statusAntigo = atividadeAntiga.status || 'nao_iniciado';
+                        const statusNovo = novaAtividade.status || 'nao_iniciado';
+                        
+                        if (statusAntigo !== statusNovo) {
+                            console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
+                            console.log(`📋 Dados antigos:`, atividadeAntiga);
+                            console.log(`📋 Dados novos:`, novaAtividade);
                             
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
                         }
+                    } else {
+                        console.log('ℹ️ Sem dados anteriores disponíveis');
                     }
                 }
             });
             
-            // Verificar alertas a cada mudança
-            setTimeout(verificarAlertas, 1000);
-        });
-            
-            // Verificar alertas a cada mudança (com delay para evitar loops)
+            // Verificar alertas após mudanças
             setTimeout(() => {
-                verificarAlertas();
-            }, 1000);
+                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+                if (usuarioLogado) {
+                    verificarAlertas();
+                }
+            }, 1500);
+        });
 
 }
+
+// Função para adicionar asterisco em observadores de atividades existentes
+async function sincronizarAsteriscosObservadores() {
+    try {
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) return;
+        
+        const usuarioAtual = usuarioLogado.usuario;
+        
+        console.log('🔄 Sincronizando asteriscos para observadores...');
+        
+        // Buscar atividades onde o usuário é observador
+        const snapshot = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual)
+            .get();
+        
+        const batch = db.batch();
+        let atualizadas = 0;
+        
+        snapshot.docs.forEach(doc => {
+            const atividade = doc.data();
+            const observadores = atividade.observadores || [];
+            
+            // Verificar se o status é diferente do statusAnterior
+            const status = atividade.status || 'nao_iniciado';
+            const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
+            
+            if (status !== statusAnterior) {
+                // Adicionar asterisco apenas para este usuário
+                const observadoresAtualizados = observadores.map(obs => {
+                    if (obs === usuarioAtual && !obs.endsWith('*')) {
+                        return obs + '*';
+                    }
+                    return obs;
+                });
+                
+                // Se houve mudança, atualizar
+                if (JSON.stringify(observadores) !== JSON.stringify(observadoresAtualizados)) {
+                    batch.update(doc.ref, {
+                        observadores: observadoresAtualizados,
+                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    atualizadas++;
+                    console.log(`✅ Adicionado asterisco para ${usuarioAtual} na atividade ${doc.id}`);
+                }
+            }
+        });
+        
+        if (atualizadas > 0) {
+            await batch.commit();
+            console.log(`✅ ${atualizadas} atividades atualizadas com asterisco`);
+        } else {
+            console.log('ℹ️ Nenhuma atividade precisa de asterisco');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar asteriscos:', error);
+    }
+}
+
+// Torna global
+window.sincronizarAsteriscosObservadores = sincronizarAsteriscosObservadores;
 
 // Torna a função global
 window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
@@ -257,11 +328,15 @@ window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
 // Função para gerar alertas automaticamente para observadores quando status muda
 async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividadeAntiga) {
     try {
-        console.log(`🔔 Gerando alertas para observadores da atividade ${atividadeId}`);
-        console.log(`📊 Status: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+        console.log(`🔔 GERAR ALERTA: Atividade ${atividadeId}`);
+        console.log(`📊 Status anterior: ${atividadeAntiga.status || 'não definido'}`);
+        console.log(`📊 Status novo: ${novaAtividade.status || 'não definido'}`);
         
         // Verificar se realmente houve mudança
-        if (atividadeAntiga.status === novaAtividade.status) {
+        const statusAntigo = atividadeAntiga.status || 'nao_iniciado';
+        const statusNovo = novaAtividade.status || 'nao_iniciado';
+        
+        if (statusAntigo === statusNovo) {
             console.log('ℹ️ Sem mudança real de status, ignorando');
             return;
         }
@@ -274,78 +349,67 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
             return;
         }
         
-        console.log(`👥 Observadores atuais:`, observadores);
+        console.log(`👥 Observadores encontrados:`, observadores);
         
-        // Criar array de observadores com asterisco para quem não viu
-        const observadoresComAsterisco = observadores.map(obs => {
-            // Verificar se já tem asterisco
-            if (obs.endsWith('*')) {
-                return obs; // Já tem asterisco, mantém
-            }
-            return obs + '*'; // Adiciona asterisco
-        });
-        
-        console.log(`👥 Observadores com asterisco:`, observadoresComAsterisco);
-        
-        // Atualizar no Firestore
-        await db.collection('atividades').doc(atividadeId).update({
-            observadores: observadoresComAsterisco,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        console.log('✅ Asteriscos adicionados aos observadores no Firestore');
-        
-        // Gerar alertas locais
+        // Obter usuário logado
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
         if (!usuarioLogado) return;
         
         const usuarioAtual = usuarioLogado.usuario;
         
         // Verificar se o usuário atual é observador
-        const isObservador = observadores.includes(usuarioAtual);
+        const isObservador = observadores.some(obs => {
+            const obsSemAsterisco = obs.endsWith('*') ? obs.slice(0, -1) : obs;
+            return obsSemAsterisco === usuarioAtual;
+        });
         
-        if (isObservador) {
-            // Preparar dados do alerta
-            const dataAlteracao = new Date();
-            const alertaId = `obs_${atividadeId}_${dataAlteracao.getTime()}`;
-            
-            // Buscar nome da tarefa
-            let tarefaNome = 'Tarefa desconhecida';
-            try {
-                const tarefaDoc = await db.collection('tarefas').doc(novaAtividade.tarefaId).get();
-                if (tarefaDoc.exists) {
-                    tarefaNome = tarefaDoc.data().titulo || 'Tarefa desconhecida';
-                }
-            } catch (e) {
-                console.error('Erro ao buscar nome da tarefa:', e);
-            }
-            
-            // Criar objeto de alerta
-            const alerta = {
-                id: alertaId,
-                atividadeId: atividadeId,
-                titulo: novaAtividade.titulo || 'Atividade sem título',
-                statusAntigo: atividadeAntiga.status,
-                statusNovo: novaAtividade.status,
-                dataAlteracao: dataAlteracao,
-                tarefaNome: tarefaNome,
-                tipo: 'observador',
-                descricao: novaAtividade.descricao || '',
-                responsavel: novaAtividade.responsavel || '',
-                observador: usuarioAtual // Adiciona o observador específico
-            };
-            
-            // Adicionar ao array de alertas de observador
-            alertasObservador.unshift(alerta);
-            
-            // Atualizar contadores
-            atualizarContadoresAlertas();
-            
-            // Mostrar notificação rápida
-            setTimeout(() => {
-                mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
-            }, 500);
+        if (!isObservador) {
+            console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
+            return;
         }
+        
+        console.log(`✅ Usuário ${usuarioAtual} É observador desta atividade`);
+        
+        // Buscar nome da tarefa
+        let tarefaNome = 'Tarefa desconhecida';
+        try {
+            const tarefaDoc = await db.collection('tarefas').doc(novaAtividade.tarefaId).get();
+            if (tarefaDoc.exists) {
+                tarefaNome = tarefaDoc.data().titulo || 'Tarefa desconhecida';
+            }
+        } catch (e) {
+            console.error('Erro ao buscar nome da tarefa:', e);
+        }
+        
+        // Criar objeto de alerta
+        const alertaId = `obs_${atividadeId}_${Date.now()}`;
+        const alerta = {
+            id: alertaId,
+            atividadeId: atividadeId,
+            titulo: novaAtividade.titulo || 'Atividade sem título',
+            statusAntigo: statusAntigo,
+            statusNovo: statusNovo,
+            dataAlteracao: new Date(),
+            tarefaNome: tarefaNome,
+            tipo: 'observador',
+            descricao: novaAtividade.descricao || '',
+            responsavel: novaAtividade.responsavel || '',
+            observador: usuarioAtual
+        };
+        
+        // Adicionar ao array de alertas de observador
+        alertasObservador.unshift(alerta);
+        
+        console.log(`✅ Alerta criado: ${statusAntigo} → ${statusNovo}`);
+        console.log(`📊 Total de alertas: ${alertasObservador.length}`);
+        
+        // Atualizar contadores
+        atualizarContadoresAlertas();
+        
+        // Mostrar notificação rápida
+        setTimeout(() => {
+            mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
+        }, 500);
         
     } catch (error) {
         console.error('❌ Erro ao gerar alertas para observadores:', error);
@@ -449,7 +513,10 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        // Verificar ambos tipos de alertas
+        // Primeiro, sincronizar asteriscos para atividades existentes
+        await sincronizarAsteriscosObservadores();
+        
+        // Depois, verificar ambos tipos de alertas
         await verificarAlertasObservador(usuarioAtual);
         await verificarAlertasResponsavel(usuarioAtual);
         
