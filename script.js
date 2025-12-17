@@ -507,6 +507,12 @@ async function verificarAlertas() {
         
         console.log('🔄 Iniciando verificação completa de alertas...');
         
+        // RESETAR CONTADORES ANTES DE CARREGAR
+        document.getElementById('observadorAlertCount').style.display = 'none';
+        document.getElementById('observadorAlertCount').textContent = '0';
+        
+        document.getElementById('responsavelAlertCount').style.display = 'none';
+        document.getElementById('responsavelAlertCount').textContent = '0';
         
         // Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
@@ -514,7 +520,7 @@ async function verificarAlertas() {
         // Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
-        // Atualizar interface
+        // Atualizar interface APENAS DEPOIS de carregar tudo
         atualizarContadoresAlertas();
         
         // DEBUG: Mostrar estado atual dos alertas
@@ -533,19 +539,15 @@ async function verificarAlertasObservador(usuarioAtual) {
     try {
         console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
         
-        // Buscar atividades onde o usuário é observador COM asterisco
+        // Limpar alertas ANTES de buscar novos
+        alertasObservador = [];
+        
+        // BUSCAR COM PROMISE PARA GARANTIR SINCORNIZAÇÃO
         const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual + '*')
             .get();
         
         console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
-        
-        // DEBUG: Mostrar o que foi encontrado
-        snapshot.docs.forEach((doc, index) => {
-            const data = doc.data();
-            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
-            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
-        });
         
         const atividades = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -561,9 +563,6 @@ async function verificarAlertasObservador(usuarioAtual) {
         });
         
         console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
-        
-        // Limpar alertas anteriores
-        alertasObservador = [];
         
         // Criar alertas para cada atividade
         for (const atividade of atividadesComAlerta) {
@@ -602,19 +601,13 @@ async function verificarAlertasObservador(usuarioAtual) {
             console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
-        // Atualizar interface
-        atualizarContadoresAlertas();
-
-        // aqui1
-        // Se houver novos alertas, mostrar notificação
-        //if (alertasObservador.length > 0) {
-        //    setTimeout(() => {
-        //        mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
-        //    }, 1000);
-        //}
+        // NÃO ATUALIZAR AQUI - será atualizado pela função principal
+        console.log(`✅ Carregamento observador concluído: ${alertasObservador.length} alertas`);
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
+        // Mesmo com erro, garantir que array está vazio
+        alertasObservador = [];
     }
 }
 
