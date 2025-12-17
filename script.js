@@ -248,7 +248,6 @@ function configurarFirebase() {
             setTimeout(() => {
                 verificarAlertas();
             }, 1000);
-        });
 
 }
 
