@@ -1,4 +1,4 @@
-// script.js - VERSÃO COMPLETA COM MODAL ÚNICO E CONTROLE DE VISIBILIDADE
+// script.js - arquivo
 console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
@@ -87,13 +87,22 @@ function inicializarSistema() {
         if (isHomePage) {
             console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
             
-            // REMOVA ESTA LINHA:
-            // carregarAlertasLidos(); // ← REMOVER ESTA LINHA
+            // Configurar listener específico para observadores
+            configurarListenerObservadores();
             
-            // Iniciar verificação de alertas após 1 segundo
+            // Iniciar verificação de alertas
             setTimeout(() => {
-                verificarAlertas();
-            }, 1000);
+                verificarInicialAlertas();
+                
+                // Verificação periódica a cada 30 segundos
+                setInterval(() => {
+                    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+                    if (usuarioLogado) {
+                        verificarAlertasObservador(usuarioLogado.usuario);
+                        verificarAlertasResponsavel(usuarioLogado.usuario);
+                    }
+                }, 30000);
+            }, 2000);
         } else {
             console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
@@ -416,6 +425,8 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
     }
 }
 
+
+
 // Função para forçar verificação de alertas (pode ser chamada manualmente)
 async function forcarVerificacaoAlertas() {
     console.log('🔍 Forçando verificação de alertas...');
@@ -433,6 +444,58 @@ async function forcarVerificacaoAlertas() {
 
 // Torna a função global
 window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
+
+// Listener específico para detectar quando observadores são atualizados
+function configurarListenerObservadores() {
+    console.log('👁️ Configurando listener para observadores...');
+    
+    db.collection("atividades")
+        .onSnapshot((snapshot) => {
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            if (!usuarioLogado) return;
+            
+            const usuarioAtual = usuarioLogado.usuario;
+            
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'modified') {
+                    const novaAtividade = change.doc.data();
+                    const atividadeAntiga = change.doc._previousData;
+                    
+                    if (!atividadeAntiga) return;
+                    
+                    // Verificar se OS OBSERVADORES foram alterados (não apenas status)
+                    const obsAntigos = atividadeAntiga.observadores || [];
+                    const obsNovos = novaAtividade.observadores || [];
+                    
+                    // Verificar se houve mudança nos observadores
+                    if (JSON.stringify(obsAntigos) !== JSON.stringify(obsNovos)) {
+                        console.log(`👥 Observadores alterados na atividade ${change.doc.id}`);
+                        
+                        // Verificar se o asterisco foi adicionado/removido para este usuário
+                        const tinhaAsteriscoAntes = obsAntigos.includes(usuarioAtual + '*');
+                        const temAsteriscoAgora = obsNovos.includes(usuarioAtual + '*');
+                        
+                        if (!tinhaAsteriscoAntes && temAsteriscoAgora) {
+                            console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
+                            // Forçar verificação completa
+                            setTimeout(() => {
+                                verificarAlertasObservador(usuarioAtual);
+                            }, 1000);
+                        }
+                    }
+                    
+                    // Verificar também se o status mudou (para garantir)
+                    if (atividadeAntiga.status !== novaAtividade.status) {
+                        console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+                        // Forçar verificação
+                        setTimeout(() => {
+                            verificarAlertasObservador(usuarioAtual);
+                        }, 1500);
+                    }
+                }
+            });
+        });
+}
 
 // Função para limpar alertas antigos
 function limparAlertasAntigos(usuarioAtual) {
@@ -513,10 +576,9 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        // Primeiro, sincronizar asteriscos para atividades existentes
-        await sincronizarAsteriscosObservadores();
+        console.log('🔄 Iniciando verificação completa de alertas...');
         
-        // Depois, verificar ambos tipos de alertas
+        // Primeiro, verificar ambos tipos de alertas
         await verificarAlertasObservador(usuarioAtual);
         await verificarAlertasResponsavel(usuarioAtual);
         
@@ -538,44 +600,87 @@ async function verificarAlertas() {
 async function verificarAlertasObservador(usuarioAtual) {
     try {
         console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
-        
-        // Buscar atividades onde o usuário é observador (com ou sem asterisco)
-        const snapshot = await db.collection('atividades')
+                
+        // Primeiro, buscar atividades onde o usuário é observador SEM asterisco
+        const snapshotSemAsterisco = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual)
             .get();
         
-        const atividades = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        // Segundo, buscar atividades onde o usuário é observador COM asterisco
+        const snapshotComAsterisco = await db.collection('atividades')
+            .where('observadores', 'array-contains', usuarioAtual + '*')
+            .get();
         
-        console.log(`📋 ${atividades.length} atividades onde o usuário é observador`);
+        // Combinar resultados únicos
+        const todasAtividades = new Map();
         
-        // Filtrar apenas atividades onde o usuário tem asterisco (não viu)
-        const atividadesComAsterisco = atividades.filter(atividade => {
-            const observadores = atividade.observadores || [];
-            return observadores.includes(usuarioAtual + '*');
+        // Adicionar atividades sem asterisco
+        snapshotSemAsterisco.docs.forEach(doc => {
+            todasAtividades.set(doc.id, {
+                id: doc.id,
+                ...doc.data()
+            });
         });
         
-        console.log(`⚠️ ${atividadesComAsterisco.length} atividades com alertas não vistos`);
+        // Adicionar atividades com asterisco (substitui se já existir)
+        snapshotComAsterisco.docs.forEach(doc => {
+            todasAtividades.set(doc.id, {
+                id: doc.id,
+                ...doc.data()
+            });
+        });
         
-        // Limpar alertas antigos da memória
+        const atividadesArray = Array.from(todasAtividades.values());
+        
+        console.log(`📋 Total de atividades únicas: ${atividadesArray.length}`);
+        
+        // Filtrar atividades onde o usuário TEM asterisco (não viu) E status mudou
+        const atividadesComAlerta = atividadesArray.filter(atividade => {
+            const observadores = atividade.observadores || [];
+            
+            // Verificar se o usuário tem asterisco
+            const temAsterisco = observadores.includes(usuarioAtual + '*');
+            
+            if (!temAsterisco) return false;
+            
+            // Verificar se realmente houve mudança de status
+            const status = atividade.status || 'nao_iniciado';
+            const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
+            
+            const statusDiferente = status !== statusAnterior;
+            
+            if (statusDiferente) {
+                console.log(`🔄 Atividade "${atividade.titulo}": ${statusAnterior} → ${status} [TEM ASTERISCO]`);
+            }
+            
+            return statusDiferente;
+        });
+        
+        console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
+        
+        // Limpar alertas anteriores
         alertasObservador = [];
         
-        // Criar alertas para cada atividade com asterisco
-        for (const atividade of atividadesComAsterisco) {
-            // Buscar nome da tarefa
-            const tarefaDoc = await db.collection('tarefas').doc(atividade.tarefaId).get();
-            const tarefaNome = tarefaDoc.exists ? 
-                (tarefaDoc.data().titulo || 'Tarefa desconhecida') : 
-                'Tarefa desconhecida';
+        // Criar alertas para cada atividade
+        for (const atividade of atividadesComAlerta) {
+            // Buscar nome da tarefa no Firestore
+            let tarefaNome = 'Tarefa desconhecida';
+            try {
+                const tarefaDoc = await db.collection('tarefas').doc(atividade.tarefaId).get();
+                if (tarefaDoc.exists) {
+                    tarefaNome = tarefaDoc.data().titulo || 'Tarefa desconhecida';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar tarefa:', error);
+            }
             
-            // Verificar se houve mudança de status
             const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
             const statusAtual = atividade.status || 'nao_iniciado';
             
+            const alertaId = `obs_${atividade.id}_${statusAtual}_${Date.now()}`;
+            
             const alerta = {
-                id: `obs_${atividade.id}_${statusAtual}`,
+                id: alertaId,
                 atividadeId: atividade.id,
                 titulo: atividade.titulo || 'Atividade sem título',
                 statusAntigo: statusAnterior,
@@ -590,16 +695,66 @@ async function verificarAlertasObservador(usuarioAtual) {
             };
             
             alertasObservador.push(alerta);
-            console.log(`✅ Alerta criado para ${usuarioAtual}: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
+            console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
         // Atualizar interface
         atualizarContadoresAlertas();
         
+        // Se houver novos alertas, mostrar notificação
+        if (alertasObservador.length > 0) {
+            setTimeout(() => {
+                mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
+            }, 1000);
+        }
+        
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
     }
 }
+
+// Função de debug para verificar estado dos observadores
+async function debugObservadores() {
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuarioLogado) return;
+    
+    const usuarioAtual = usuarioLogado.usuario;
+    
+    console.log('🔍 DEBUG - Estado dos observadores para:', usuarioAtual);
+    
+    try {
+        // Buscar todas as atividades
+        const snapshot = await db.collection('atividades').get();
+        
+        console.log('📊 Todas as atividades:', snapshot.docs.length);
+        
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const observadores = data.observadores || [];
+            
+            // Verificar se o usuário é observador
+            const isObservador = observadores.some(obs => {
+                const obsSemAsterisco = obs.endsWith('*') ? obs.slice(0, -1) : obs;
+                return obsSemAsterisco === usuarioAtual;
+            });
+            
+            if (isObservador) {
+                console.log(`\n📋 Atividade: ${data.titulo || 'Sem título'} (${doc.id})`);
+                console.log(`   Observadores:`, observadores);
+                console.log(`   Tem "*" para ${usuarioAtual}?: ${observadores.includes(usuarioAtual + '*') ? 'SIM' : 'NÃO'}`);
+                console.log(`   Status: ${data.status || 'não definido'}`);
+                console.log(`   StatusAnterior: ${data.statusAnterior || 'não definido'}`);
+                console.log(`   Diferentes?: ${data.status !== data.statusAnterior ? 'SIM' : 'NÃO'}`);
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no debug:', error);
+    }
+}
+
+window.debugObservadores = debugObservadores;
+
 
 // Função para limpar o cache (opcional, para testes)
 function limparCacheAlertas() {
@@ -1022,6 +1177,25 @@ function irParaAtividade(atividadeId) {
     window.open(`dashboard.html?atividade=${atividadeId}`, '_blank');
 }
 
+// Verificação inicial mais agressiva
+async function verificarInicialAlertas() {
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuarioLogado) return;
+    
+    const usuarioAtual = usuarioLogado.usuario;
+    
+    console.log('🚀 Verificação inicial de alertas...');
+    
+    // Aguardar 3 segundos para garantir que tudo carregou
+    setTimeout(async () => {
+        await verificarAlertasObservador(usuarioAtual);
+        await verificarAlertasResponsavel(usuarioAtual);
+        atualizarContadoresAlertas();
+        
+        console.log('✅ Verificação inicial concluída');
+    }, 3000);
+}
+
 // Função para marcar alerta como lido
 async function marcarAlertaComoLido(alertaId, tipo) {
     try {
@@ -1052,17 +1226,19 @@ async function marcarAlertaComoLido(alertaId, tipo) {
                     });
                     
                     console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
+                    
+                    // Remover da lista local
+                    alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
+                    
+                    // Atualizar contadores
+                    atualizarContadoresAlertas();
                 }
-                
-                // Remover da lista local
-                alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
             }
         } else {
+            // Para alertas de responsável
             alertasResponsavel = alertasResponsavel.filter(a => a.id !== alertaId);
+            atualizarContadoresAlertas();
         }
-        
-        // Atualizar interface
-        atualizarContadoresAlertas();
         
         // Re-renderizar lista
         if (tipo === 'observador') {
