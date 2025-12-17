@@ -224,28 +224,44 @@ function configurarFirebase() {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'modified') {
                     const novaAtividade = change.doc.data();
-                    const atividadeAntiga = change.doc.previous.data();
                     
-                    if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
-                        console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
-                        console.log(`📝 ID da atividade: ${change.doc.id}`);
+                    // Obter dados antigos se disponíveis
+                    if (change.doc.previous && typeof change.doc.previous.data === 'function') {
+                        const atividadeAntiga = change.doc.previous.data();
                         
-                        // Gerar alertas para os observadores
-                        gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
+                        if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
+                            console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+                            console.log(`📝 ID da atividade: ${change.doc.id}`);
+                            
+                            // Gerar alertas para os observadores
+                            gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
+                        }
                     }
                 }
             });
             
-            // Verificar alertas a cada mudança
-            setTimeout(verificarAlertas, 500);
-        });    
+            // Verificar alertas a cada mudança (com delay para evitar loops)
+            setTimeout(() => {
+                verificarAlertas();
+            }, 1000);
+        });
 
 }
+
+// Torna a função global
+window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
 
 // Função para gerar alertas automaticamente para observadores quando status muda
 async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividadeAntiga) {
     try {
         console.log(`🔔 Gerando alertas para observadores da atividade ${atividadeId}`);
+        console.log(`📊 Status: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+        
+        // Verificar se realmente houve mudança
+        if (atividadeAntiga.status === novaAtividade.status) {
+            console.log('ℹ️ Sem mudança real de status, ignorando');
+            return;
+        }
         
         // Verificar se há observadores
         const observadores = novaAtividade.observadores || [];
@@ -263,23 +279,20 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        // Verificar se o usuário atual é um dos observadores
-        const isObservador = observadores.includes(usuarioAtual);
-        
-        if (!isObservador) {
-            console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
-            return;
-        }
-        
         // Preparar dados do alerta
         const dataAlteracao = new Date();
         const alertaId = `obs_${atividadeId}_${dataAlteracao.getTime()}`;
         
         // Buscar nome da tarefa
-        const tarefaDoc = await db.collection('tarefas').doc(novaAtividade.tarefaId).get();
-        const tarefaNome = tarefaDoc.exists ? 
-            (tarefaDoc.data().titulo || 'Tarefa desconhecida') : 
-            'Tarefa desconhecida';
+        let tarefaNome = 'Tarefa desconhecida';
+        try {
+            const tarefaDoc = await db.collection('tarefas').doc(novaAtividade.tarefaId).get();
+            if (tarefaDoc.exists) {
+                tarefaNome = tarefaDoc.data().titulo || 'Tarefa desconhecida';
+            }
+        } catch (e) {
+            console.error('Erro ao buscar nome da tarefa:', e);
+        }
         
         // Criar objeto de alerta
         const alerta = {
@@ -296,29 +309,27 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         };
         
         // Adicionar ao array de alertas de observador
-        // Verificar se já existe alerta igual para evitar duplicações
-        const alertaExistente = alertasObservador.find(a => 
-            a.atividadeId === atividadeId && 
-            a.statusNovo === novaAtividade.status &&
-            (new Date() - a.dataAlteracao) < 60000 // Dentro de 1 minuto
-        );
+        alertasObservador.unshift(alerta); // Adicionar no início do array
+        console.log(`✅ Alerta criado para observadores: ${atividadeAntiga.status} → ${novaAtividade.status}`);
         
-        if (!alertaExistente) {
-            alertasObservador.unshift(alerta); // Adicionar no início do array
-            console.log(`✅ Alerta criado para ${usuarioAtual}: ${atividadeAntiga.status} → ${novaAtividade.status}`);
-            
-            // Limitar histórico de alertas (mantém apenas últimos 50)
-            if (alertasObservador.length > 50) {
-                alertasObservador.pop();
-            }
-            
+        // Limitar histórico de alertas (mantém apenas últimos 50)
+        if (alertasObservador.length > 50) {
+            alertasObservador.length = 50;
+        }
+        
+        // Verificar se o usuário atual é observador
+        const isObservador = observadores.includes(usuarioAtual);
+        
+        if (isObservador) {
             // Atualizar contadores
             atualizarContadoresAlertas();
             
             // Mostrar notificação rápida
-            mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
+            setTimeout(() => {
+                mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
+            }, 500);
         } else {
-            console.log(`ℹ️ Alerta similar já existe, ignorando duplicata`);
+            console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
         }
         
     } catch (error) {
@@ -327,7 +338,7 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
 }
 
 // Função para limpar alertas antigos
-function limparAlertasAntigos() {
+function limparAlertasAntigos(usuarioAtual) {
     const agora = new Date();
     const umaHoraAtras = agora.getTime() - (60 * 60 * 1000); // 1 hora atrás
     
@@ -337,11 +348,15 @@ function limparAlertasAntigos() {
         return dataAlerta > umaHoraAtras;
     });
     
-    // Limpar alertas de responsável antigos (pendentes já resolvidos)
-    // Verificar quais atividades pendentes ainda existem
-    verificarAlertasResponsavel(usuarioAtual).then(() => {
-        atualizarContadoresAlertas();
-    });
+    // Limpar IDs lidos antigos (mantém apenas últimos 100)
+    const alertasLidosArray = [...alertasLidosObservador];
+    if (alertasLidosArray.length > 100) {
+        const novosLidos = new Set(alertasLidosArray.slice(0, 100));
+        alertasLidosObservador = novosLidos;
+        localStorage.setItem('alertasLidosObservador', JSON.stringify([...novosLidos]));
+    }
+    
+    console.log(`🧹 Alertas limpos: ${alertasObservador.length} ativos, ${alertasLidosObservador.size} lidos`);
 }
 
 async function carregarAtividadesParaTodasTarefas() {
@@ -408,6 +423,9 @@ async function verificarAlertas() {
         // Atualizar interface
         atualizarContadoresAlertas();
         
+        // DEBUG: Mostrar estado atual dos alertas
+        console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
+        
         // Verificar novamente em 30 segundos
         setTimeout(verificarAlertas, 30000);
         
@@ -433,11 +451,63 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         console.log(`📋 ${atividades.length} atividades onde o usuário é observador`);
         
-        // Limpar alertas antigos primeiro
-        limparAlertasAntigos();
+        // Verificar se há atividades com status diferente de statusAnterior
+        const atividadesComMudanca = atividades.filter(atividade => {
+            const statusAtual = atividade.status || 'nao_iniciado';
+            const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
+            
+            if (statusAtual !== statusAnterior) {
+                console.log(`🔄 Mudança detectada na atividade ${atividade.id}: ${statusAnterior} → ${statusAtual}`);
+                return true;
+            }
+            return false;
+        });
+        
+        console.log(`🎯 ${atividadesComMudanca.length} atividades com mudança de status`);
+        
+        // Para cada atividade com mudança, criar alerta se ainda não existir
+        for (const atividade of atividadesComMudanca) {
+            const alertaId = `obs_${atividade.id}_${atividade.status}`;
+            const alertaExistente = alertasObservador.find(a => a.id === alertaId);
+            
+            if (!alertaExistente) {
+                // Buscar nome da tarefa
+                const tarefaDoc = await db.collection('tarefas').doc(atividade.tarefaId).get();
+                const tarefaNome = tarefaDoc.exists ? 
+                    (tarefaDoc.data().titulo || 'Tarefa desconhecida') : 
+                    'Tarefa desconhecida';
+                
+                const novoAlerta = {
+                    id: alertaId,
+                    atividadeId: atividade.id,
+                    titulo: atividade.titulo || 'Atividade sem título',
+                    statusAntigo: atividade.statusAnterior || 'nao_iniciado',
+                    statusNovo: atividade.status || 'nao_iniciado',
+                    dataAlteracao: atividade.dataAtualizacao ? 
+                        atividade.dataAtualizacao.toDate() : new Date(),
+                    tarefaNome: tarefaNome,
+                    tipo: 'observador',
+                    descricao: atividade.descricao || '',
+                    responsavel: atividade.responsavel || ''
+                };
+                
+                alertasObservador.unshift(novoAlerta);
+                console.log(`✅ Alerta criado: ${atividade.statusAnterior} → ${atividade.status}`);
+            }
+        }
+        
+        // Limpar alertas antigos
+        limparAlertasAntigos(usuarioAtual);
         
         // Atualizar interface
         atualizarContadoresAlertas();
+        
+        // Se houver novos alertas, mostrar notificação
+        if (atividadesComMudanca.length > 0) {
+            setTimeout(() => {
+                mostrarNotificacaoRapida(`${atividadesComMudanca.length} atividade(s) tiveram mudança de status`);
+            }, 1000);
+        }
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
