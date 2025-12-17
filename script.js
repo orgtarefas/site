@@ -442,7 +442,6 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
     }
 }
 
-
 // Função para forçar verificação de alertas (pode ser chamada manualmente)
 async function forcarVerificacaoAlertas() {
     console.log('🔍 Forçando verificação de alertas...');
@@ -570,33 +569,28 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        console.log('🔄 Verificando alertas para:', usuarioAtual);
+        console.log('🔄 Iniciando verificação completa de alertas...');
         
-        // Sincronizar asteriscos apenas na primeira vez ou quando necessário
-        if (!ultimaVerificacaoAlertas || (Date.now() - ultimaVerificacaoAlertas) > 300000) { // 5 minutos
-            console.log('🔄 Sincronizando asteriscos...');
-            await sincronizarAsteriscosObservadores();
-            ultimaVerificacaoAlertas = Date.now();
-        }
+        // PRIMEIRO: Sincronizar asteriscos para atividades que precisam
+        await sincronizarAsteriscosObservadores();
         
-        // Verificar alertas de observador
+        // SEGUNDO: Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
         
-        // Verificar alertas de responsável
+        // TERCEIRO: Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
         // Atualizar interface
         atualizarContadoresAlertas();
         
-        console.log(`📊 Alertas: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
+        // DEBUG: Mostrar estado atual dos alertas
+        console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
         
-        // Verificar novamente em 60 segundos (aumentei para reduzir spam)
-        setTimeout(verificarAlertas, 60000);
+        // Verificar novamente em 30 segundos
+        setTimeout(verificarAlertas, 30000);
         
     } catch (error) {
         console.error('❌ Erro ao verificar alertas:', error);
-        // Tentar novamente em 30 segundos se houver erro
-        setTimeout(verificarAlertas, 30000);
     }
 }
 
@@ -634,6 +628,13 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
         
+        // DEBUG: Mostrar o que foi encontrado
+        snapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
+            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
+        });
+        
         const atividades = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
@@ -649,21 +650,11 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
         
-        // NÃO LIMPAR ALERTAS EXISTENTES - apenas adicionar novos
+        // Limpar alertas anteriores
+        alertasObservador = [];
         
-        // Criar alertas para cada atividade (evitar duplicados)
+        // Criar alertas para cada atividade
         for (const atividade of atividadesComAlerta) {
-            // Verificar se já existe um alerta para esta atividade
-            const alertaExistente = alertasObservador.find(a => 
-                a.atividadeId === atividade.id && 
-                a.statusNovo === atividade.status
-            );
-            
-            if (alertaExistente) {
-                console.log(`⏭️ Alerta já existe para ${atividade.titulo}, pulando...`);
-                continue;
-            }
-            
             // Buscar nome da tarefa no Firestore
             let tarefaNome = 'Tarefa desconhecida';
             try {
@@ -696,11 +687,18 @@ async function verificarAlertasObservador(usuarioAtual) {
             };
             
             alertasObservador.push(alerta);
-            console.log(`✅ NOVO Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
+            console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
         // Atualizar interface
         atualizarContadoresAlertas();
+        
+        // Se houver novos alertas, mostrar notificação
+        if (alertasObservador.length > 0) {
+            setTimeout(() => {
+                mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
+            }, 1000);
+        }
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
