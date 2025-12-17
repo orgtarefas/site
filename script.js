@@ -604,13 +604,14 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         // Atualizar interface
         atualizarContadoresAlertas();
-        
+
+        // aqui1
         // Se houver novos alertas, mostrar notificação
-        if (alertasObservador.length > 0) {
-            setTimeout(() => {
-                mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
-            }, 1000);
-        }
+        //if (alertasObservador.length > 0) {
+        //    setTimeout(() => {
+        //        mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
+        //    }, 1000);
+        //}
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
@@ -826,20 +827,22 @@ function atualizarContadoresAlertas() {
         naoLidosObservador > 0 ? 'flex' : 'none';
     document.getElementById('responsavelAlertCount').style.display = 
         naoLidosResponsavel > 0 ? 'flex' : 'none';
-    
+
+    // aqui2
     // Mostrar notificação apenas para pendências (responsável)
-    if (naoLidosResponsavel > 0) {
-        setTimeout(() => {
-            mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
-        }, 1000);
-    }
-    
+    //if (naoLidosResponsavel > 0) {
+     //   setTimeout(() => {
+      //      mostrarNotificacaoRapida(`Você tem ${naoLidosResponsavel} atividade(s) pendente(s)!`);
+       // }, 1000);
+    // }
+
+    // aqui3
     // Mostrar notificação para observador também
-    if (naoLidosObservador > 0) {
-        setTimeout(() => {
-            mostrarNotificacaoRapida(`${naoLidosObservador} atividade(s) tiveram mudança de status`);
-        }, 1500);
-    }
+    //if (naoLidosObservador > 0) {
+    //    setTimeout(() => {
+    //        mostrarNotificacaoRapida(`${naoLidosObservador} atividade(s) tiveram mudança de status`);
+    //    }, 1500);
+    // }
 }
 
 // Função para abrir dropdown de alertas de observador
@@ -1754,10 +1757,11 @@ function mostrarNotificacao(mensagem, tipo) {
     `;
     notification.textContent = mensagem;
     document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        document.body.removeChild(notification);
-    }, 3000);
+
+    // aqui4
+    //setTimeout(() => {
+    //    document.body.removeChild(notification);
+    //}, 3000);
 }
 
 function mostrarErro(mensagem) {
