@@ -183,8 +183,11 @@ function configurarFirebase() {
                 
                 atualizarInterface();
                 
-                // Iniciar alertas
-                verificarAlertasUmaVez();
+                // Verificar alertas apenas UMA VEZ quando tudo carregar
+                if (!window.tarefasCarregadas) {
+                    verificarAlertasUmaVez();
+                    window.tarefasCarregadas = true;
+                }
             },
             (error) => {
                 console.error('❌ Erro no Firestore:', error);
@@ -234,14 +237,6 @@ function configurarFirebase() {
                     }
                 }
             });
-            
-            // Verificar alertas após mudanças
-            setTimeout(() => {
-                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-                if (usuarioLogado) {
-                    verificarAlertas();
-                }
-            }, 1500);
         });
 
 }
