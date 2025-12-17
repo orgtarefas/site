@@ -88,6 +88,79 @@ body {
     gap: 30px;
 }
 
+
+/* Estilos para alertas de mudança de status */
+.alert-status-change {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.status-change-label {
+    font-size: 12px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.badge-de, .badge-para {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.alert-mudanca-status {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.alert-mudanca-status i {
+    margin-right: 5px;
+    color: #6c757d;
+}
+
+/* Notificação rápida */
+.notificacao-rapida {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Alert item styles */
+.alert-item.unread {
+    border-left: 3px solid #3498db;
+    background-color: #f8fafc;
+}
+
+.alert-item.read {
+    border-left: 3px solid #95a5a6;
+    background-color: #fff;
+}
+
+.alert-responsavel {
+    margin-top: 5px;
+    font-size: 13px;
+    color: #2c3e50;
+}
+
+.alert-responsavel i {
+    margin-right: 5px;
+    color: #3498db;
+}
+
 /* Botões de ação */
 .header-actions {
     display: flex;
