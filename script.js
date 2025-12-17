@@ -570,28 +570,55 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        console.log('🔄 Iniciando verificação completa de alertas...');
+        console.log('🔄 Verificando alertas para:', usuarioAtual);
         
-        // PRIMEIRO: Sincronizar asteriscos para atividades que precisam
-        await sincronizarAsteriscosObservadores();
+        // Sincronizar asteriscos apenas na primeira vez ou quando necessário
+        if (!ultimaVerificacaoAlertas || (Date.now() - ultimaVerificacaoAlertas) > 300000) { // 5 minutos
+            console.log('🔄 Sincronizando asteriscos...');
+            await sincronizarAsteriscosObservadores();
+            ultimaVerificacaoAlertas = Date.now();
+        }
         
-        // SEGUNDO: Verificar alertas de observador
+        // Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
         
-        // TERCEIRO: Verificar alertas de responsável
+        // Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
         // Atualizar interface
         atualizarContadoresAlertas();
         
-        // DEBUG: Mostrar estado atual dos alertas
-        console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
+        console.log(`📊 Alertas: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
         
-        // Verificar novamente em 30 segundos
-        setTimeout(verificarAlertas, 30000);
+        // Verificar novamente em 60 segundos (aumentei para reduzir spam)
+        setTimeout(verificarAlertas, 60000);
         
     } catch (error) {
         console.error('❌ Erro ao verificar alertas:', error);
+        // Tentar novamente em 30 segundos se houver erro
+        setTimeout(verificarAlertas, 30000);
+    }
+}
+
+// Função para limpar alertas duplicados
+function limparAlertasDuplicados() {
+    const alertasUnicos = [];
+    const atividadesVistas = new Set();
+    
+    // Percorrer alertas de trás para frente (mantém os mais recentes)
+    for (let i = alertasObservador.length - 1; i >= 0; i--) {
+        const alerta = alertasObservador[i];
+        const chave = `${alerta.atividadeId}_${alerta.statusNovo}`;
+        
+        if (!atividadesVistas.has(chave)) {
+            atividadesVistas.add(chave);
+            alertasUnicos.unshift(alerta); // Adiciona no início para manter ordem
+        }
+    }
+    
+    if (alertasUnicos.length !== alertasObservador.length) {
+        console.log(`🧹 Removidos ${alertasObservador.length - alertasUnicos.length} alertas duplicados`);
+        alertasObservador = alertasUnicos;
     }
 }
 
@@ -606,13 +633,6 @@ async function verificarAlertasObservador(usuarioAtual) {
             .get();
         
         console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
-        
-        // DEBUG: Mostrar o que foi encontrado
-        snapshot.docs.forEach((doc, index) => {
-            const data = doc.data();
-            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
-            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
-        });
         
         const atividades = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -629,11 +649,21 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
         
-        // Limpar alertas anteriores
-        alertasObservador = [];
+        // NÃO LIMPAR ALERTAS EXISTENTES - apenas adicionar novos
         
-        // Criar alertas para cada atividade
+        // Criar alertas para cada atividade (evitar duplicados)
         for (const atividade of atividadesComAlerta) {
+            // Verificar se já existe um alerta para esta atividade
+            const alertaExistente = alertasObservador.find(a => 
+                a.atividadeId === atividade.id && 
+                a.statusNovo === atividade.status
+            );
+            
+            if (alertaExistente) {
+                console.log(`⏭️ Alerta já existe para ${atividade.titulo}, pulando...`);
+                continue;
+            }
+            
             // Buscar nome da tarefa no Firestore
             let tarefaNome = 'Tarefa desconhecida';
             try {
@@ -666,18 +696,11 @@ async function verificarAlertasObservador(usuarioAtual) {
             };
             
             alertasObservador.push(alerta);
-            console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
+            console.log(`✅ NOVO Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
         // Atualizar interface
         atualizarContadoresAlertas();
-        
-        // Se houver novos alertas, mostrar notificação
-        if (alertasObservador.length > 0) {
-            setTimeout(() => {
-                mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
-            }, 1000);
-        }
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
@@ -725,13 +748,6 @@ async function debugObservadores() {
 }
 
 window.debugObservadores = debugObservadores;
-
-
-// Função para limpar o cache (opcional, para testes)
-function limparCacheAlertas() {
-    ultimoStatusNotificado = {};
-    console.log('🧹 Cache de alertas limpo');
-}
 
 // Função para verificar alertas de responsável - APENAS PENDENTES
 async function verificarAlertasResponsavel(usuarioAtual) {
@@ -879,6 +895,9 @@ function atualizarContadoresAlertas() {
     if (!isHomePage) {
         return; // Sair se não for a página home
     }
+
+    // Limpar alertas duplicados primeiro
+    limparAlertasDuplicados();
     
     // Para observador: todos os alertas na lista são não lidos
     const naoLidosObservador = alertasObservador.length;
