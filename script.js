@@ -689,80 +689,80 @@ let historicoStatus = {};
 // Função para mostrar notificação rápida
 // Atualize a função mostrarNotificacaoRapida:
 
-//function mostrarNotificacaoRapida(mensagem) {
+function mostrarNotificacaoRapida(mensagem) {
     // Verificar se já existe notificação
-    //const notificacaoExistente = document.querySelector('.notificacao-rapida');
-    //if (notificacaoExistente) {
-    //    notificacaoExistente.remove();
-    //}
+    const notificacaoExistente = document.querySelector('.notificacao-rapida');
+    if (notificacaoExistente) {
+        notificacaoExistente.remove();
+    }
     
-    //const notification = document.createElement('div');
-    //notification.className = 'notificacao-rapida';
-   // notification.style.cssText = `
-   //     position: fixed;
-   //     top: 80px;
-    //    right: 20px;
-    //    padding: 12px 16px;
-        //border-radius: 8px;
-     //   background: linear-gradient(135deg, #3498db, #2980b9);
-     //   color: white;
-    //    font-weight: 500;
-    //    z-index: 9999;
-     //   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-     //   animation: slideIn 0.3s ease;
-     //   display: flex;
-   //     align-items: center;
-  //      gap: 8px;
-  //      max-width: 400px;
- //   `;
+    const notification = document.createElement('div');
+    notification.className = 'notificacao-rapida';
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        font-weight: 500;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 400px;
+    `;
     
- //   notification.innerHTML = `
-  //      <i class="fas fa-bell" style="font-size: 18px;"></i>
-  //      <div style="flex: 1;">
-    //        <div style="font-weight: 600; margin-bottom: 2px;">Alerta de Status</div>
+    notification.innerHTML = `
+        <i class="fas fa-bell" style="font-size: 18px;"></i>
+        <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 2px;">Alerta de Status</div>
             <div style="font-size: 13px;">${mensagem}</div>
-   //     </div>
-    //    <button onclick="this.parentElement.remove()" style="
-     //       background: none;
-  //          border: none;
-     //       color: inherit;
-    //        cursor: pointer;
-      //      margin-left: 8px;
-   //         opacity: 0.8;
-  //      ">
-   //        <i class="fas fa-times"></i>
-   //     </button>
- //   `;
+        </div>
+        <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            margin-left: 8px;
+            opacity: 0.8;
+        ">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
     
-//    document.body.appendChild(notification);
+    document.body.appendChild(notification);
     
-//    // Remover automaticamente após 7 segundos
- //   setTimeout(() => {
-//        if (notification.parentElement) {
-//            notification.remove();
-//        }
-//    }, 7000);
-//}
+    // Remover automaticamente após 7 segundos
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 7000);
+}
 
 // CSS para animação
-//const style = document.createElement('style');
-//style.textContent = `
-    //@keyframes slideIn {
-  //      from {
-            //transform: translateX(100%);
-            //opacity: 0;
-     //   }
-      //  to {
-     //       transform: translateX(0);
-    //        opacity: 1;
-      //  }
-//    }
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
     
-//    .notificacao-rapida {
-//        animation: slideIn 0.3s ease;
-//    }
-//`;
-//document.head.appendChild(style);
+    .notificacao-rapida {
+        animation: slideIn 0.3s ease;
+    }
+`;
+document.head.appendChild(style);
 
 // Função para atualizar contadores de alertas (SÓ NO INDEX.HTML)
 function atualizarContadoresAlertas() {
