@@ -212,39 +212,135 @@ function configurarFirebase() {
                 mostrarErro('Erro ao carregar tarefas: ' + error.message);
             }
         );
-    
-// Listener SIMPLES para atividades
-db.collection("atividades")
-    .onSnapshot((snapshot) => {
-        console.log('🔄 Atualização de atividades');
-        
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-        if (!usuarioLogado) return;
-        
-        snapshot.docChanges().forEach(change => {
-            if (change.type === 'modified') {
-                const novaAtividade = change.doc.data();
-                
-                if (change.doc.previous && typeof change.doc.previous.data === 'function') {
+
+    // Listener para detectar mudanças de status e gerar alertas automáticos
+    db.collection("atividades")
+        .onSnapshot((snapshot) => {
+            console.log('🔄 Atualização de atividades');
+            
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            if (!usuarioLogado) return;
+            
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'modified') {
+                    const novaAtividade = change.doc.data();
                     const atividadeAntiga = change.doc.previous.data();
                     
                     if (atividadeAntiga && novaAtividade.status !== atividadeAntiga.status) {
                         console.log(`📊 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+                        console.log(`📝 ID da atividade: ${change.doc.id}`);
                         
-                        // Salvar status anterior SEMPRE que detectar mudança
-                        db.collection('atividades').doc(change.doc.id).update({
-                            statusAnterior: atividadeAntiga.status,
-                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                        }).then(() => {
-                            console.log('✅ statusAnterior salvo como:', atividadeAntiga.status);
-                        });
+                        // Gerar alertas para os observadores
+                        gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
                     }
                 }
-            }
-        });
+            });
+            
+            // Verificar alertas a cada mudança
+            setTimeout(verificarAlertas, 500);
+        });    
+
+}
+
+// Função para gerar alertas automaticamente para observadores quando status muda
+async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividadeAntiga) {
+    try {
+        console.log(`🔔 Gerando alertas para observadores da atividade ${atividadeId}`);
         
-        // Verificar alertas a cada mudança
-        setTimeout(verificarAlertas, 500);
+        // Verificar se há observadores
+        const observadores = novaAtividade.observadores || [];
+        
+        if (observadores.length === 0) {
+            console.log('ℹ️ Atividade não tem observadores');
+            return;
+        }
+        
+        console.log(`👥 Observadores que receberão alerta:`, observadores);
+        
+        // Obter usuário logado para verificar se ele é um dos observadores
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado) return;
+        
+        const usuarioAtual = usuarioLogado.usuario;
+        
+        // Verificar se o usuário atual é um dos observadores
+        const isObservador = observadores.includes(usuarioAtual);
+        
+        if (!isObservador) {
+            console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
+            return;
+        }
+        
+        // Preparar dados do alerta
+        const dataAlteracao = new Date();
+        const alertaId = `obs_${atividadeId}_${dataAlteracao.getTime()}`;
+        
+        // Buscar nome da tarefa
+        const tarefaDoc = await db.collection('tarefas').doc(novaAtividade.tarefaId).get();
+        const tarefaNome = tarefaDoc.exists ? 
+            (tarefaDoc.data().titulo || 'Tarefa desconhecida') : 
+            'Tarefa desconhecida';
+        
+        // Criar objeto de alerta
+        const alerta = {
+            id: alertaId,
+            atividadeId: atividadeId,
+            titulo: novaAtividade.titulo || 'Atividade sem título',
+            statusAntigo: atividadeAntiga.status,
+            statusNovo: novaAtividade.status,
+            dataAlteracao: dataAlteracao,
+            tarefaNome: tarefaNome,
+            tipo: 'observador',
+            descricao: novaAtividade.descricao || '',
+            responsavel: novaAtividade.responsavel || ''
+        };
+        
+        // Adicionar ao array de alertas de observador
+        // Verificar se já existe alerta igual para evitar duplicações
+        const alertaExistente = alertasObservador.find(a => 
+            a.atividadeId === atividadeId && 
+            a.statusNovo === novaAtividade.status &&
+            (new Date() - a.dataAlteracao) < 60000 // Dentro de 1 minuto
+        );
+        
+        if (!alertaExistente) {
+            alertasObservador.unshift(alerta); // Adicionar no início do array
+            console.log(`✅ Alerta criado para ${usuarioAtual}: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+            
+            // Limitar histórico de alertas (mantém apenas últimos 50)
+            if (alertasObservador.length > 50) {
+                alertasObservador.pop();
+            }
+            
+            // Atualizar contadores
+            atualizarContadoresAlertas();
+            
+            // Mostrar notificação rápida
+            mostrarNotificacaoRapida(`Status alterado: "${alerta.titulo}" - ${getLabelStatus(alerta.statusAntigo)} → ${getLabelStatus(alerta.statusNovo)}`);
+        } else {
+            console.log(`ℹ️ Alerta similar já existe, ignorando duplicata`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao gerar alertas para observadores:', error);
+    }
+}
+
+// Função para limpar alertas antigos
+function limparAlertasAntigos() {
+    const agora = new Date();
+    const umaHoraAtras = agora.getTime() - (60 * 60 * 1000); // 1 hora atrás
+    
+    // Limpar alertas de observador antigos
+    alertasObservador = alertasObservador.filter(alerta => {
+        const dataAlerta = new Date(alerta.dataAlteracao).getTime();
+        return dataAlerta > umaHoraAtras;
+    });
+    
+    // Limpar alertas de responsável antigos (pendentes já resolvidos)
+    // Verificar quais atividades pendentes ainda existem
+    verificarAlertasResponsavel(usuarioAtual).then(() => {
+        atualizarContadoresAlertas();
     });
 }
 
@@ -335,148 +431,10 @@ async function verificarAlertasObservador(usuarioAtual) {
             ...doc.data()
         }));
         
-        console.log(`📋 Atividades encontradas:`, atividades.length);
+        console.log(`📋 ${atividades.length} atividades onde o usuário é observador`);
         
-        // Verificar quais atividades mudaram
-        const atividadesComMudanca = [];
-        const atividadesParaAtualizar = [];
-        
-        console.log('🔎 ANALISANDO MUDANÇAS:');
-        
-        for (const atividade of atividades) {
-            console.log(`\n📊 ${atividade.titulo || 'Sem título'}:`);
-            console.log(`   ID: ${atividade.id}`);
-            console.log(`   Status atual: "${atividade.status}"`);
-            console.log(`   statusAnterior no Firestore: "${atividade.statusAnterior || '(não definido)'}"`);
-            
-            // Primeiro, verificar se tem statusAnterior no Firestore
-            if (atividade.statusAnterior) {
-                // Temos statusAnterior no Firestore - comparar com status atual
-                if (atividade.statusAnterior !== atividade.status) {
-                    console.log(`   ✅ MUDANÇA DETECTADA NO FIRESTORE: ${atividade.statusAnterior} → ${atividade.status}`);
-                    
-                    atividadesComMudanca.push(atividade);
-                    
-                    // Marcar para atualizar statusAnterior depois (para não detectar de novo)
-                    atividadesParaAtualizar.push({
-                        id: atividade.id,
-                        novoStatusAnterior: atividade.status
-                    });
-                } else {
-                    console.log(`   ⏸️ Status igual ao anterior: ${atividade.status}`);
-                    
-                    // Verificar se já notificamos essa mudança antes
-                    const ultimoNotificado = ultimoStatusNotificado[atividade.id];
-                    if (ultimoNotificado !== atividade.status) {
-                        console.log(`   📝 Primeira notificação deste status`);
-                        atividadesComMudanca.push(atividade);
-                        ultimoStatusNotificado[atividade.id] = atividade.status;
-                    }
-                }
-            } else {
-                // Não tem statusAnterior no Firestore
-                console.log(`   ⚠️ Sem statusAnterior no Firestore`);
-                
-                // Verificar se o status atual é diferente do último notificado
-                const ultimoNotificado = ultimoStatusNotificado[atividade.id];
-                
-                if (!ultimoNotificado) {
-                    // Primeira vez vendo esta atividade
-                    console.log(`   📝 Primeira vez vendo esta atividade`);
-                    
-                    // Se o status não for "nao_iniciado", consideramos como mudança
-                    if (atividade.status !== 'nao_iniciado') {
-                        console.log(`   ✅ Status inicial diferente de 'nao_iniciado': ${atividade.status}`);
-                        atividadesComMudanca.push(atividade);
-                    }
-                    
-                    // Marcar para criar statusAnterior no Firestore
-                    atividadesParaAtualizar.push({
-                        id: atividade.id,
-                        novoStatusAnterior: atividade.status
-                    });
-                    
-                    // Atualizar cache
-                    ultimoStatusNotificado[atividade.id] = atividade.status;
-                    
-                } else if (ultimoNotificado !== atividade.status) {
-                    // Status mudou desde a última notificação
-                    console.log(`   ✅ MUDANÇA DETECTADA NO CACHE: ${ultimoNotificado} → ${atividade.status}`);
-                    
-                    atividadesComMudanca.push(atividade);
-                    
-                    // Marcar para atualizar no Firestore
-                    atividadesParaAtualizar.push({
-                        id: atividade.id,
-                        novoStatusAnterior: atividade.status
-                    });
-                    
-                    // Atualizar cache
-                    ultimoStatusNotificado[atividade.id] = atividade.status;
-                } else {
-                    console.log(`   ⏸️ Status igual ao último notificado: ${atividade.status}`);
-                }
-            }
-        }
-        
-        console.log(`\n🔄 RESUMO: ${atividadesComMudanca.length} atividades com mudança`);
-        
-        // Atualizar statusAnterior no Firestore para evitar detecções repetidas
-        if (atividadesParaAtualizar.length > 0) {
-            console.log(`📝 Atualizando ${atividadesParaAtualizar.length} atividades no Firestore...`);
-            
-            for (const item of atividadesParaAtualizar) {
-                try {
-                    await db.collection('atividades').doc(item.id).update({
-                        statusAnterior: item.novoStatusAnterior,
-                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log(`   ✅ ${item.id}: statusAnterior = ${item.novoStatusAnterior}`);
-                } catch (error) {
-                    console.error(`   ❌ Erro ao atualizar ${item.id}:`, error);
-                }
-            }
-        }
-        
-        // Criar alertas para todas as mudanças encontradas
-        alertasObservador = atividadesComMudanca.map(atividade => {
-            const dataAlteracao = atividade.dataAtualizacao?.toDate() || new Date();
-            const alertaId = `obs_${atividade.id}_${dataAlteracao.getTime()}`;
-            
-            // Determinar status antigo para mostrar no alerta
-            let statusAntigoParaAlerta;
-            
-            if (atividade.statusAnterior && atividade.statusAnterior !== atividade.status) {
-                // Se temos statusAnterior no Firestore e são diferentes
-                statusAntigoParaAlerta = atividade.statusAnterior;
-            } else {
-                // Usar o último notificado do cache
-                statusAntigoParaAlerta = ultimoStatusNotificado[atividade.id] || 'nao_iniciado';
-            }
-            
-            return {
-                id: alertaId,
-                atividadeId: atividade.id,
-                titulo: atividade.titulo || 'Atividade sem título',
-                statusAntigo: statusAntigoParaAlerta,
-                statusNovo: atividade.status,
-                dataAlteracao: dataAlteracao,
-                tarefaNome: atividade.tarefaNome || 'Tarefa desconhecida',
-                tipo: 'observador',
-                descricao: atividade.descricao || '',
-                responsavel: atividade.responsavel || ''
-            };
-        });
-        
-        console.log(`✅ Alertas criados:`, alertasObservador.length);
-        
-        // DEBUG: Mostrar alertas criados
-        if (alertasObservador.length > 0) {
-            console.log('📋 ALERTAS CRIADOS:');
-            alertasObservador.forEach((alerta, index) => {
-                console.log(`   ${index + 1}. ${alerta.titulo}: ${alerta.statusAntigo} → ${alerta.statusNovo}`);
-            });
-        }
+        // Limpar alertas antigos primeiro
+        limparAlertasAntigos();
         
         // Atualizar interface
         atualizarContadoresAlertas();
@@ -603,6 +561,8 @@ async function carregarHistoricoStatus(usuarioAtual) {
 }
 
 // Função para mostrar notificação rápida
+// Atualize a função mostrarNotificacaoRapida:
+
 function mostrarNotificacaoRapida(mensagem) {
     // Verificar se já existe notificação
     const notificacaoExistente = document.querySelector('.notificacao-rapida');
@@ -618,8 +578,8 @@ function mostrarNotificacaoRapida(mensagem) {
         right: 20px;
         padding: 12px 16px;
         border-radius: 8px;
-        background: #ffc107;
-        color: #856404;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
         font-weight: 500;
         z-index: 9999;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -627,17 +587,22 @@ function mostrarNotificacaoRapida(mensagem) {
         display: flex;
         align-items: center;
         gap: 8px;
+        max-width: 400px;
     `;
     
     notification.innerHTML = `
-        <i class="fas fa-clock"></i>
-        <span>${mensagem}</span>
+        <i class="fas fa-bell" style="font-size: 18px;"></i>
+        <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 2px;">Alerta de Status</div>
+            <div style="font-size: 13px;">${mensagem}</div>
+        </div>
         <button onclick="this.parentElement.remove()" style="
             background: none;
             border: none;
             color: inherit;
             cursor: pointer;
             margin-left: 8px;
+            opacity: 0.8;
         ">
             <i class="fas fa-times"></i>
         </button>
@@ -645,12 +610,12 @@ function mostrarNotificacaoRapida(mensagem) {
     
     document.body.appendChild(notification);
     
-    // Remover automaticamente após 5 segundos
+    // Remover automaticamente após 7 segundos
     setTimeout(() => {
         if (notification.parentElement) {
             notification.remove();
         }
-    }, 5000);
+    }, 7000);
 }
 
 // CSS para animação
@@ -738,8 +703,6 @@ function abrirAlertasObservador() {
     renderizarAlertasObservador();
 }
 
-
-// Função para renderizar alertas de observador (QUALQUER ALTERAÇÃO)
 function renderizarAlertasObservador() {
     const container = document.getElementById('observadorAlertList');
     
@@ -748,7 +711,12 @@ function renderizarAlertasObservador() {
         return;
     }
     
-    const alertasHTML = alertasObservador.map(alerta => {
+    // Ordenar do mais recente para o mais antigo
+    const alertasOrdenados = [...alertasObservador].sort((a, b) => 
+        new Date(b.dataAlteracao) - new Date(a.dataAlteracao)
+    );
+    
+    const alertasHTML = alertasOrdenados.map(alerta => {
         const isLido = alertasLidosObservador.has(alerta.id);
         const tempoAtras = formatarTempoAtras(alerta.dataAlteracao);
         
@@ -756,22 +724,25 @@ function renderizarAlertasObservador() {
             <div class="alert-item ${isLido ? 'read' : 'unread'}" data-alerta-id="${alerta.id}">
                 <div class="alert-item-header">
                     <div class="alert-item-title">
-                        <i class="fas fa-eye"></i>
+                        <i class="fas fa-bell"></i>
                         ${alerta.titulo}
                     </div>
                     <div class="alert-item-time">${tempoAtras}</div>
                 </div>
                 <div class="alert-item-body">
-                    Status alterado em <strong>${alerta.tarefaNome}</strong>
+                    <div class="alert-mudanca-status">
+                        <i class="fas fa-sync-alt"></i>
+                        Status alterado em <strong>${alerta.tarefaNome}</strong>
+                    </div>
                     ${alerta.responsavel ? `<div class="alert-responsavel"><i class="fas fa-user"></i> ${alerta.responsavel}</div>` : ''}
-                    ${alerta.descricao ? `<p class="alert-descricao">${alerta.descricao}</p>` : ''}
                 </div>
                 <div class="alert-item-details">
                     <div class="alert-status-change">
+                        <div class="status-change-label">De:</div>
                         <span class="alert-status-badge badge-de ${normalizarStatusParaClasse(alerta.statusAntigo)}">
                             ${getLabelStatus(alerta.statusAntigo)}
                         </span>
-                        <i class="fas fa-arrow-right"></i>
+                        <div class="status-change-label">Para:</div>
                         <span class="alert-status-badge badge-para ${normalizarStatusParaClasse(alerta.statusNovo)}">
                             ${getLabelStatus(alerta.statusNovo)}
                         </span>
@@ -780,11 +751,11 @@ function renderizarAlertasObservador() {
                 <div class="alert-actions">
                     ${!isLido ? `
                         <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'observador')">
-                            <i class="fas fa-check"></i> Marcar como lido
+                            <i class="fas fa-check-circle"></i> Marcar como visto
                         </button>
                     ` : ''}
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
-                        <i class="fas fa-eye"></i> Ver atividade
+                        <i class="fas fa-external-link-alt"></i> Ver atividade
                     </button>
                 </div>
             </div>
