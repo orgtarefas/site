@@ -264,72 +264,6 @@ function configurarFirebase() {
 
 }
 
-// Função para adicionar asterisco em observadores de atividades existentes
-async function sincronizarAsteriscosObservadores() {
-    try {
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-        if (!usuarioLogado) return;
-        
-        const usuarioAtual = usuarioLogado.usuario;
-        
-        console.log('🔄 Sincronizando asteriscos para observadores...');
-        
-        // Buscar atividades onde o usuário é observador (sem asterisco)
-        const snapshot = await db.collection('atividades')
-            .where('observadores', 'array-contains', usuarioAtual)
-            .get();
-        
-        console.log(`📋 Encontradas ${snapshot.docs.length} atividades onde o usuário é observador (sem asterisco)`);
-        
-        const batch = db.batch();
-        let atualizadas = 0;
-        
-        snapshot.docs.forEach(doc => {
-            const atividade = doc.data();
-            const observadores = atividade.observadores || [];
-            
-            // Verificar se o status é diferente do statusAnterior
-            const status = atividade.status || 'nao_iniciado';
-            const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
-            
-            if (status !== statusAnterior) {
-                // Verificar se JÁ TEM asterisco
-                const jaTemAsterisco = observadores.includes(usuarioAtual + '*');
-                
-                if (!jaTemAsterisco) {
-                    // Adicionar asterisco apenas para este usuário
-                    const observadoresAtualizados = observadores.map(obs => {
-                        if (obs === usuarioAtual) {
-                            return obs + '*'; // Adiciona asterisco
-                        }
-                        return obs;
-                    });
-                    
-                    batch.update(doc.ref, {
-                        observadores: observadoresAtualizados,
-                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    atualizadas++;
-                    console.log(`✅ Adicionado asterisco para ${usuarioAtual} na atividade "${atividade.titulo}" (${statusAnterior} → ${status})`);
-                }
-            }
-        });
-        
-        if (atualizadas > 0) {
-            await batch.commit();
-            console.log(`✅ ${atualizadas} atividades atualizadas com asterisco`);
-        } else {
-            console.log('ℹ️ Nenhuma atividade precisa de asterisco (todas já sincronizadas ou status iguais)');
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao sincronizar asteriscos:', error);
-    }
-}
-
-// Torna global
-window.sincronizarAsteriscosObservadores = sincronizarAsteriscosObservadores;
-
 // Torna a função global
 window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
 
@@ -571,13 +505,10 @@ async function verificarAlertas() {
         
         console.log('🔄 Iniciando verificação completa de alertas...');
         
-        // PRIMEIRO: Sincronizar asteriscos para atividades que precisam
-        await sincronizarAsteriscosObservadores();
-        
-        // SEGUNDO: Verificar alertas de observador
+        // Verificar alertas de observador
         await verificarAlertasObservador(usuarioAtual);
         
-        // TERCEIRO: Verificar alertas de responsável
+        // Verificar alertas de responsável
         await verificarAlertasResponsavel(usuarioAtual);
         
         // Atualizar interface
