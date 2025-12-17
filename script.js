@@ -85,19 +85,13 @@ function inicializarSistema() {
                           window.location.pathname.endsWith('/');
         
         if (isHomePage) {
-            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
+            console.log('🏠 Página Home detectada - Configurando sistema de alertas');
             
             // Configurar listener específico para observadores
             configurarListenerObservadores();
             
-            // Iniciar verificação de alertas após 3 segundos
-            setTimeout(() => {
-                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-                if (usuarioLogado) {
-                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
-                    verificarAlertas();
-                }
-            }, 3000);
+            // NÃO iniciar verificação automática de alertas
+            // O usuário pode chamar manualmente se quiser
         } else {
             console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
@@ -205,8 +199,8 @@ function configurarFirebase() {
                 
                 atualizarInterface();
                 
-                // Iniciar alertas
-                setTimeout(verificarAlertas, 1000);
+                // REMOVIDO: Não iniciar alertas automaticamente aqui
+                // setTimeout(verificarAlertas, 1000);
             },
             (error) => {
                 console.error('❌ Erro no Firestore:', error);
@@ -241,8 +235,6 @@ function configurarFirebase() {
                         
                         if (statusAntigo !== statusNovo) {
                             console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
-                            console.log(`📋 Dados antigos:`, atividadeAntiga);
-                            console.log(`📋 Dados novos:`, novaAtividade);
                             
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
@@ -253,15 +245,7 @@ function configurarFirebase() {
                 }
             });
             
-            // Verificar alertas após mudanças
-            setTimeout(() => {
-                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-                if (usuarioLogado) {
-                    verificarAlertas();
-                }
-            }, 1500);
         });
-
 }
 
 // Torna a função global
@@ -428,20 +412,9 @@ function configurarListenerObservadores() {
                         
                         if (!tinhaAsteriscoAntes && temAsteriscoAgora) {
                             console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
-                            // Forçar verificação completa
-                            setTimeout(() => {
-                                verificarAlertasObservador(usuarioAtual);
-                            }, 1000);
+                            // APENAS atualizar contadores, não forçar verificação completa
+                            atualizarContadoresAlertas();
                         }
-                    }
-                    
-                    // Verificar também se o status mudou (para garantir)
-                    if (atividadeAntiga.status !== novaAtividade.status) {
-                        console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
-                        // Forçar verificação
-                        setTimeout(() => {
-                            verificarAlertasObservador(usuarioAtual);
-                        }, 1500);
                     }
                 }
             });
@@ -526,8 +499,8 @@ async function verificarAlertas() {
         // DEBUG: Mostrar estado atual dos alertas
         console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
         
-        // Verificar novamente em 30 segundos
-        setTimeout(verificarAlertas, 30000);
+        // REMOVIDO: Não verificar novamente automaticamente
+        // setTimeout(verificarAlertas, 30000);
         
     } catch (error) {
         console.error('❌ Erro ao verificar alertas:', error);
