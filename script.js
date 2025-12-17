@@ -87,9 +87,6 @@ function inicializarSistema() {
         if (isHomePage) {
             console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
             
-            // Configurar listener específico para observadores
-            configurarListenerObservadores();
-            
             // Iniciar verificação de alertas após 3 segundos
             setTimeout(() => {
                 const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -222,6 +219,12 @@ function configurarFirebase() {
         .onSnapshot((snapshot) => {
             console.log('🔄 Atualização de atividades - Total de documentos:', snapshot.size);
             
+            // VERIFICAR: Se estamos marcando como lido, não processar mudanças
+            if (window.marcandoComoLido) {
+                console.log('⏸️ Processo de marcação como lido em andamento - Pulando sincronização');
+                return;
+            }
+            
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             if (!usuarioLogado) return;
             
@@ -241,8 +244,6 @@ function configurarFirebase() {
                         
                         if (statusAntigo !== statusNovo) {
                             console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
-                            console.log(`📋 Dados antigos:`, atividadeAntiga);
-                            console.log(`📋 Dados novos:`, novaAtividade);
                             
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
@@ -393,58 +394,6 @@ async function forcarVerificacaoAlertas() {
 
 // Torna a função global
 window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
-
-// Listener específico para detectar quando observadores são atualizados
-function configurarListenerObservadores() {
-    console.log('👁️ Configurando listener para observadores...');
-    
-    db.collection("atividades")
-        .onSnapshot((snapshot) => {
-            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            if (!usuarioLogado) return;
-            
-            const usuarioAtual = usuarioLogado.usuario;
-            
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'modified') {
-                    const novaAtividade = change.doc.data();
-                    const atividadeAntiga = change.doc._previousData;
-                    
-                    if (!atividadeAntiga) return;
-                    
-                    // Verificar se OS OBSERVADORES foram alterados (não apenas status)
-                    const obsAntigos = atividadeAntiga.observadores || [];
-                    const obsNovos = novaAtividade.observadores || [];
-                    
-                    // Verificar se houve mudança nos observadores
-                    if (JSON.stringify(obsAntigos) !== JSON.stringify(obsNovos)) {
-                        console.log(`👥 Observadores alterados na atividade ${change.doc.id}`);
-                        
-                        // Verificar se o asterisco foi adicionado/removido para este usuário
-                        const tinhaAsteriscoAntes = obsAntigos.includes(usuarioAtual + '*');
-                        const temAsteriscoAgora = obsNovos.includes(usuarioAtual + '*');
-                        
-                        if (!tinhaAsteriscoAntes && temAsteriscoAgora) {
-                            console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
-                            // Forçar verificação completa
-                            setTimeout(() => {
-                                verificarAlertasObservador(usuarioAtual);
-                            }, 1000);
-                        }
-                    }
-                    
-                    // Verificar também se o status mudou (para garantir)
-                    if (atividadeAntiga.status !== novaAtividade.status) {
-                        console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
-                        // Forçar verificação
-                        setTimeout(() => {
-                            verificarAlertasObservador(usuarioAtual);
-                        }, 1500);
-                    }
-                }
-            });
-        });
-}
 
 async function carregarAtividadesParaTodasTarefas() {
     console.log('📋 Carregando atividades para todas as tarefas...');
@@ -1057,6 +1006,9 @@ async function verificarInicialAlertas() {
 // Função para marcar alerta como lido
 async function marcarAlertaComoLido(alertaId, tipo) {
     try {
+        // Criar um flag temporário para evitar re-trigger
+        window.marcandoComoLido = true;
+        
         if (tipo === 'observador') {
             // Encontrar o alerta
             const alerta = alertasObservador.find(a => a.id === alertaId);
@@ -1069,23 +1021,33 @@ async function marcarAlertaComoLido(alertaId, tipo) {
                     const atividade = atividadeDoc.data();
                     const observadores = atividade.observadores || [];
                     
-                    // Remover asterisco do observador específico
-                    const observadoresAtualizados = observadores.map(obs => {
-                        if (obs === alerta.observador + '*') {
-                            return alerta.observador; // Remove o asterisco
-                        }
-                        return obs;
-                    });
+                    // Verificar se status mudou recentemente
+                    const statusAtual = atividade.status || 'nao_iniciado';
+                    const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
                     
-                    // Atualizar no Firestore
-                    await db.collection('atividades').doc(alerta.atividadeId).update({
-                        observadores: observadoresAtualizados,
-                        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    // SÓ remover asterisco se o status atual for igual ao anterior (não há mudança pendente)
+                    // OU se o usuário já visualizou
+                    if (statusAtual === statusAnterior) {
+                        // Remover asterisco do observador específico
+                        const observadoresAtualizados = observadores.map(obs => {
+                            if (obs === alerta.observador + '*') {
+                                return alerta.observador; // Remove o asterisco
+                            }
+                            return obs;
+                        });
+                        
+                        // Atualizar no Firestore
+                        await db.collection('atividades').doc(alerta.atividadeId).update({
+                            observadores: observadoresAtualizados,
+                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        
+                        console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
+                    } else {
+                        console.log(`ℹ️ Status ainda diferente, mantendo asterisco para ${alerta.observador}`);
+                    }
                     
-                    console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
-                    
-                    // Remover da lista local
+                    // Remover da lista local de qualquer forma (usuário já viu)
                     alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
                     
                     // Atualizar contadores
@@ -1105,8 +1067,14 @@ async function marcarAlertaComoLido(alertaId, tipo) {
             renderizarAlertasResponsavel();
         }
         
+        // Remover flag após um tempo
+        setTimeout(() => {
+            window.marcandoComoLido = false;
+        }, 2000);
+        
     } catch (error) {
         console.error('❌ Erro ao marcar alerta como lido:', error);
+        window.marcandoComoLido = false;
     }
 }
 
