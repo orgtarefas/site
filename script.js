@@ -337,6 +337,24 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
     }
 }
 
+// Função para forçar verificação de alertas (pode ser chamada manualmente)
+async function forcarVerificacaoAlertas() {
+    console.log('🔍 Forçando verificação de alertas...');
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuarioLogado) return;
+    
+    const usuarioAtual = usuarioLogado.usuario;
+    
+    await verificarAlertasObservador(usuarioAtual);
+    await verificarAlertasResponsavel(usuarioAtual);
+    atualizarContadoresAlertas();
+    
+    console.log('✅ Verificação forçada concluída');
+}
+
+// Torna a função global
+window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
+
 // Função para limpar alertas antigos
 function limparAlertasAntigos(usuarioAtual) {
     const agora = new Date();
