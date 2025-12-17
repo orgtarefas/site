@@ -203,7 +203,7 @@ function configurarFirebase() {
                 atualizarInterface();
                 
                 // Iniciar alertas
-                setTimeout(verificarAlertas, 1000);
+                verificarAlertasUmaVez();
             },
             (error) => {
                 console.error('❌ Erro no Firestore:', error);
@@ -681,6 +681,66 @@ async function verificarAlertasResponsavel(usuarioAtual) {
     } catch (error) {
         console.error('❌ Erro ao verificar alertas de responsável:', error);
     }
+}
+
+// Variável para controlar se já verificou alertas na sessão
+let jaVerificouAlertas = false;
+
+// Função para verificar alertas apenas uma vez
+async function verificarAlertasUmaVez() {
+    if (jaVerificouAlertas) {
+        console.log('⏭️ Alertas já verificados nesta sessão');
+        return;
+    }
+    
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuarioLogado) return;
+    
+    console.log('🔔 Verificando alertas (primeira vez)...');
+    
+    await verificarAlertasObservador(usuarioLogado.usuario);
+    await verificarAlertasResponsavel(usuarioLogado.usuario);
+    atualizarContadoresAlertas();
+    
+    jaVerificouAlertas = true;
+    console.log('✅ Primeira verificação de alertas concluída');
+}
+
+// Modifique a função verificarAlertas para ser usada apenas por mudanças
+async function verificarAlertas() {
+    console.log('🔔 Verificando alertas (mudanças)...');
+    
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (!usuarioLogado) return;
+    
+    // NÃO mostrar notificações aqui - apenas atualizar contadores
+    await verificarAlertasObservador(usuarioLogado.usuario);
+    await verificarAlertasResponsavel(usuarioLogado.usuario);
+    atualizarContadoresAlertasSemNotificacoes();
+}
+
+// Nova função para atualizar contadores SEM mostrar notificações
+function atualizarContadoresAlertasSemNotificacoes() {
+    const isHomePage = window.location.pathname.includes('index.html') || 
+                      window.location.pathname.endsWith('/');
+    
+    if (!isHomePage) return;
+
+    limparAlertasDuplicados();
+    
+    const naoLidosObservador = alertasObservador.length;
+    const naoLidosResponsavel = alertasResponsavel.length;
+    
+    // Apenas atualiza os números, SEM mostrar notificações
+    document.getElementById('observadorAlertCount').textContent = naoLidosObservador;
+    document.getElementById('responsavelAlertCount').textContent = naoLidosResponsavel;
+    
+    document.getElementById('observadorAlertCount').style.display = 
+        naoLidosObservador > 0 ? 'flex' : 'none';
+    document.getElementById('responsavelAlertCount').style.display = 
+        naoLidosResponsavel > 0 ? 'flex' : 'none';
+    
+    console.log(`📊 Contadores atualizados: ${naoLidosObservador} observador, ${naoLidosResponsavel} responsável`);
 }
 
 // Variável para histórico de status
