@@ -998,9 +998,6 @@ function renderizarAlertasResponsavel() {
                     ${dataPrevista}
                 </div>
                 <div class="alert-actions">
-                    <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'responsavel')">
-                        <i class="fas fa-check"></i> Visualizado
-                    </button>
                     <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
                         <i class="fas fa-external-link-alt"></i> Resolver
                     </button>
