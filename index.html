@@ -47,8 +47,9 @@
                             <!-- SINO 1: ALERTAS DE OBSERVADOR (MUDANÇAS DE STATUS) -->
                             <div class="alerts-container" id="observadorAlertsContainer">
                                 <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
-                                    <i class="fas fa-eye"></i> <!-- Ícone de olho -->
-                                    <span class="alert-count" id="observadorAlertCount" style="display: flex;">1</span>
+                                    <i class="fas fa-eye"></i>
+                                    <!-- REMOVA O VALOR "1" E INICIE COM DISPLAY NONE -->
+                                    <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
                                 </button>
                                 <div class="alert-dropdown" id="observadorAlertDropdown">
                                     <div class="alert-dropdown-header">
@@ -59,7 +60,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
                             <!-- SINO 2: ALERTAS DE PENDENTE PARA O RESPONSÁVEL -->
                             <div class="alerts-container" id="responsavelAlertsContainer">
                                 <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
