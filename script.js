@@ -233,6 +233,72 @@ async function carregarGrupos() {
     }
 }
 
+// NOVA FUNÇÃO: Carregar grupos do usuário logado do banco ORGTAREFAS
+async function carregarGruposDoUsuarioLogado() {
+    console.log('👤 Buscando grupos do usuário logado...');
+    
+    try {
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        if (!usuarioLogado || !usuarioLogado.usuario) {
+            console.log('⚠️ Usuário não logado');
+            return;
+        }
+        
+        const usuarioAtual = usuarioLogado.usuario;
+        console.log(`🔍 Procurando grupos para: ${usuarioAtual}`);
+        
+        // Buscar TODOS os grupos para ver em quais o usuário está incluído
+        const gruposSnapshot = await db.collection('grupos').get();
+        
+        if (gruposSnapshot.empty) {
+            console.log('❌ Nenhum grupo encontrado no sistema');
+            return;
+        }
+        
+        const gruposDoUsuario = [];
+        
+        gruposSnapshot.forEach(doc => {
+            const grupoData = doc.data();
+            const grupoId = doc.id;
+            
+            // Verificar se o grupo tem a propriedade 'usuarios'
+            if (grupoData.usuarios && Array.isArray(grupoData.usuarios)) {
+                // Verificar se o usuário atual está na lista de usuários do grupo
+                const usuarioNoGrupo = grupoData.usuarios.some(usuario => 
+                    usuario === usuarioAtual || usuario.usuario === usuarioAtual || usuario.id === usuarioAtual
+                );
+                
+                if (usuarioNoGrupo) {
+                    gruposDoUsuario.push(grupoId);
+                    console.log(`✅ Usuário está no grupo: ${grupoData.nome || grupoId}`);
+                }
+            }
+        });
+        
+        console.log(`📊 Grupos encontrados para ${usuarioAtual}:`, gruposDoUsuario);
+        
+        // Atualizar o objeto usuarioLogado com os grupos encontrados
+        if (!usuarioLogado.grupos) {
+            usuarioLogado.grupos = [];
+        }
+        
+        // Adicionar os grupos encontrados
+        gruposDoUsuario.forEach(grupoId => {
+            if (!usuarioLogado.grupos.includes(grupoId)) {
+                usuarioLogado.grupos.push(grupoId);
+            }
+        });
+        
+        // Salvar de volta no localStorage
+        localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+        
+        console.log('👥 Grupos atualizados do usuário:', usuarioLogado.grupos);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar grupos do usuário:', error);
+    }
+}
+
 // FUNÇÃO: Carregar usuários do banco LOGINS
 async function carregarUsuarios() {
     console.log('👥 Carregando usuários...');
@@ -302,6 +368,9 @@ async function carregarUsuarios() {
             usuarios = [];
         }
     }
+    
+    // AGORA CARREGAR OS GRUPOS DO USUÁRIO LOGADO
+    await carregarGruposDoUsuarioLogado();
     
     // Preencher select de responsável para FILTRO
     const selectFiltro = document.getElementById('filterResponsavel');
