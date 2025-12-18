@@ -67,10 +67,11 @@
         import { 
             getFirestore, 
             collection, 
-            doc, 
-            getDoc
+            query, 
+            where, 
+            getDocs
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-
+    
         // SUA CONFIGURAÇÃO DO FIREBASE (logins-c3407)
         const firebaseConfig = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
@@ -80,7 +81,7 @@
             messagingSenderId: "809861558230",
             appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
-
+    
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -89,9 +90,7 @@
         window.firebaseApp = {
             db,
             firebaseModules: {
-                collection,
-                doc,
-                getDoc
+                collection, query, where, getDocs
             }
         };
         console.log('✅ Firebase logins-c3407 configurado!');
