@@ -1,5 +1,5 @@
 // script.js - arquivo
-console.log('=== SISTEMA INICIANDO ===');
+//console.log('=== SISTEMA INICIANDO ===');
 
 // Estado global
 let tarefas = [];
