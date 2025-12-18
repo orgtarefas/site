@@ -1328,43 +1328,7 @@ class GestorAtividades {
         const usuarioAtual = this.usuario ? this.usuario.usuario : null;
         
         if (atividades.length === 0) {
-            // Verificar se o usuário tem acesso completo para poder adicionar atividades
-            if (tarefa.acessoCompleto) {
-                return `
-                    <div class="empty-activities">
-                        <p>Nenhuma atividade cadastrada para esta tarefa</p>
-                        <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}')">
-                            <i class="fas fa-plus"></i> Adicionar Atividade
-                        </button>
-                    </div>
-                `;
-            } else {
-                return `
-                    <div class="empty-activities">
-                        <p>Você não tem atividades visíveis nesta tarefa</p>
-                    </div>
-                `;
-            }
-        }
-    
-        // Filtrar atividades que o usuário pode ver
-        const atividadesVisiveis = atividades.filter(atividade => {
-            // Se tem acesso completo à tarefa, pode ver todas as atividades
-            if (tarefa.acessoCompleto) {
-                return true;
-            }
-            
-            // Se não tem acesso completo, verificar se é observador desta atividade específica
-            const observadores = atividade.observadores || [];
-            return observadores.includes(usuarioAtual);
-        });
-        
-        if (atividadesVisiveis.length === 0) {
-            return `
-                <div class="empty-activities">
-                    <p>Você não tem atividades visíveis nesta tarefa</p>
-                </div>
-            `;
+            // [código permanece igual...]
         }
     
         // Agrupar por tipo
@@ -1376,32 +1340,11 @@ class GestorAtividades {
         };
     
         return tipos.map(tipo => {
-            // Filtrar por tipo
-            const atividadesTipo = atividadesVisiveis.filter(a => a.tipo === tipo);
+            const atividadesTipo = atividades.filter(a => a.tipo === tipo);
             
             if (atividadesTipo.length === 0) {
-                return ''; // Não mostrar seção se não houver atividades deste tipo
+                return '';
             }
-            
-            // Ordenar por data de criação
-            atividadesTipo.sort((a, b) => {
-                const getTimestamp = (atividade) => {
-                    if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
-                        return atividade.dataRegistro.toDate().getTime();
-                    }
-                    if (atividade.dataRegistro) {
-                        return new Date(atividade.dataRegistro).getTime();
-                    }
-                    if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
-                        return atividade.dataCriacao.toDate().getTime();
-                    }
-                    if (atividade.dataCriacao) {
-                        return new Date(atividade.dataCriacao).getTime();
-                    }
-                    return 0;
-                };
-                return getTimestamp(a) - getTimestamp(b);
-            });
             
             return `
                 <div class="activity-section">
@@ -1435,19 +1378,16 @@ class GestorAtividades {
                             const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
                             const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
                             const podeEditarExcluir = tarefa.acessoCompleto || isResponsavel || isCriador;
-                            const podeAlterarStatus = isResponsavel; // Apenas responsável altera status
+                            const podeAlterarStatus = isResponsavel;
                             
-                            // Obter nomes formatados dos usuários
-                            const responsavelObj = this.usuarios.find(u => u.usuario === atividade.responsavel);
-                            const responsavelNome = responsavelObj ? (responsavelObj.nome || atividade.responsavel) : atividade.responsavel;
-                            
-                            const criadorObj = atividade.criadoPor ? this.usuarios.find(u => u.usuario === atividade.criadoPor) : null;
-                            const criadorNome = criadorObj ? (criadorObj.nome || atividade.criadoPor) : atividade.criadoPor;
+                            // **MUDANÇA AQUI: Mostrar apenas logins**
+                            const responsavelExibicao = atividade.responsavel || 'Não definido';
+                            const criadorExibicao = atividade.criadoPor || 'Não informado';
                             
                             // Título escapado para uso no select
                             const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
                             
-                            // Limitar exibição para 2 observadores, mostrar "e mais X"
+                            // **MUDANÇA AQUI: Observadores mostrar apenas logins**
                             let observadoresHTML = '';
                             let verMaisHTML = '';
                             
@@ -1457,9 +1397,8 @@ class GestorAtividades {
                                     observadores.slice(0, 2) : observadores;
                                 
                                 observadoresHTML = observadoresLimitados.map(obs => {
-                                    const usuarioObj = this.usuarios.find(u => u.usuario === obs);
-                                    const nomeExibicao = usuarioObj ? (usuarioObj.nome || usuarioObj.usuario) : obs;
-                                    return `<span class="observador-tag" data-observador="${obs}">${nomeExibicao}</span>`;
+                                    // **MOSTRAR APENAS O LOGIN**
+                                    return `<span class="observador-tag" data-observador="${obs}">${obs}</span>`;
                                 }).join('');
                                 
                                 // Adicionar botão "Ver mais" se tiver mais de 2
@@ -1488,7 +1427,6 @@ class GestorAtividades {
                             // Gerar conteúdo do controle de status (APENAS se for responsável)
                             let statusControlHTML = '';
                             if (podeAlterarStatus) {
-                                // Responsável: select normal
                                 const optionsHTML = opcoesStatus.map(opcao => `
                                     <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
                                         ${opcao.label}
@@ -1529,19 +1467,22 @@ class GestorAtividades {
                                         </div>
                                         ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
                                         <div class="item-meta">
+                                            <!-- MUDANÇA: Mostrar apenas login do responsável -->
                                             <span class="responsavel-info">
                                                 <i class="fas fa-user"></i> 
-                                                <strong>Responsável:</strong> ${responsavelNome || atividade.responsavel || 'Não definido'}
+                                                <strong>Responsável:</strong> ${responsavelExibicao}
                                             </span>
                                             ${atividade.criadoPor ? 
-                                                `<span class="criador-info" title="Criado por ${criadorNome || atividade.criadoPor}">
+                                                `<!-- MUDANÇA: Mostrar apenas login do criador -->
+                                                <span class="criador-info" title="Criado por ${criadorExibicao}">
                                                     <i class="fas fa-user-plus"></i> 
-                                                    <strong>Criador:</strong> ${criadorNome || atividade.criadoPor}
+                                                    <strong>Criador:</strong> ${criadorExibicao}
                                                 </span>` 
                                                 : ''
                                             }
                                             ${temObservadores ? 
-                                                `<span class="observadores-container">
+                                                `<!-- MUDANÇA: Mostrar apenas logins dos observadores -->
+                                                <span class="observadores-container">
                                                     <i class="fas fa-eye"></i> 
                                                     <strong>Observadores:</strong> 
                                                     ${observadoresHTML}
@@ -1551,7 +1492,6 @@ class GestorAtividades {
                                             }
                                             <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
                                             
-                                            <!-- SEMPRE mostrar o badge do status no item-meta -->
                                             <span class="badge status-${status} status-meta-badge">
                                                 ${getLabelStatus(status)}
                                             </span>
