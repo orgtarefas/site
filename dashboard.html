@@ -217,8 +217,8 @@
         const dbLogins = appLogins ? firebase.firestore(appLogins) : null;
         
         // Tornar globais
-        window.db = db;                    // Banco principal (NÃO MUDOU)
-        window.dbLogins = dbLogins;        // Banco de logins (NOVO)
+        window.db = db;                    // Banco principal 
+        window.dbLogins = dbLogins;        // Banco de logins 
         window.firebase = firebase;
         window.firebaseAuth = auth;
         
