@@ -65,12 +65,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { 
             getFirestore, 
-            collection,
             doc,
-            getDoc,
-            query,
-            where,
-            getDocs
+            getDoc
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
         // CONFIGURAÇÃO DO FIREBASE
@@ -91,21 +87,17 @@
         window.firebaseApp = {
             db,
             firebaseModules: {
-                collection,
                 doc,
-                getDoc,
-                query,
-                where,
-                getDocs
+                getDoc
             }
         };
         console.log('✅ Firebase logins-c3407 configurado!');
     </script>
 
-    <!-- login.js INLINE -->
+    <!-- login.js INLINE - PARA LOGINS_ORGTAREFAS (documento) -->
     <script>
-        // login.js - VERSÃO FINAL PARA ESTRUTURA ESPECIAL
-        console.log('=== LOGIN INICIANDO ===');
+        // login.js - VERSÃO PARA LOGINS_ORGTAREFAS (DOCUMENTO)
+        console.log('=== LOGIN INICIANDO (LOGINS_ORGTAREFAS documento) ===');
 
         async function fazerLogin(usuario, senha) {
             console.log('🔐 Tentando login:', usuario);
@@ -128,45 +120,87 @@
                 const { db, firebaseModules } = window.firebaseApp;
                 const { doc, getDoc } = firebaseModules;
                 
-                console.log('📊 Acessando estrutura de logins...');
+                console.log('📊 Acessando documento LOGINS_ORGTAREFAS...');
                 
-                // 1. ACESSAR O DOCUMENTO ESPECIAL (LOGINS_AVERBSYS na coleção logins)
-                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+                // 1. ACESSAR O DOCUMENTO LOGINS_ORGTAREFAS DENTRO DA COLEÇÃO logins
+                const docRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
                 const docSnap = await getDoc(docRef);
                 
+                console.log('🔍 Documento existe?', docSnap.exists());
+                
                 if (!docSnap.exists()) {
-                    throw new Error('Banco de logins não encontrado');
+                    throw new Error('Documento LOGINS_ORGTAREFAS não encontrado na coleção logins');
                 }
                 
                 const dadosCompletos = docSnap.data();
                 console.log('✅ Documento carregado. Campos:', Object.keys(dadosCompletos).length);
                 
-                // 2. PROCURAR O USUÁRIO PELO LOGIN (campo user_X_logiin)
-                let usuarioEncontrado = null;
-                let numeroUsuario = null;
+                // Mostrar estrutura do documento para debug
+                console.log('📋 Estrutura do documento LOGINS_ORGTAREFAS:', Object.keys(dadosCompletos));
                 
-                // Procurar em user_1_logiin, user_2_logiin, etc.
-                for (let i = 1; i <= 20; i++) {
-                    const campoLogin = `user_${i}_logiin`;
+                // 2. BUSCAR USUÁRIO NOS CAMPOS
+                // Estrutura esperada: campos como user1_uid, user2_uid, etc.
+                let usuarioEncontrado = null;
+                let userId = null;
+                
+                // Primeiro, vamos ver todos os campos para entender a estrutura
+                const todosCampos = Object.keys(dadosCompletos);
+                
+                // Procurar por campos que contenham o usuário
+                for (const campo of todosCampos) {
+                    const valor = dadosCompletos[campo];
                     
-                    if (dadosCompletos[campoLogin] === usuario) {
-                        console.log(`✅ Usuário encontrado em: ${campoLogin}`);
-                        
-                        usuarioEncontrado = {
-                            numero: i,
-                            login: dadosCompletos[campoLogin],
-                            senha: dadosCompletos[`user_${i}_senha`],
-                            status: dadosCompletos[`user_${i}_status`],
-                            nome: dadosCompletos[`user_${i}_nome_completo`],
-                            perfil: dadosCompletos[`user_${i}_perfil`]
-                        };
-                        numeroUsuario = i;
+                    // Se o campo for um objeto com propriedade 'login'
+                    if (valor && typeof valor === 'object' && valor.login === usuario) {
+                        console.log(`✅ Usuário encontrado no campo: ${campo}`);
+                        usuarioEncontrado = valor;
+                        userId = campo;
                         break;
+                    }
+                    
+                    // Se o campo for um objeto com propriedade 'usuario'
+                    if (valor && typeof valor === 'object' && valor.usuario === usuario) {
+                        console.log(`✅ Usuário encontrado no campo: ${campo}`);
+                        usuarioEncontrado = valor;
+                        userId = campo;
+                        break;
+                    }
+                    
+                    // Se o próprio valor do campo for o usuário (estrutura simples)
+                    if (valor === usuario) {
+                        console.log(`🔍 Possível usuário no campo: ${campo} = ${valor}`);
+                        
+                        // Verificar se há campos relacionados (senha, nome, etc.)
+                        const campoBase = campo.replace(/_login$/, '').replace(/_usuario$/, '');
+                        
+                        // Procurar campos relacionados
+                        const campoSenha = `${campoBase}_senha` in dadosCompletos ? `${campoBase}_senha` :
+                                          `${campoBase}_password` in dadosCompletos ? `${campoBase}_password` :
+                                          `senha_${campoBase}` in dadosCompletos ? `senha_${campoBase}` : null;
+                        
+                        if (campoSenha) {
+                            console.log(`✅ Encontrado estrutura relacionada em: ${campoBase}`);
+                            usuarioEncontrado = {
+                                login: valor,
+                                senha: dadosCompletos[campoSenha],
+                                nome: dadosCompletos[`${campoBase}_nome`] || 
+                                     dadosCompletos[`${campoBase}_displayName`] ||
+                                     dadosCompletos[`${campoBase}_name`],
+                                perfil: dadosCompletos[`${campoBase}_perfil`] ||
+                                       dadosCompletos[`${campoBase}_nivel`] ||
+                                       dadosCompletos[`${campoBase}_profile`],
+                                status: dadosCompletos[`${campoBase}_status`] || 'ativo'
+                            };
+                            userId = campoBase;
+                            break;
+                        }
                     }
                 }
                 
                 if (!usuarioEncontrado) {
-                    throw new Error('Usuário não encontrado');
+                    console.log('❌ Usuário não encontrado. Campos disponíveis:');
+                    console.log(todosCampos);
+                    throw new Error('Usuário não encontrado no documento LOGINS_ORGTAREFAS');
                 }
                 
                 console.log('🎯 Dados do usuário:', usuarioEncontrado);
@@ -175,7 +209,7 @@
                 
                 // Verificar senha
                 if (!usuarioEncontrado.senha) {
-                    throw new Error('Erro: Campo de senha não encontrado');
+                    throw new Error('Erro: Campo de senha não encontrado para este usuário');
                 }
                 
                 if (usuarioEncontrado.senha !== senha) {
@@ -187,29 +221,34 @@
                 
                 console.log('✅ Senha correta!');
                 
-                // Verificar status (Ignorar verificação de status temporariamente)
+                // Verificar status
                 if (usuarioEncontrado.status) {
-                    console.log('📊 Status no banco:', usuarioEncontrado.status);
+                    console.log('📊 Status:', usuarioEncontrado.status);
                     
-                    // Se quiser habilitar a verificação de status, descomente:
-                    /*
-                    const statusLower = usuarioEncontrado.status.toLowerCase();
+                    const statusLower = String(usuarioEncontrado.status).toLowerCase();
                     if (statusLower === 'inativo') {
                         throw new Error('Usuário inativo. Contate o administrador.');
                     }
-                    */
                 }
                 
                 // 4. SALVAR DADOS NO LOCALSTORAGE
                 const usuarioLogado = {
-                    id: `user_${numeroUsuario}`,
-                    uid: `user_${numeroUsuario}`,
-                    usuario: usuarioEncontrado.login,
-                    nome: usuarioEncontrado.nome || usuarioEncontrado.login,
-                    perfil: usuarioEncontrado.perfil || 'usuario',
-                    numeroUsuario: numeroUsuario,
-                    statusFirebase: usuarioEncontrado.status,
-                    estrutura: 'LOGINS_AVERBSYS',
+                    id: userId,
+                    uid: userId,
+                    usuario: usuarioEncontrado.login || usuarioEncontrado.usuario || usuario,
+                    nome: usuarioEncontrado.nome || 
+                         usuarioEncontrado.displayName || 
+                         usuarioEncontrado.name || 
+                         usuario,
+                    perfil: usuarioEncontrado.perfil || 
+                           usuarioEncontrado.nivel || 
+                           usuarioEncontrado.profile || 
+                           'usuario',
+                    status: usuarioEncontrado.status || 'ativo',
+                    isOnline: usuarioEncontrado.isOnline || false,
+                    email: usuarioEncontrado.email || '',
+                    colecao: 'logins',
+                    documento: 'LOGINS_ORGTAREFAS',
                     dataLogin: new Date().toISOString()
                 };
                 
@@ -238,14 +277,6 @@
                 
                 let mensagemErro = error.message;
                 
-                if (error.message.includes('Usuário não encontrado')) {
-                    mensagemErro = 'Usuário não encontrado. Verifique o nome de usuário.';
-                } else if (error.message.includes('Senha incorreta')) {
-                    mensagemErro = 'Senha incorreta. Tente novamente.';
-                } else if (error.message.includes('inativo')) {
-                    mensagemErro = 'Usuário inativo. Contate o administrador.';
-                }
-                
                 alert('Erro: ' + mensagemErro);
                 
                 // Restaurar botão
@@ -255,83 +286,80 @@
             }
         }
 
-        // FUNÇÃO PARA LISTAR TODOS OS USUÁRIOS DISPONÍVEIS
-        window.listarUsuarios = async function() {
+        // FUNÇÃO PARA VER A ESTRUTURA DO DOCUMENTO LOGINS_ORGTAREFAS
+        window.verEstruturaLOGINS_ORGTAREFAS = async function() {
             try {
                 const { db, firebaseModules } = window.firebaseApp;
                 const { doc, getDoc } = firebaseModules;
                 
-                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
-                const docSnap = await getDoc(docRef);
+                console.log('🔍 ANALISANDO DOCUMENTO LOGINS_ORGTAREFAS...');
                 
-                if (docSnap.exists()) {
-                    const dados = docSnap.data();
-                    console.log('📋 USUÁRIOS DISPONÍVEIS NO SISTEMA:');
-                    
-                    const usuarios = [];
-                    for (let i = 1; i <= 20; i++) {
-                        const login = dados[`user_${i}_logiin`];
-                        
-                        if (login) {
-                            usuarios.push({
-                                '#': i,
-                                'Login': login,
-                                'Nome': dados[`user_${i}_nome_completo`] || 'N/A',
-                                'Perfil': dados[`user_${i}_perfil`] || 'N/A',
-                                'Status': dados[`user_${i}_status`] || 'N/A'
-                            });
-                        }
-                    }
-                    
-                    if (usuarios.length > 0) {
-                        console.table(usuarios);
-                        console.log('\n💡 Use um dos logins acima para fazer login.');
-                        return usuarios;
-                    } else {
-                        console.log('❌ Nenhum usuário encontrado.');
-                        return [];
-                    }
-                } else {
-                    console.log('❌ Documento LOGINS_AVERBSYS não encontrado.');
-                    return [];
-                }
-            } catch (error) {
-                console.error('❌ Erro ao listar usuários:', error);
-                return [];
-            }
-        };
-
-        // FUNÇÃO PARA VER DADOS DE UM USUÁRIO ESPECÍFICO
-        window.verUsuario = async function(numero) {
-            try {
-                const { db, firebaseModules } = window.firebaseApp;
-                const { doc, getDoc } = firebaseModules;
-                
-                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+                const docRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
                 const docSnap = await getDoc(docRef);
                 
                 if (docSnap.exists()) {
                     const dados = docSnap.data();
                     
-                    console.log(`🔍 DADOS DO USER_${numero}:`);
-                    console.log({
-                        'Login': dados[`user_${numero}_logiin`],
-                        'Senha': dados[`user_${numero}_senha`],
-                        'Nome': dados[`user_${numero}_nome_completo`],
-                        'Perfil': dados[`user_${numero}_perfil`],
-                        'Status': dados[`user_${numero}_status`]
+                    console.log('📊 ESTRUTURA DO DOCUMENTO:');
+                    console.log('Total de campos:', Object.keys(dados).length);
+                    
+                    // Mostrar todos os campos e valores
+                    const campos = Object.keys(dados);
+                    
+                    // Agrupar por tipo de campo
+                    const camposLogin = campos.filter(c => c.includes('login') || c.includes('usuario'));
+                    const camposSenha = campos.filter(c => c.includes('senha') || c.includes('password'));
+                    const camposNome = campos.filter(c => c.includes('nome') || c.includes('name') || c.includes('displayName'));
+                    const camposPerfil = campos.filter(c => c.includes('perfil') || c.includes('nivel') || c.includes('profile') || c.includes('role'));
+                    const camposStatus = campos.filter(c => c.includes('status') || c.includes('ativo'));
+                    
+                    console.log('\n📋 CAMPOS DE LOGIN/USUÁRIO:');
+                    camposLogin.forEach(campo => {
+                        console.log(`${campo}: ${dados[campo]}`);
                     });
                     
-                    return {
-                        login: dados[`user_${numero}_logiin`],
-                        senha: dados[`user_${numero}_senha`],
-                        nome: dados[`user_${numero}_nome_completo`],
-                        perfil: dados[`user_${numero}_perfil`],
-                        status: dados[`user_${numero}_status`]
-                    };
+                    console.log('\n🔑 CAMPOS DE SENHA:');
+                    camposSenha.forEach(campo => {
+                        console.log(`${campo}: ${dados[campo] ? '*****' : 'vazio'}`);
+                    });
+                    
+                    console.log('\n👤 CAMPOS DE NOME:');
+                    camposNome.forEach(campo => {
+                        console.log(`${campo}: ${dados[campo]}`);
+                    });
+                    
+                    console.log('\n🎯 CAMPOS DE PERFIL:');
+                    camposPerfil.forEach(campo => {
+                        console.log(`${campo}: ${dados[campo]}`);
+                    });
+                    
+                    console.log('\n📊 CAMPOS DE STATUS:');
+                    camposStatus.forEach(campo => {
+                        console.log(`${campo}: ${dados[campo]}`);
+                    });
+                    
+                    // Mostrar primeiros 10 campos completos
+                    console.log('\n📄 PRIMEIROS 10 CAMPOS COMPLETOS:');
+                    campos.slice(0, 10).forEach(campo => {
+                        console.log(`${campo}:`, dados[campo]);
+                    });
+                    
+                    return dados;
+                } else {
+                    console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado!');
+                    
+                    // Verificar outros documentos na coleção logins
+                    console.log('\n🔍 VERIFICANDO OUTROS DOCUMENTOS NA COLEÇÃO logins:');
+                    console.log('(Nota: Para listar todos os documentos, precisaria de uma função diferente)');
+                    console.log('Documentos conhecidos:');
+                    console.log('- LOGINS_AVERBSYS (já testado)');
+                    console.log('- LOGINS_ORGTAREFAS (este que estamos procurando)');
+                    
+                    return null;
                 }
             } catch (error) {
                 console.error('❌ Erro:', error);
+                return null;
             }
         };
 
@@ -381,12 +409,12 @@
             }
             
             console.log('🚀 SISTEMA CONFIGURADO');
-            console.log('🎯 Estrutura: logins/LOGINS_AVERBSYS');
-            console.log('💡 Dica: No console, use listarUsuarios() para ver todos os usuários');
-            console.log('💡 Dica: Para ver dados do usuário 1, use verUsuario(1)');
+            console.log('🎯 Estrutura: logins/LOGINS_ORGTAREFAS (documento)');
+            console.log('💡 Dica: No console, use verEstruturaLOGINS_ORGTAREFAS()');
+            console.log('💡 Dica: Para teste rápido, use testeLogin("usuario", "senha")');
         });
 
-        // Função para testar login rapidamente (para desenvolvimento)
+        // Função para testar login rapidamente
         window.testeLogin = function(usuario, senha) {
             document.getElementById('loginUsuario').value = usuario;
             document.getElementById('loginPassword').value = senha;
