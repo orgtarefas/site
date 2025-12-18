@@ -40,13 +40,105 @@ document.addEventListener('DOMContentLoaded', async function() {
     console.log('📋 Dados completos do usuário logado:', usuarioLogado);
     console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
     
+    // PRIMEIRO: Inicializar os bancos Firebase ANTES de qualquer operação
+    console.log('🔥 Inicializando DOIS bancos Firebase PRIMEIRO...');
+    await inicializarBancosFirebase();
+    
+    // DEPOIS: Continuar com o resto da inicialização
+    console.log('📥 Continuando inicialização do sistema...');
+    await inicializarSistema();
+});
+
+async function inicializarBancosFirebase() {
+    try {
+        console.log('⚡ Inicializando bancos Firebase...');
+        
+        // Banco 1: ORGTAREFAS (já configurado no HTML, mas vamos garantir)
+        if (!window.db) {
+            console.log('🔄 Configurando banco ORGTAREFAS...');
+            
+            const firebaseConfigOrgtarefas = {
+                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+                authDomain: "orgtarefas-85358.firebaseapp.com",
+                projectId: "orgtarefas-85358",
+                storageBucket: "orgtarefas-85358.firebasestorage.app",
+                messagingSenderId: "1023569488575",
+                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+            };
+            
+            // Inicializar primeiro app (default)
+            const appOrgtarefas = firebase.initializeApp(firebaseConfigOrgtarefas);
+            window.db = appOrgtarefas.firestore();
+            console.log('✅ Banco ORGTAREFAS inicializado!');
+        } else {
+            console.log('✅ Banco ORGTAREFAS já está configurado');
+        }
+        
+        // Banco 2: LOGINS
+        console.log('🔄 Configurando banco de LOGINS...');
+        
+        const firebaseConfigLogins = {
+            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
+            authDomain: "logins-c3407.firebaseapp.com",
+            projectId: "logins-c3407",
+            storageBucket: "logins-c3407.firebasestorage.app",
+            messagingSenderId: "809861558230",
+            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
+        };
+        
+        try {
+            // Inicializar segundo app com nome diferente
+            const appLogins = firebase.initializeApp(firebaseConfigLogins, "LoginsApp");
+            window.dbLogins = appLogins.firestore();
+            console.log('✅ Banco LOGINS inicializado!');
+        } catch (error) {
+            if (error.code === 'app/duplicate-app') {
+                console.log('ℹ️ Firebase já inicializado, usando referências existentes');
+                window.dbLogins = firebase.app("LoginsApp").firestore();
+            } else {
+                throw error;
+            }
+        }
+        
+        console.log('🎯 Ambos os bancos configurados: db (ORGTAREFAS) e dbLogins (LOGINS)');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Erro ao configurar bancos:', error);
+        return false;
+    }
+}
+
+async function inicializarSistema() {
+    console.log('📋 Inicializando sistema...');
+    document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
+
+    // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
+    const observadorCountEl = document.getElementById('observadorAlertCount');
+    const responsavelCountEl = document.getElementById('responsavelAlertCount');
+    
+    if (observadorCountEl) {
+        observadorCountEl.textContent = '0';
+        observadorCountEl.style.display = 'none';
+    }
+    
+    if (responsavelCountEl) {
+        responsavelCountEl.textContent = '0';
+        responsavelCountEl.style.display = 'none';
+    }
+    
+    // AGORA db JÁ DEVE ESTAR DEFINIDO
+    if (!window.db) {
+        console.error('❌ Banco ORGTAREFAS não foi inicializado!');
+        mostrarErro('Erro ao conectar com o banco de dados');
+        return;
+    }
+    
     // ⚡ AJUSTE IMPORTANTE: Se não tiver grupos, buscar AGORA antes de continuar
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
         console.log('🔄 Carregando grupos do usuário antes de continuar...');
         document.getElementById('loadingText').textContent = 'Carregando grupos do usuário...';
-        
-        // Aguardar um pouco para garantir que Firebase está pronto
-        await new Promise(resolve => setTimeout(resolve, 500));
         
         try {
             // Chamar a função que carrega grupos diretamente
@@ -85,83 +177,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         filterResponsavel.addEventListener('change', () => atualizarListaTarefas());
     }
     
-    // Inicializar sistema
-    await inicializarSistema();
-});
-
-async function inicializarSistema() {
-    console.log('🔥 Inicializando DOIS bancos Firebase...');
-    document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
-
-    // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
-    const observadorCountEl = document.getElementById('observadorAlertCount');
-    const responsavelCountEl = document.getElementById('responsavelAlertCount');
-    
-    if (observadorCountEl) {
-        observadorCountEl.textContent = '0';
-        observadorCountEl.style.display = 'none';
-    }
-    
-    if (responsavelCountEl) {
-        responsavelCountEl.textContent = '0';
-        responsavelCountEl.style.display = 'none';
-    }
-    
-    // CONFIGURAÇÃO DOS DOIS BANCOS
-    try {
-        // Banco 1: ORGTAREFAS (já configurado no HTML, mas vamos garantir)
-        if (!window.db) {
-            console.log('⚠️ Banco ORGTAREFAS não encontrado, configurando...');
-            
-            const firebaseConfigOrgtarefas = {
-                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-                authDomain: "orgtarefas-85358.firebaseapp.com",
-                projectId: "orgtarefas-85358",
-                storageBucket: "orgtarefas-85358.firebasestorage.app",
-                messagingSenderId: "1023569488575",
-                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
-            };
-            
-            // Inicializar primeiro app (default)
-            const appOrgtarefas = firebase.initializeApp(firebaseConfigOrgtarefas);
-            window.db = appOrgtarefas.firestore();
-            console.log('✅ Banco ORGTAREFAS inicializado!');
-        } else {
-            console.log('✅ Banco ORGTAREFAS já está configurado');
-        }
-        
-        // Banco 2: LOGINS
-        console.log('📱 Inicializando banco de LOGINS...');
-        
-        const firebaseConfigLogins = {
-            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
-            authDomain: "logins-c3407.firebaseapp.com",
-            projectId: "logins-c3407",
-            storageBucket: "logins-c3407.firebasestorage.app",
-            messagingSenderId: "809861558230",
-            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
-        };
-        
-        // Inicializar segundo app com nome diferente
-        const appLogins = firebase.initializeApp(firebaseConfigLogins, "LoginsApp");
-        window.dbLogins = appLogins.firestore();
-        console.log('✅ Banco LOGINS inicializado!');
-        
-        console.log('🎯 Ambos os bancos configurados: db (ORGTAREFAS) e dbLogins (LOGINS)');
-        
-    } catch (error) {
-        console.error('❌ Erro ao configurar bancos:', error);
-        
-        // Se já foi inicializado, pega a referência
-        if (error.code === 'app/duplicate-app') {
-            console.log('ℹ️ Firebase já inicializado, usando referências existentes');
-            window.dbLogins = firebase.app("LoginsApp").firestore();
-        } else {
-            console.log('⚠️ Continuando apenas com banco ORGTAREFAS');
-            window.dbLogins = null;
-        }
-    }
-    
     // Continuar com o resto do sistema
     try {
         // PRIMEIRO: Carregar usuários e grupos DO USUÁRIO LOGADO
@@ -171,26 +186,11 @@ async function inicializarSistema() {
         // Carregar usuários primeiro
         await carregarUsuarios();
         
-        // Verificar e carregar grupos do usuário logado ANTES de continuar
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        // Verificar se grupos do usuário foram carregados
+        const usuarioAtual = JSON.parse(localStorage.getItem('usuarioLogado'));
         
-        if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
-            console.log('🔄 Usuário não tem grupos, carregando agora...');
-            document.getElementById('loadingText').textContent = 'Carregando seus grupos...';
-            
-            // Aguardar um pouco para garantir que Firebase está pronto
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Carregar grupos do usuário
-            await carregarGruposDoUsuarioLogado();
-            
-            // Recarregar usuário atualizado
-            const usuarioAtualizado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
-            
-            if (!usuarioAtualizado.grupos || usuarioAtualizado.grupos.length === 0) {
-                console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
-            }
+        if (!usuarioAtual.grupos || usuarioAtual.grupos.length === 0) {
+            console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
         }
         
         // DEPOIS: Carregar o resto
