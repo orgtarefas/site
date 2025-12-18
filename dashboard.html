@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Manager - Atividades</title> <!-- Mudei o título -->
+    <title>Work Manager - Atividades</title>
     <link rel="stylesheet" href="dashboard.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -22,7 +22,7 @@
         <header class="dashboard-header">
             <div class="header-left">
                 <i class="fas fa-tasks"></i>
-                <h1>Work Manager - Atividades</h1> <!-- Mudei o título -->
+                <h1>Work Manager - Atividades</h1>
             </div>
             <div class="header-right">
                 <button class="btn btn-outline btn-sm" onclick="window.location.href='index.html'">
@@ -31,7 +31,6 @@
                 <button class="btn btn-outline btn-sm" onclick="window.location.href='workmanager.html'">
                     <i class="fas fa-users"></i> Grupos de Trabalho
                 </button>
-                <!-- REMOVI o botão "Nova Tarefa" -->
                 <span class="data-atual" id="data-atual"></span>
                 <span class="status-sync" id="status-sincronizacao">
                     <i class="fas fa-sync-alt"></i> Conectando...
@@ -58,7 +57,6 @@
                 </div>
             </div>
             
-            <!-- NOVO CARD: Não Iniciadas -->
             <div class="stat-card">
                 <div class="stat-icon bg-secondary">
                     <i class="fas fa-pause-circle"></i>
@@ -144,8 +142,6 @@
             </div>
         </div>
 
-        <!-- REMOVI o Modal para Tarefa -->
-
         <!-- Modal para Atividade -->
         <div id="modalAtividade" class="modal">
             <div class="modal-content">
@@ -160,13 +156,15 @@
         </div>
     </div>
 
-    <!-- Firebase v8 (IGUAL ao index.html) -->
+    <!-- Firebase v8 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     
     <script>
-        // Configuração do Firebase v8 (IGUAL ao index.html)
+        // CONFIGURAÇÃO DOS DOIS BANCOS FIREBASE
+        
+        // 1. Banco PRINCIPAL (sistema de tarefas) - MANTENDO O ORIGINAL
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
             authDomain: "orgtarefas-85358.firebasestorage.app",
@@ -176,38 +174,91 @@
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
 
-        // Inicializar Firebase UMA VEZ
-        let app;
+        // 2. Banco de LOGINS (novo) - ADICIONANDO
+        const firebaseConfigLogins = {
+            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
+            authDomain: "logins-c3407.firebaseapp.com",
+            projectId: "logins-c3407",
+            storageBucket: "logins-c3407.firebasestorage.app",
+            messagingSenderId: "809861558230",
+            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
+        };
+
+        // Inicializar Firebase PRINCIPAL (como já estava)
+        let appSistema;
         if (!firebase.apps.length) {
-            app = firebase.initializeApp(firebaseConfig);
+            appSistema = firebase.initializeApp(firebaseConfig);
         } else {
-            app = firebase.app();
+            appSistema = firebase.app();
         }
         
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+        const db = firebase.firestore(appSistema); // Banco principal para dados do sistema
+        const auth = firebase.auth(appSistema);    // Auth no banco principal
         
-        //console.log('✅ Firebase v8 inicializado no dashboard!');
+        // Inicializar Firebase SECUNDÁRIO para logins
+        let appLogins;
+        try {
+            // Tenta inicializar com nome diferente para não conflitar
+            appLogins = firebase.initializeApp(firebaseConfigLogins, "loginsApp");
+            console.log('✅ Banco de logins inicializado');
+        } catch (error) {
+            if (error.code === 'app/duplicate-app') {
+                // Já foi inicializado, pega a instância existente
+                appLogins = firebase.app("loginsApp");
+                console.log('ℹ️ Banco de logins já estava inicializado');
+            } else {
+                console.error('❌ Erro ao inicializar banco de logins:', error);
+                // Cria um objeto simulado para não quebrar o código
+                appLogins = null;
+            }
+        }
         
-        // Torna global
-        window.db = db;
+        // Instância do banco de logins (se inicializado com sucesso)
+        const dbLogins = appLogins ? firebase.firestore(appLogins) : null;
+        
+        // Tornar globais
+        window.db = db;                    // Banco principal (NÃO MUDOU)
+        window.dbLogins = dbLogins;        // Banco de logins (NOVO)
         window.firebase = firebase;
         window.firebaseAuth = auth;
         
-        // Testar conexão
+        console.log('✅ Firebase inicializado com 2 bancos');
+        console.log('- db (principal):', db ? '✅ OK' : '❌ Falha');
+        console.log('- dbLogins (logins):', dbLogins ? '✅ OK' : '❌ Falha');
+        
+        // Testar conexão com o banco principal
         setTimeout(() => {
             if (window.db && window.db.collection) {
-                window.db.collection('usuarios').limit(1).get()
+                window.db.collection('tarefas').limit(1).get()
                     .then(snapshot => {
-                        //console.log(`✅ Conexão Firebase OK! ${snapshot.size} documento(s)`);
+                        console.log(`✅ Conexão com banco principal OK! ${snapshot.size} tarefa(s)`);
                         document.getElementById('status-sincronizacao').innerHTML = 
                             '<i class="fas fa-check-circle"></i> Conectado';
                     })
                     .catch(error => {
-                        console.error('❌ Erro na conexão:', error);
+                        console.error('❌ Erro na conexão com banco principal:', error);
                         document.getElementById('status-sincronizacao').innerHTML = 
-                            '<i class="fas fa-exclamation-triangle"></i> Erro';
+                            '<i class="fas fa-exclamation-triangle"></i> Erro de conexão';
                     });
+            }
+            
+            // Testar conexão com banco de logins (se existir)
+            if (window.dbLogins) {
+                setTimeout(() => {
+                    window.dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS').get()
+                        .then(doc => {
+                            if (doc.exists) {
+                                const data = doc.data();
+                                const usersCount = Object.keys(data).length;
+                                console.log(`✅ Banco de logins OK! ${usersCount} usuário(s) carregados`);
+                            } else {
+                                console.warn('⚠️ Documento de logins não encontrado');
+                            }
+                        })
+                        .catch(error => {
+                            console.warn('⚠️ Não foi possível conectar ao banco de logins:', error.message);
+                        });
+                }, 500);
             }
         }, 1000);
     </script>
@@ -215,18 +266,18 @@
     <!-- Script de inicialização rápida -->
     <script>
         // Inicialização RÁPIDA do dashboard
-        //console.log('=== GESTOR DE ATIVIDADES INICIANDO ==='); <!-- Mudei o log -->
+        console.log('=== WORK MANAGER - INICIANDO ===');
         
         // Verificar autenticação
         const usuarioLogado = localStorage.getItem('usuarioLogado');
         
         if (!usuarioLogado) {
-            //console.log('❌ Nenhum usuário logado, redirecionando...');
+            console.log('❌ Nenhum usuário logado, redirecionando...');
             window.location.href = 'login.html';
         } else {
             try {
                 const usuario = JSON.parse(usuarioLogado);
-                //console.log('👤 Usuário:', usuario.nome || usuario.usuario);
+                console.log('👤 Usuário no localStorage:', usuario.nome || usuario.usuario);
                 
                 // Atualizar interface rapidamente
                 setTimeout(() => {
@@ -245,7 +296,7 @@
                         if (loadingScreen && mainContent) {
                             loadingScreen.style.display = 'none';
                             mainContent.style.display = 'block';
-                            //console.log('✅ Gestor de Atividades carregado!'); <!-- Mudei o log -->
+                            console.log('✅ Interface carregada!');
                         }
                     }, 1000);
                     
@@ -256,12 +307,6 @@
                 window.location.href = 'login.html';
             }
         }
-        
-        // Verificar Firebase
-        setTimeout(() => {
-            //console.log('Firebase carregado?', window.db ? '✅ SIM' : '❌ NÃO');
-            //console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
-        }, 1500);
     </script>
 
     <script src="dashboard.js"></script>
