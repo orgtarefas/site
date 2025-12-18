@@ -233,7 +233,8 @@ async function carregarGrupos() {
     }
 }
 
-// NOVA FUNÇÃO: Carregar grupos do usuário logado do banco ORGTAREFAS
+
+// Carregar grupos do usuário logado do banco ORGTAREFAS
 async function carregarGruposDoUsuarioLogado() {
     console.log('👤 Buscando grupos do usuário logado...');
     
@@ -255,27 +256,64 @@ async function carregarGruposDoUsuarioLogado() {
             return;
         }
         
+        console.log(`📊 Total de grupos no sistema: ${gruposSnapshot.docs.length}`);
+        
         const gruposDoUsuario = [];
         
+        // DEBUG: Mostrar todos os grupos e suas estruturas
         gruposSnapshot.forEach(doc => {
             const grupoData = doc.data();
             const grupoId = doc.id;
             
-            // Verificar se o grupo tem a propriedade 'usuarios'
-            if (grupoData.usuarios && Array.isArray(grupoData.usuarios)) {
-                // Verificar se o usuário atual está na lista de usuários do grupo
-                const usuarioNoGrupo = grupoData.usuarios.some(usuario => 
-                    usuario === usuarioAtual || usuario.usuario === usuarioAtual || usuario.id === usuarioAtual
-                );
-                
-                if (usuarioNoGrupo) {
-                    gruposDoUsuario.push(grupoId);
-                    console.log(`✅ Usuário está no grupo: ${grupoData.nome || grupoId}`);
+            console.log(`\n📋 Grupo: ${grupoData.nome || grupoId} (ID: ${grupoId})`);
+            console.log(`   Dados completos do grupo:`, grupoData);
+            
+            // Verificar TODAS as propriedades do grupo que podem conter usuários
+            const propriedadesComUsuarios = ['usuarios', 'users', 'membros', 'members', 'integrantes'];
+            
+            let encontrado = false;
+            
+            for (const prop of propriedadesComUsuarios) {
+                if (grupoData[prop] && Array.isArray(grupoData[prop])) {
+                    console.log(`   Propriedade "${prop}":`, grupoData[prop]);
+                    
+                    // Verificar se o usuário atual está na lista
+                    const usuarioNoGrupo = grupoData[prop].some(user => {
+                        // Diferentes formatos possíveis
+                        if (typeof user === 'string') {
+                            return user === usuarioAtual;
+                        } else if (user && typeof user === 'object') {
+                            return user.usuario === usuarioAtual || 
+                                   user.login === usuarioAtual || 
+                                   user.id === usuarioAtual ||
+                                   user.email === usuarioAtual;
+                        }
+                        return false;
+                    });
+                    
+                    if (usuarioNoGrupo) {
+                        console.log(`   ✅ USUÁRIO ENCONTRADO no grupo via propriedade "${prop}"!`);
+                        gruposDoUsuario.push(grupoId);
+                        encontrado = true;
+                        break;
+                    }
                 }
+            }
+            
+            if (!encontrado) {
+                console.log(`   ❌ Usuário NÃO encontrado neste grupo`);
             }
         });
         
-        console.log(`📊 Grupos encontrados para ${usuarioAtual}:`, gruposDoUsuario);
+        console.log(`\n📊 RESUMO: Grupos encontrados para ${usuarioAtual}:`, gruposDoUsuario);
+        
+        if (gruposDoUsuario.length === 0) {
+            console.log(`⚠️ ATENÇÃO: Usuário ${usuarioAtual} não está em nenhum grupo!`);
+            console.log(`💡 Possíveis causas:`);
+            console.log(`   1. O usuário não foi adicionado a nenhum grupo`);
+            console.log(`   2. A estrutura dos dados de grupo é diferente do esperado`);
+            console.log(`   3. O nome de usuário pode estar em formato diferente (com email, etc.)`);
+        }
         
         // Atualizar o objeto usuarioLogado com os grupos encontrados
         if (!usuarioLogado.grupos) {
