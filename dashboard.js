@@ -1,4 +1,4 @@
-// arquivo dashboard.js 
+// arquivo dashboard.js novo mas sem funcionar logins resposáveis e etapas da tarefa
 //console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
 // ========== VARIÁVEIS GLOBAIS ==========
