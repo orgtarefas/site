@@ -50,8 +50,6 @@
                     <p><i class="fas fa-shield-alt"></i> Sistema seguro - Acesso monitorado</p>
                 </div>
             </form>
-
-
         </div>
 
         <div class="login-background">
@@ -63,52 +61,41 @@
         </div>
     </div>
 
-    <!-- Firebase -->
+    <!-- Firebase SDK v12 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { 
             getFirestore, 
             collection, 
-            doc, 
-            getDoc, 
-            setDoc, 
-            updateDoc, 
-            serverTimestamp,
-            query,
-            where,
+            query, 
+            where, 
             getDocs,
-            onSnapshot
+            doc,
+            updateDoc
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-        import { 
-            getAuth, 
-            signInWithEmailAndPassword, 
-            signOut,
-            onAuthStateChanged 
-        } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 
+        // SUA CONFIGURAÇÃO DO FIREBASE (logins-c3407)
         const firebaseConfig = {
-            apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-            authDomain: "orgtarefas-85358.firebaseapp.com",
-            projectId: "orgtarefas-85358",
-            storageBucket: "orgtarefas-85358.firebasestorage.app",
-            messagingSenderId: "1023569488575",
-            appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
+            authDomain: "logins-c3407.firebaseapp.com",
+            projectId: "logins-c3407",
+            storageBucket: "logins-c3407.firebasestorage.app",
+            messagingSenderId: "809861558230",
+            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app);
         
-        // Torna global para o login.js acessar
+        // Exportar para uso no login.js
         window.firebaseApp = {
-            db, auth, firebaseModules: {
-                collection, doc, getDoc, setDoc, updateDoc, serverTimestamp,
-                query, where, getDocs, onSnapshot,
-                signInWithEmailAndPassword, signOut, onAuthStateChanged
+            db,
+            firebaseModules: {
+                collection, query, where, getDocs, doc, updateDoc
             }
         };
-        console.log('✅ Firebase Login configurado!');
+        console.log('✅ Firebase logins-c3407 configurado!');
     </script>
 
     <script src="login.js"></script>
