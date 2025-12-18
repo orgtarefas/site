@@ -1,5 +1,5 @@
 // workmanager.js - Sistema com Firebase v12 - VERSÃO CORRIGIDA
-console.log('=== WORK MANAGER v12 INICIANDO ===');
+//console.log('=== WORK MANAGER v12 INICIANDO ===');
 
 // Sistema de Gerenciamento de Grupos com Firebase v12
 class WorkManagerV12 {
@@ -29,7 +29,7 @@ class WorkManagerV12 {
     }
 
     initModules() {
-        console.log('🔥 Inicializando módulos Firebase v12...');
+        //console.log('🔥 Inicializando módulos Firebase v12...');
         this.modules = window.firebaseModules;
         this.db = this.modules.db; // Banco ORGTAREFAS
         this.dbLogins = this.modules.dbLogins; // Banco LOGINS
@@ -39,7 +39,7 @@ class WorkManagerV12 {
     }
 
     async init() {
-        console.log('🚀 Inicializando Work Manager v12...');
+        //console.log('🚀 Inicializando Work Manager v12...');
         
         try {
             // 1. Verificar autenticação
@@ -47,7 +47,7 @@ class WorkManagerV12 {
             
             // 2. Se não estiver autenticado, mostrar modo demo
             if (!this.usuarioAtual) {
-                console.log('⚠️ Usuário não autenticado - Modo demonstração');
+                //console.log('⚠️ Usuário não autenticado - Modo demonstração');
                 this.mostrarModoDemonstracao();
                 return;
             }
@@ -61,7 +61,7 @@ class WorkManagerV12 {
             // 5. Configurar eventos da interface
             this.configurarEventos();
             
-            console.log('✅ Work Manager v12 inicializado com sucesso!');
+            //console.log('✅ Work Manager v12 inicializado com sucesso!');
             
         } catch (error) {
             console.error('❌ Erro na inicialização:', error);
@@ -75,12 +75,12 @@ class WorkManagerV12 {
             const usuarioLogado = localStorage.getItem('usuarioLogado');
             
             if (!usuarioLogado) {
-                console.log('⚠️ Nenhum usuário logado encontrado');
+                //console.log('⚠️ Nenhum usuário logado encontrado');
                 return;
             }
             
             this.usuarioAtual = JSON.parse(usuarioLogado);
-            console.log('👤 Usuário autenticado:', this.usuarioAtual.usuario);
+            //console.log('👤 Usuário autenticado:', this.usuarioAtual.usuario);
             
             // Atualizar interface
             if (document.getElementById('userName')) {
@@ -183,13 +183,13 @@ class WorkManagerV12 {
     }
 
     async carregarDadosIniciais() {
-        console.log('📊 Carregando dados iniciais v12...');
+        //console.log('📊 Carregando dados iniciais v12...');
         
         try {
             // 1. Carregar todos os usuários do banco LOGINS
             await this.carregarUsuariosLogins();
             
-            console.log(`✅ ${this.usuarios.length} usuários carregados do banco LOGINS`);
+            //console.log(`✅ ${this.usuarios.length} usuários carregados do banco LOGINS`);
             
             // 2. Esconder loading e mostrar interface
             document.getElementById('loadingScreen').style.display = 'none';
@@ -206,7 +206,7 @@ class WorkManagerV12 {
 
     async carregarUsuariosLogins() {
         try {
-            console.log('🔍 Carregando usuários do documento LOGINS_ORGTAREFAS...');
+            //console.log('🔍 Carregando usuários do documento LOGINS_ORGTAREFAS...');
             
             // Acessar especificamente o documento LOGINS_ORGTAREFAS
             const docRef = this.modules.doc(this.dbLogins, 'logins', 'LOGINS_ORGTAREFAS');
@@ -215,7 +215,7 @@ class WorkManagerV12 {
             this.usuarios = [];
             
             if (docSnap.exists()) {
-                console.log('✅ Documento LOGINS_ORGTAREFAS encontrado!');
+                //console.log('✅ Documento LOGINS_ORGTAREFAS encontrado!');
                 const data = docSnap.data();
                 
                 // Processar cada userX_uid no documento
@@ -243,12 +243,12 @@ class WorkManagerV12 {
                             // Precisamos dos dados dele também para mostrar o nome completo
                             this.usuarios.push(usuario);
                             
-                            console.log(`👤 Usuário adicionado: ${usuario.displayName} (${usuario.login})`);
+                            //console.log(`👤 Usuário adicionado: ${usuario.displayName} (${usuario.login})`);
                         }
                     }
                 });
                 
-                console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS_ORGTAREFAS`);
+                //console.log(`✅ ${this.usuarios.length} usuários carregados do LOGINS_ORGTAREFAS`);
                 
             } else {
                 console.error('❌ Documento LOGINS_ORGTAREFAS não encontrado!');
@@ -263,7 +263,7 @@ class WorkManagerV12 {
 
     // Nova função para processar estrutura userX_uid (LOGINS_ORGTAREFAS)
     processarEstruturaUid(data) {
-        console.log('🔄 Processando estrutura userX_uid (LOGINS_ORGTAREFAS)');
+        //console.log('🔄 Processando estrutura userX_uid (LOGINS_ORGTAREFAS)');
         
         Object.keys(data).forEach(key => {
             if (key.includes('user') && key.includes('uid')) {
@@ -284,7 +284,7 @@ class WorkManagerV12 {
                     // Não adicionar o usuário atual se estiver logado
                     if (this.usuarioAtual && 
                         usuario.login === this.usuarioAtual.usuario) {
-                        console.log('👤 Filtrando usuário atual:', usuario.login);
+                        //console.log('👤 Filtrando usuário atual:', usuario.login);
                     } else {
                         this.usuarios.push(usuario);
                     }
@@ -295,7 +295,7 @@ class WorkManagerV12 {
 
     // Nova função para processar estrutura individual (LOGINS_AVERBSYS)
     processarEstruturaIndivual(data) {
-        console.log('🔄 Processando estrutura individual (LOGINS_AVERBSYS)');
+        //console.log('🔄 Processando estrutura individual (LOGINS_AVERBSYS)');
         
         // Encontrar todos os campos de login no documento
         const userFields = Object.keys(data).filter(key => key.includes('_logiin'));
@@ -327,7 +327,7 @@ class WorkManagerV12 {
                     // Não adicionar o usuário atual se estiver logado
                     if (this.usuarioAtual && 
                         usuario.login === this.usuarioAtual.usuario) {
-                        console.log('👤 Filtrando usuário atual:', usuario.login);
+                        //console.log('👤 Filtrando usuário atual:', usuario.login);
                     } else {
                         this.usuarios.push(usuario);
                     }
@@ -337,7 +337,7 @@ class WorkManagerV12 {
     }
 
     configurarListeners() {
-        console.log('📡 Configurando listeners v12...');
+        //console.log('📡 Configurando listeners v12...');
         
         // 1. Listener para TODOS os grupos (não apenas os que o usuário é membro)
         try {
@@ -348,7 +348,7 @@ class WorkManagerV12 {
             
             const unsubscribe = this.modules.onSnapshot(q, 
                 (snapshot) => {
-                    console.log('🔄 Todos os grupos atualizados:', snapshot.size);
+                    //console.log('🔄 Todos os grupos atualizados:', snapshot.size);
                     this.processarGrupos(snapshot);
                 },
                 (error) => {
@@ -650,12 +650,12 @@ class WorkManagerV12 {
                     grupoData.membros.push(usuarioId);
                 }
                 
-                console.log('📝 Salvando grupo:', grupoData);
+                //console.log('📝 Salvando grupo:', grupoData);
                 
                 const gruposRef = modules.collection(this.db, 'grupos');
                 const docRef = await modules.addDoc(gruposRef, grupoData);
                 
-                console.log('✅ Grupo criado com ID:', docRef.id);
+                //console.log('✅ Grupo criado com ID:', docRef.id);
                 this.mostrarNotificacao('✅ Grupo criado com sucesso!', 'success');
             }
             
@@ -776,7 +776,7 @@ class WorkManagerV12 {
     // ========== CONVIDAR USUÁRIOS ==========
     
     async convidarUsuarioSelecionado() {
-        console.log('📨 Convidando usuário...');
+        //console.log('📨 Convidando usuário...');
         
         if (!this.usuarioParaConvitar) {
             this.mostrarNotificacao('⚠️ Por favor, selecione um usuário primeiro', 'warning');
@@ -879,19 +879,19 @@ class WorkManagerV12 {
                 if (usuarioInfo) {
                     // Usar displayName direto do Firebase
                     nomeCompleto = usuarioInfo.displayName || usuarioInfo.nome || usuarioId;
-                    console.log(`✅ Nome encontrado para ${usuarioId}: ${nomeCompleto}`);
+                    //console.log(`✅ Nome encontrado para ${usuarioId}: ${nomeCompleto}`);
                 } else {
                     console.warn(`⚠️ Usuário ${usuarioId} não encontrado na lista carregada`);
                     
                     // Se não encontrou mas é o usuário atual, tentar buscar diretamente
                     if (usuarioId === this.usuarioAtual?.usuario) {
-                        console.log('🔍 Buscando dados do usuário atual...');
+                        //console.log('🔍 Buscando dados do usuário atual...');
                         
                         // Buscar dados do usuário atual nos usuários carregados
                         const usuarioAtualInfo = this.usuarios.find(u => u.login === usuarioId);
                         if (usuarioAtualInfo) {
                             nomeCompleto = usuarioAtualInfo.displayName || usuarioAtualInfo.nome || usuarioId;
-                            console.log(`✅ Dados do usuário atual encontrados: ${nomeCompleto}`);
+                            //console.log(`✅ Dados do usuário atual encontrados: ${nomeCompleto}`);
                         }
                     }
                 }
@@ -949,12 +949,12 @@ class WorkManagerV12 {
         
         // DEBUG: Verificar o que encontrou
         if (usuario) {
-            console.log(`🔍 Usuário encontrado: ${usuario.login} -> "${usuario.displayName}"`);
+            //console.log(`🔍 Usuário encontrado: ${usuario.login} -> "${usuario.displayName}"`);
         } else {
-            console.log(`🔍 Usuário não encontrado: ${usuarioId}`);
+            //console.log(`🔍 Usuário não encontrado: ${usuarioId}`);
             
             // Verificar se está na lista de usuários
-            console.log('Usuários disponíveis:', this.usuarios.map(u => u.login));
+            //console.log('Usuários disponíveis:', this.usuarios.map(u => u.login));
         }
         
         return usuario;
@@ -963,19 +963,19 @@ class WorkManagerV12 {
     exibirUsuariosParaConvite(termoBusca = '') {
         const container = document.getElementById('usuariosParaConvite');
         if (!container || !this.grupoSelecionado) {
-            console.log('❌ Container ou grupo não disponível');
+            //console.log('❌ Container ou grupo não disponível');
             return;
         }
         
         const grupo = this.grupos.find(g => g.id === this.grupoSelecionado);
         if (!grupo) {
-            console.log('❌ Grupo não encontrado');
+            //console.log('❌ Grupo não encontrado');
             return;
         }
         
-        console.log('🔍 Buscando usuários para convite...');
-        console.log('👥 Usuários totais no sistema:', this.usuarios.length);
-        console.log('👤 Usuário atual:', this.usuarioAtual.usuario);
+        //console.log('🔍 Buscando usuários para convite...');
+        //console.log('👥 Usuários totais no sistema:', this.usuarios.length);
+        //console.log('👤 Usuário atual:', this.usuarioAtual.usuario);
         
         // Obter membros atuais do grupo (tanto strings quanto objetos)
         const membrosAtuais = new Set();
@@ -989,7 +989,7 @@ class WorkManagerV12 {
             });
         }
         
-        console.log('📋 Membros atuais no grupo:', Array.from(membrosAtuais));
+        //console.log('📋 Membros atuais no grupo:', Array.from(membrosAtuais));
         
         // Filtrar usuários que NÃO são membros do grupo
         let usuariosFiltrados = this.usuarios.filter(usuario => {
@@ -1000,7 +1000,7 @@ class WorkManagerV12 {
             return naoEMembro && naoEUsuarioAtual;
         });
         
-        console.log('👥 Usuários após filtrar membros:', usuariosFiltrados.length);
+        //console.log('👥 Usuários após filtrar membros:', usuariosFiltrados.length);
         
         // Aplicar busca por termo
         if (termoBusca) {
@@ -1012,17 +1012,17 @@ class WorkManagerV12 {
                     (usuario.login && usuario.login.toLowerCase().includes(termo))
                 );
             });
-            console.log('🔍 Usuários após busca:', usuariosFiltrados.length);
+            //console.log('🔍 Usuários após busca:', usuariosFiltrados.length);
         }
         
         // Debug: mostrar todos os usuários filtrados
-        console.log('📊 Usuários disponíveis para convite:');
+        //console.log('📊 Usuários disponíveis para convite:');
         usuariosFiltrados.forEach(u => {
-            console.log(`  - ${u.displayName || u.nome || u.login} (Login: ${u.login})`);
+            //console.log(`  - ${u.displayName || u.nome || u.login} (Login: ${u.login})`);
         });
         
         if (usuariosFiltrados.length === 0) {
-            console.log('⚠️ Nenhum usuário encontrado após filtragem');
+            //console.log('⚠️ Nenhum usuário encontrado após filtragem');
             container.innerHTML = `
                 <div class="empty-membros">
                     <i class="fas fa-search"></i>
@@ -1035,7 +1035,7 @@ class WorkManagerV12 {
             return;
         }
         
-        console.log('✅ Exibindo', usuariosFiltrados.length, 'usuários para convite');
+        //console.log('✅ Exibindo', usuariosFiltrados.length, 'usuários para convite');
         
         container.innerHTML = usuariosFiltrados.map(usuario => {
             const estaSelecionado = this.usuarioParaConvitar === usuario.login || 
@@ -1056,19 +1056,19 @@ class WorkManagerV12 {
     }
 
     debugUsuarios() {
-        console.log('=== DEBUG DE USUÁRIOS ===');
-        console.log('👥 Total de usuários carregados:', this.usuarios.length);
-        console.log('👤 Usuário atual:', this.usuarioAtual ? this.usuarioAtual.usuario : 'Não autenticado');
+        //console.log('=== DEBUG DE USUÁRIOS ===');
+        //console.log('👥 Total de usuários carregados:', this.usuarios.length);
+        //console.log('👤 Usuário atual:', this.usuarioAtual ? this.usuarioAtual.usuario : 'Não autenticado');
         
         this.usuarios.forEach((usuario, index) => {
-            console.log(`${index + 1}. ID: ${usuario.id}, Login: ${usuario.login}, Nome: ${usuario.displayName || usuario.nome}`);
+            //console.log(`${index + 1}. ID: ${usuario.id}, Login: ${usuario.login}, Nome: ${usuario.displayName || usuario.nome}`);
         });
         
         if (this.grupoSelecionado) {
             const grupo = this.grupos.find(g => g.id === this.grupoSelecionado);
-            console.log('=== GRUPO SELECIONADO ===');
-            console.log('Nome:', grupo?.nome);
-            console.log('Membros:', grupo?.membros);
+            //console.log('=== GRUPO SELECIONADO ===');
+            //console.log('Nome:', grupo?.nome);
+            //console.log('Membros:', grupo?.membros);
         }
     }
     
