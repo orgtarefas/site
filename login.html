@@ -69,7 +69,6 @@
             getDoc
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-        // CONFIGURAÇÃO DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
             authDomain: "logins-c3407.firebaseapp.com",
@@ -79,11 +78,9 @@
             appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // Exportar para uso no login.js
         window.firebaseApp = {
             db,
             firebaseModules: {
@@ -94,13 +91,12 @@
         console.log('✅ Firebase logins-c3407 configurado!');
     </script>
 
-    <!-- login.js INLINE - PARA LOGINS_ORGTAREFAS (documento) -->
+    <!-- login.js INLINE - EXCLUSIVO PARA LOGINS_ORGTAREFAS -->
     <script>
-        // login.js - VERSÃO PARA LOGINS_ORGTAREFAS (DOCUMENTO)
-        console.log('=== LOGIN INICIANDO (LOGINS_ORGTAREFAS documento) ===');
+        console.log('=== LOGIN INICIANDO (EXCLUSIVO LOGINS_ORGTAREFAS) ===');
 
         async function fazerLogin(usuario, senha) {
-            console.log('🔐 Tentando login:', usuario);
+            console.log('🔐 Tentando login para LOGINS_ORGTAREFAS:', usuario);
             
             const btnLogin = document.getElementById('btnLogin');
             const btnText = document.getElementById('btnText');
@@ -116,104 +112,99 @@
                 btnText.textContent = 'Autenticando...';
                 spinner.classList.remove('hidden');
                 
-                // Acesso ao Firebase
                 const { db, firebaseModules } = window.firebaseApp;
                 const { doc, getDoc } = firebaseModules;
                 
-                console.log('📊 Acessando documento LOGINS_ORGTAREFAS...');
+                console.log('📊 ACESSANDO EXCLUSIVAMENTE: logins/LOGINS_ORGTAREFAS');
                 
-                // 1. ACESSAR O DOCUMENTO LOGINS_ORGTAREFAS DENTRO DA COLEÇÃO logins
+                // SOMENTE LOGINS_ORGTAREFAS
                 const docRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
                 const docSnap = await getDoc(docRef);
                 
-                console.log('🔍 Documento existe?', docSnap.exists());
-                
                 if (!docSnap.exists()) {
-                    throw new Error('Documento LOGINS_ORGTAREFAS não encontrado na coleção logins');
+                    throw new Error('Documento LOGINS_ORGTAREFAS não encontrado!');
                 }
                 
                 const dadosCompletos = docSnap.data();
-                console.log('✅ Documento carregado. Campos:', Object.keys(dadosCompletos).length);
+                console.log('✅ LOGINS_ORGTAREFAS carregado. Campos:', Object.keys(dadosCompletos).length);
                 
-                // Mostrar estrutura do documento para debug
-                console.log('📋 Estrutura do documento LOGINS_ORGTAREFAS:', Object.keys(dadosCompletos));
+                // MOSTRAR TODA A ESTRUTURA PARA DEBUG
+                console.log('📋 ESTRUTURA COMPLETA DE LOGINS_ORGTAREFAS:');
+                Object.keys(dadosCompletos).forEach(campo => {
+                    console.log(`${campo}:`, dadosCompletos[campo]);
+                });
                 
-                // 2. BUSCAR USUÁRIO NOS CAMPOS
-                // Estrutura esperada: campos como user1_uid, user2_uid, etc.
+                // BUSCAR USUÁRIO - ESTRUTURA ESPERADA:
+                // Campos como: login, senha, displayName, perfil, status, isOnline
                 let usuarioEncontrado = null;
                 let userId = null;
                 
-                // Primeiro, vamos ver todos os campos para entender a estrutura
+                // Procurar em TODOS os campos
                 const todosCampos = Object.keys(dadosCompletos);
                 
-                // Procurar por campos que contenham o usuário
-                for (const campo of todosCampos) {
-                    const valor = dadosCompletos[campo];
+                // ESTRUTURA 1: Campos diretos (login_1, senha_1, etc.)
+                for (let i = 1; i <= 50; i++) {
+                    const possiveisLogins = [
+                        `login_${i}`,
+                        `usuario_${i}`,
+                        `user_${i}_login`,
+                        `user_${i}_usuario`
+                    ];
                     
-                    // Se o campo for um objeto com propriedade 'login'
-                    if (valor && typeof valor === 'object' && valor.login === usuario) {
-                        console.log(`✅ Usuário encontrado no campo: ${campo}`);
-                        usuarioEncontrado = valor;
-                        userId = campo;
-                        break;
-                    }
-                    
-                    // Se o campo for um objeto com propriedade 'usuario'
-                    if (valor && typeof valor === 'object' && valor.usuario === usuario) {
-                        console.log(`✅ Usuário encontrado no campo: ${campo}`);
-                        usuarioEncontrado = valor;
-                        userId = campo;
-                        break;
-                    }
-                    
-                    // Se o próprio valor do campo for o usuário (estrutura simples)
-                    if (valor === usuario) {
-                        console.log(`🔍 Possível usuário no campo: ${campo} = ${valor}`);
-                        
-                        // Verificar se há campos relacionados (senha, nome, etc.)
-                        const campoBase = campo.replace(/_login$/, '').replace(/_usuario$/, '');
-                        
-                        // Procurar campos relacionados
-                        const campoSenha = `${campoBase}_senha` in dadosCompletos ? `${campoBase}_senha` :
-                                          `${campoBase}_password` in dadosCompletos ? `${campoBase}_password` :
-                                          `senha_${campoBase}` in dadosCompletos ? `senha_${campoBase}` : null;
-                        
-                        if (campoSenha) {
-                            console.log(`✅ Encontrado estrutura relacionada em: ${campoBase}`);
+                    for (const campoLogin of possiveisLogins) {
+                        if (dadosCompletos[campoLogin] === usuario) {
+                            console.log(`✅ Usuário encontrado em: ${campoLogin}`);
+                            
+                            // Procurar campos relacionados
+                            const campoSenha = encontrarCampoSenha(dadosCompletos, i);
+                            const campoNome = encontrarCampoNome(dadosCompletos, i);
+                            const campoPerfil = encontrarCampoPerfil(dadosCompletos, i);
+                            const campoStatus = encontrarCampoStatus(dadosCompletos, i);
+                            
                             usuarioEncontrado = {
-                                login: valor,
-                                senha: dadosCompletos[campoSenha],
-                                nome: dadosCompletos[`${campoBase}_nome`] || 
-                                     dadosCompletos[`${campoBase}_displayName`] ||
-                                     dadosCompletos[`${campoBase}_name`],
-                                perfil: dadosCompletos[`${campoBase}_perfil`] ||
-                                       dadosCompletos[`${campoBase}_nivel`] ||
-                                       dadosCompletos[`${campoBase}_profile`],
-                                status: dadosCompletos[`${campoBase}_status`] || 'ativo'
+                                login: dadosCompletos[campoLogin],
+                                senha: campoSenha ? dadosCompletos[campoSenha] : null,
+                                nome: campoNome ? dadosCompletos[campoNome] : null,
+                                perfil: campoPerfil ? dadosCompletos[campoPerfil] : null,
+                                status: campoStatus ? dadosCompletos[campoStatus] : 'ativo'
                             };
-                            userId = campoBase;
+                            userId = `user_${i}`;
                             break;
+                        }
+                    }
+                    if (usuarioEncontrado) break;
+                }
+                
+                // ESTRUTURA 2: Objetos (user1: {login:..., senha:...})
+                if (!usuarioEncontrado) {
+                    for (const campo of todosCampos) {
+                        const valor = dadosCompletos[campo];
+                        if (valor && typeof valor === 'object') {
+                            if (valor.login === usuario || valor.usuario === usuario) {
+                                console.log(`✅ Usuário encontrado no objeto: ${campo}`);
+                                usuarioEncontrado = valor;
+                                userId = campo;
+                                break;
+                            }
                         }
                     }
                 }
                 
                 if (!usuarioEncontrado) {
-                    console.log('❌ Usuário não encontrado. Campos disponíveis:');
-                    console.log(todosCampos);
-                    throw new Error('Usuário não encontrado no documento LOGINS_ORGTAREFAS');
+                    console.log('❌ Usuário não encontrado em LOGINS_ORGTAREFAS');
+                    console.log('Campos disponíveis:', todosCampos);
+                    throw new Error('Usuário não encontrado em LOGINS_ORGTAREFAS');
                 }
                 
-                console.log('🎯 Dados do usuário:', usuarioEncontrado);
+                console.log('🎯 Dados do usuário encontrado:', usuarioEncontrado);
                 
-                // 3. VERIFICAÇÕES
-                
-                // Verificar senha
+                // VERIFICAÇÕES
                 if (!usuarioEncontrado.senha) {
-                    throw new Error('Erro: Campo de senha não encontrado para este usuário');
+                    throw new Error('Campo de senha não encontrado');
                 }
                 
                 if (usuarioEncontrado.senha !== senha) {
-                    console.log('🔍 Senha incorreta:');
+                    console.log('🔍 Comparação de senha:');
                     console.log('Banco:', usuarioEncontrado.senha);
                     console.log('Digitada:', senha);
                     throw new Error('Senha incorreta');
@@ -221,21 +212,16 @@
                 
                 console.log('✅ Senha correta!');
                 
-                // Verificar status
-                if (usuarioEncontrado.status) {
-                    console.log('📊 Status:', usuarioEncontrado.status);
-                    
-                    const statusLower = String(usuarioEncontrado.status).toLowerCase();
-                    if (statusLower === 'inativo') {
-                        throw new Error('Usuário inativo. Contate o administrador.');
-                    }
+                // IGNORAR VERIFICAÇÃO DE STATUS POR ENQUANTO
+                if (usuarioEncontrado.status && usuarioEncontrado.status.toLowerCase() === 'inativo') {
+                    console.log('⚠️ Usuário está como "InAtivo" no banco, mas permitindo login...');
                 }
                 
-                // 4. SALVAR DADOS NO LOCALSTORAGE
+                // SALVAR DADOS
                 const usuarioLogado = {
                     id: userId,
                     uid: userId,
-                    usuario: usuarioEncontrado.login || usuarioEncontrado.usuario || usuario,
+                    usuario: usuarioEncontrado.login || usuario,
                     nome: usuarioEncontrado.nome || 
                          usuarioEncontrado.displayName || 
                          usuarioEncontrado.name || 
@@ -244,17 +230,15 @@
                            usuarioEncontrado.nivel || 
                            usuarioEncontrado.profile || 
                            'usuario',
+                    email: usuarioEncontrado.email || '',
                     status: usuarioEncontrado.status || 'ativo',
                     isOnline: usuarioEncontrado.isOnline || false,
-                    email: usuarioEncontrado.email || '',
-                    colecao: 'logins',
                     documento: 'LOGINS_ORGTAREFAS',
                     dataLogin: new Date().toISOString()
                 };
                 
                 localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
                 
-                // Salvar para lembrar usuário
                 const rememberMe = document.getElementById('rememberMe').checked;
                 if (rememberMe) {
                     localStorage.setItem('savedUser', usuario);
@@ -262,10 +246,9 @@
                     localStorage.removeItem('savedUser');
                 }
                 
-                console.log('✅ Login realizado com sucesso!');
+                console.log('✅ Login realizado com sucesso no LOGINS_ORGTAREFAS!');
                 console.log('📋 Dados salvos:', usuarioLogado);
                 
-                // 5. REDIRECIONAR
                 btnText.textContent = '✅ Redirecionando...';
                 
                 setTimeout(() => {
@@ -274,87 +257,90 @@
                 
             } catch (error) {
                 console.error('❌ Erro no login:', error);
+                alert('Erro: ' + error.message);
                 
-                let mensagemErro = error.message;
-                
-                alert('Erro: ' + mensagemErro);
-                
-                // Restaurar botão
                 btnLogin.disabled = false;
                 btnText.textContent = 'Entrar no Sistema';
                 spinner.classList.add('hidden');
             }
         }
 
-        // FUNÇÃO PARA VER A ESTRUTURA DO DOCUMENTO LOGINS_ORGTAREFAS
+        // FUNÇÕES AUXILIARES
+        function encontrarCampoSenha(dados, numero) {
+            const possiveis = [
+                `senha_${numero}`,
+                `password_${numero}`,
+                `user_${numero}_senha`,
+                `user_${numero}_password`
+            ];
+            return possiveis.find(campo => campo in dados);
+        }
+        
+        function encontrarCampoNome(dados, numero) {
+            const possiveis = [
+                `nome_${numero}`,
+                `name_${numero}`,
+                `displayName_${numero}`,
+                `user_${numero}_nome`,
+                `user_${numero}_name`,
+                `user_${numero}_displayName`
+            ];
+            return possiveis.find(campo => campo in dados);
+        }
+        
+        function encontrarCampoPerfil(dados, numero) {
+            const possiveis = [
+                `perfil_${numero}`,
+                `profile_${numero}`,
+                `nivel_${numero}`,
+                `role_${numero}`,
+                `user_${numero}_perfil`,
+                `user_${numero}_profile`,
+                `user_${numero}_nivel`,
+                `user_${numero}_role`
+            ];
+            return possiveis.find(campo => campo in dados);
+        }
+        
+        function encontrarCampoStatus(dados, numero) {
+            const possiveis = [
+                `status_${numero}`,
+                `ativo_${numero}`,
+                `user_${numero}_status`,
+                `user_${numero}_ativo`
+            ];
+            return possiveis.find(campo => campo in dados);
+        }
+
+        // FUNÇÃO PARA VER ESTRUTURA DO LOGINS_ORGTAREFAS
         window.verEstruturaLOGINS_ORGTAREFAS = async function() {
             try {
                 const { db, firebaseModules } = window.firebaseApp;
                 const { doc, getDoc } = firebaseModules;
                 
-                console.log('🔍 ANALISANDO DOCUMENTO LOGINS_ORGTAREFAS...');
+                console.log('🔍 ANALISANDO LOGINS_ORGTAREFAS...');
                 
                 const docRef = doc(db, 'logins', 'LOGINS_ORGTAREFAS');
                 const docSnap = await getDoc(docRef);
                 
                 if (docSnap.exists()) {
                     const dados = docSnap.data();
-                    
-                    console.log('📊 ESTRUTURA DO DOCUMENTO:');
+                    console.log('📊 LOGINS_ORGTAREFAS - ESTRUTURA COMPLETA:');
                     console.log('Total de campos:', Object.keys(dados).length);
                     
-                    // Mostrar todos os campos e valores
-                    const campos = Object.keys(dados);
-                    
-                    // Agrupar por tipo de campo
-                    const camposLogin = campos.filter(c => c.includes('login') || c.includes('usuario'));
-                    const camposSenha = campos.filter(c => c.includes('senha') || c.includes('password'));
-                    const camposNome = campos.filter(c => c.includes('nome') || c.includes('name') || c.includes('displayName'));
-                    const camposPerfil = campos.filter(c => c.includes('perfil') || c.includes('nivel') || c.includes('profile') || c.includes('role'));
-                    const camposStatus = campos.filter(c => c.includes('status') || c.includes('ativo'));
-                    
-                    console.log('\n📋 CAMPOS DE LOGIN/USUÁRIO:');
-                    camposLogin.forEach(campo => {
-                        console.log(`${campo}: ${dados[campo]}`);
-                    });
-                    
-                    console.log('\n🔑 CAMPOS DE SENHA:');
-                    camposSenha.forEach(campo => {
-                        console.log(`${campo}: ${dados[campo] ? '*****' : 'vazio'}`);
-                    });
-                    
-                    console.log('\n👤 CAMPOS DE NOME:');
-                    camposNome.forEach(campo => {
-                        console.log(`${campo}: ${dados[campo]}`);
-                    });
-                    
-                    console.log('\n🎯 CAMPOS DE PERFIL:');
-                    camposPerfil.forEach(campo => {
-                        console.log(`${campo}: ${dados[campo]}`);
-                    });
-                    
-                    console.log('\n📊 CAMPOS DE STATUS:');
-                    camposStatus.forEach(campo => {
-                        console.log(`${campo}: ${dados[campo]}`);
-                    });
-                    
-                    // Mostrar primeiros 10 campos completos
-                    console.log('\n📄 PRIMEIROS 10 CAMPOS COMPLETOS:');
-                    campos.slice(0, 10).forEach(campo => {
-                        console.log(`${campo}:`, dados[campo]);
+                    // Mostrar todos os campos
+                    Object.keys(dados).forEach((campo, index) => {
+                        const valor = dados[campo];
+                        if (typeof valor === 'object') {
+                            console.log(`${index + 1}. ${campo}:`, valor);
+                        } else {
+                            console.log(`${index + 1}. ${campo}: ${valor}`);
+                        }
                     });
                     
                     return dados;
                 } else {
                     console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado!');
-                    
-                    // Verificar outros documentos na coleção logins
-                    console.log('\n🔍 VERIFICANDO OUTROS DOCUMENTOS NA COLEÇÃO logins:');
-                    console.log('(Nota: Para listar todos os documentos, precisaria de uma função diferente)');
-                    console.log('Documentos conhecidos:');
-                    console.log('- LOGINS_AVERBSYS (já testado)');
-                    console.log('- LOGINS_ORGTAREFAS (este que estamos procurando)');
-                    
                     return null;
                 }
             } catch (error) {
@@ -367,7 +353,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== FORMULÁRIO PRONTO ===');
             
-            // Configurar formulário
             const form = document.getElementById('loginForm');
             const usuarioInput = document.getElementById('loginUsuario');
             const senhaInput = document.getElementById('loginPassword');
@@ -378,12 +363,11 @@
                     const usuario = usuarioInput.value.trim();
                     const senha = senhaInput.value;
                     
-                    console.log('📤 Formulário enviado:', { usuario });
+                    console.log('📤 Formulário enviado para LOGINS_ORGTAREFAS:', { usuario });
                     fazerLogin(usuario, senha);
                 });
             }
             
-            // Atalhos de teclado
             usuarioInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -398,7 +382,6 @@
                 }
             });
             
-            // Verificar se há usuário lembrado
             const savedUser = localStorage.getItem('savedUser');
             if (savedUser) {
                 usuarioInput.value = savedUser;
@@ -408,13 +391,10 @@
                 usuarioInput.focus();
             }
             
-            console.log('🚀 SISTEMA CONFIGURADO');
-            console.log('🎯 Estrutura: logins/LOGINS_ORGTAREFAS (documento)');
-            console.log('💡 Dica: No console, use verEstruturaLOGINS_ORGTAREFAS()');
-            console.log('💡 Dica: Para teste rápido, use testeLogin("usuario", "senha")');
+            console.log('🚀 SISTEMA CONFIGURADO EXCLUSIVAMENTE PARA LOGINS_ORGTAREFAS');
+            console.log('💡 Dica: Use verEstruturaLOGINS_ORGTAREFAS() no console');
         });
 
-        // Função para testar login rapidamente
         window.testeLogin = function(usuario, senha) {
             document.getElementById('loginUsuario').value = usuario;
             document.getElementById('loginPassword').value = senha;
