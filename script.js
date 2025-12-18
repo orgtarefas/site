@@ -337,6 +337,36 @@ async function carregarGruposDoUsuarioLogado() {
     }
 }
 
+// Função de debug para ver estrutura dos grupos
+async function debugEstruturaGrupos() {
+    console.log('🔍 DEBUG - Estrutura dos grupos...');
+    
+    try {
+        const snapshot = await db.collection('grupos').get();
+        
+        console.log(`📊 Total de grupos: ${snapshot.docs.length}`);
+        
+        snapshot.forEach((doc, index) => {
+            const data = doc.data();
+            console.log(`\n${index + 1}. Grupo: ${data.nome || 'Sem nome'} (ID: ${doc.id})`);
+            console.log('   Chaves/propriedades:', Object.keys(data));
+            
+            // Mostrar todas as propriedades que são arrays
+            Object.keys(data).forEach(key => {
+                if (Array.isArray(data[key])) {
+                    console.log(`   - ${key}:`, data[key]);
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no debug:', error);
+    }
+}
+
+// Torna global para poder chamar no console
+window.debugEstruturaGrupos = debugEstruturaGrupos;
+
 // FUNÇÃO: Carregar usuários do banco LOGINS
 async function carregarUsuarios() {
     console.log('👥 Carregando usuários...');
