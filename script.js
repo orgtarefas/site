@@ -183,7 +183,7 @@ async function inicializarSistema() {
         console.log('📥 Carregando dados do usuário...');
         document.getElementById('loadingText').textContent = 'Carregando seus dados...';
         
-        // Carregar usuários primeiro
+        // Carregar usuários primeiro (APENAS do LOGINS agora)
         await carregarUsuarios();
         
         // Verificar se grupos do usuário foram carregados
