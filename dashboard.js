@@ -1210,9 +1210,9 @@ class GestorAtividades {
         const concluidas = atividadesVisiveis.filter(a => a.status === 'concluido').length;
         
         //console.log(`📊 Estatísticas da tarefa "${this.getNomeTarefa(tarefa.id)}": 
-            Total atividades: ${todasAtividades.length}
-            Visíveis para usuário: ${total}
-            Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
+        //    Total atividades: ${todasAtividades.length}
+        //    Visíveis para usuário: ${total}
+        //    Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
         
         return {
             total,
