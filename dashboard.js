@@ -1,5 +1,5 @@
-// arquivo dashboard.js novo mas sem funcionar logins resposáveis e etapas da tarefa
-//console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
+// arquivo dashboard.js 
+console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
 // ========== VARIÁVEIS GLOBAIS ==========
 let tarefasExpandidas = new Set();
@@ -10,7 +10,7 @@ let ctrlPressed = false; // Variável global para controlar Ctrl
 
 // Função para visualizar atividade (para usuários não-responsáveis)
 async function visualizarAtividade(atividadeId) {
-    //console.log(`👁️ Visualizando atividade: ${atividadeId}`);
+    console.log(`👁️ Visualizando atividade: ${atividadeId}`);
     
     try {
         if (gestorAtividades) {
@@ -40,7 +40,7 @@ async function visualizarAtividade(atividadeId) {
 
 // Função para abrir modal de visualização (sem edição)
 function abrirModalVisualizacaoAtividade(atividade) {
-    //console.log(`📋 Abrindo modal de visualização para atividade: ${atividade.id}`);
+    console.log(`📋 Abrindo modal de visualização para atividade: ${atividade.id}`);
     
     const modal = document.getElementById('modalAtividade');
     const titulos = {
@@ -175,7 +175,7 @@ function atualizarPreviewObservadores() {
 
 // Função para mostrar todos os observadores em um modal
 function mostrarTodosObservadores(atividadeId) {
-    //console.log(`👁️ Mostrando todos os observadores da atividade: ${atividadeId}`);
+    console.log(`👁️ Mostrando todos os observadores da atividade: ${atividadeId}`);
     
     // Encontrar a atividade
     if (!gestorAtividades) return;
@@ -308,14 +308,14 @@ function configurarDetecaoCtrl() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Control' || e.key === 'Meta') {
             ctrlPressed = true;
-            //console.log('Ctrl pressionado');
+            console.log('Ctrl pressionado');
         }
     });
     
     document.addEventListener('keyup', (e) => {
         if (e.key === 'Control' || e.key === 'Meta') {
             ctrlPressed = false;
-            //console.log('Ctrl liberado');
+            console.log('Ctrl liberado');
         }
     });
 }
@@ -333,7 +333,7 @@ function configurarMultiSelectBehavior() {
             if (e.target.tagName === 'OPTION') {
                 // Se Ctrl não está pressionado, fecha o dropdown
                 if (!ctrlPressed) {
-                    //console.log('Ctrl NÃO pressionado - fechando dropdown');
+                    console.log('Ctrl NÃO pressionado - fechando dropdown');
                     
                     // Pequeno delay para permitir a seleção
                     setTimeout(() => {
@@ -353,7 +353,7 @@ function configurarMultiSelectBehavior() {
                         atualizarPreviewObservadores();
                     }, 150);
                 } else {
-                    //console.log('Ctrl pressionado - mantendo dropdown aberto');
+                    console.log('Ctrl pressionado - mantendo dropdown aberto');
                     // Se Ctrl está pressionado, mantém aberto e só atualiza o preview
                     setTimeout(atualizarPreviewObservadores, 50);
                 }
@@ -402,7 +402,7 @@ function configurarMultiSelectBehavior() {
             
             // Permitir seleção múltipla com Shift
             if (e.key === 'Shift') {
-                //console.log('Shift pressionado para seleção múltipla');
+                console.log('Shift pressionado para seleção múltipla');
             }
         });
         
@@ -415,20 +415,20 @@ function configurarMultiSelectBehavior() {
 }
 
 function manterEstadoExpansaoTarefas() {
-    //console.log('💾 Salvando estado de expansão das tarefas...');
+    console.log('💾 Salvando estado de expansão das tarefas...');
     tarefasExpandidas.clear();
     
     document.querySelectorAll('.task-body').forEach(tarefa => {
         if (tarefa.style.display !== 'none') {
             const id = tarefa.id.replace('tarefa-', '');
             tarefasExpandidas.add(id);
-            //console.log(`✅ Tarefa ${id} estava expandida`);
+            console.log(`✅ Tarefa ${id} estava expandida`);
         }
     });
 }
 
 function restaurarEstadoExpansaoTarefas() {
-    //console.log('🔄 Restaurando estado de expansão das tarefas...');
+    console.log('🔄 Restaurando estado de expansão das tarefas...');
     tarefasExpandidas.forEach(id => {
         const elemento = document.getElementById(`tarefa-${id}`);
         const header = elemento ? elemento.previousElementSibling : null;
@@ -438,7 +438,7 @@ function restaurarEstadoExpansaoTarefas() {
             elemento.style.display = 'block';
             chevron.classList.remove('fa-chevron-down');
             chevron.classList.add('fa-chevron-up');
-            //console.log(`✅ Restaurada tarefa ${id}`);
+            console.log(`✅ Restaurada tarefa ${id}`);
         }
     });
 }
@@ -468,7 +468,7 @@ async function carregarVinculosAtividade(atividadeId) {
 }
 
 function toggleTarefa(tarefaId) {
-    //console.log(`🔧 Toggle tarefa: ${tarefaId}`);
+    console.log(`🔧 Toggle tarefa: ${tarefaId}`);
     const elemento = document.getElementById(`tarefa-${tarefaId}`);
     const header = elemento.previousElementSibling;
     const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
@@ -480,20 +480,20 @@ function toggleTarefa(tarefaId) {
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-up');
         tarefasExpandidas.add(tarefaId);
-        //console.log(`✅ Expandida tarefa ${tarefaId}`);
+        console.log(`✅ Expandida tarefa ${tarefaId}`);
     } else {
         elemento.style.display = 'none';
         chevron.classList.remove('fa-chevron-up');
         chevron.classList.add('fa-chevron-down');
         tarefasExpandidas.delete(tarefaId);
-        //console.log(`✅ Recolhida tarefa ${tarefaId}`);
+        console.log(`✅ Recolhida tarefa ${tarefaId}`);
     }
     
     event.stopPropagation();
 }
 
 function logout() {
-    //console.log('🚪 Logout realizado');
+    console.log('🚪 Logout realizado');
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
@@ -513,7 +513,7 @@ function verificarConclusaoVinculos() {
 }
 
 function fecharModalAtividade() {
-    //console.log('❌ Fechando modal de atividade');
+    console.log('❌ Fechando modal de atividade');
     document.getElementById('modalAtividade').style.display = 'none';
     if (gestorAtividades) {
         gestorAtividades.atividadeEditando = null;
@@ -521,7 +521,7 @@ function fecharModalAtividade() {
 }
 
 function configurarListenerConclusoes() {
-    //console.log('🎯 Configurando listener para conclusões...');
+    console.log('🎯 Configurando listener para conclusões...');
     
     if (!window.db) {
         console.error('❌ Firebase não está disponível');
@@ -542,8 +542,8 @@ function configurarListenerConclusoes() {
                 if (atividadeAntiga?.status !== 'concluido' && 
                     atividadeNova.status === 'concluido') {
                     
-                    //console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
-                    //console.log(`📋 Vai processar: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
+                    console.log(`✅🔥 LISTENER: Atividade ${change.doc.id} foi concluída!`);
+                    console.log(`📋 Vai processar: ${atividadeNova.atividadesVinculadas?.join(', ') || 'Nenhum'}`);
                     
                     if (gestorAtividades) {
                         setTimeout(() => {
@@ -559,7 +559,7 @@ function configurarListenerConclusoes() {
 // ========== CLASSE PRINCIPAL ==========
 class GestorAtividades {
     constructor() {
-        //console.log('🏗️ Criando nova instância do GestorAtividades');
+        console.log('🏗️ Criando nova instância do GestorAtividades');
         this.tarefas = [];
         this.usuarios = [];
         this.usuario = null;
@@ -569,7 +569,7 @@ class GestorAtividades {
     }
 
     async init() {
-        //console.log('🚀 Inicializando Gestor de Atividades...');
+        console.log('🚀 Inicializando Gestor de Atividades...');
         
         // Verificar autenticação
         await this.verificarAutenticacao();
@@ -589,7 +589,7 @@ class GestorAtividades {
         // Configurar listeners
         this.configurarListeners();
         
-        //console.log('✅ Gestor de Atividades inicializado com sucesso!');
+        console.log('✅ Gestor de Atividades inicializado com sucesso!');
     }
 
     // função 
@@ -607,7 +607,7 @@ class GestorAtividades {
 
     async carregarAtividadesParaVinculo() {
         try {
-            //console.log('🔗 Carregando atividades para vínculo...');
+            console.log('🔗 Carregando atividades para vínculo...');
             
             // Primeiro, obter grupos do usuário
             const usuarioAtual = this.usuario.usuario;
@@ -620,7 +620,7 @@ class GestorAtividades {
             // Se o usuário não pertence a nenhum grupo, não mostrar atividades para vínculo
             if (gruposIdsUsuario.length === 0) {
                 this.atividadesDisponiveis = [];
-                //console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
+                console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
                 return;
             }
             
@@ -644,7 +644,7 @@ class GestorAtividades {
             
             if (tarefasIds.length === 0) {
                 this.atividadesDisponiveis = [];
-                //console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
+                console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
                 return;
             }
             
@@ -659,7 +659,7 @@ class GestorAtividades {
                 tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
             
-            //console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
+            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
             
         } catch (error) {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
@@ -687,28 +687,28 @@ class GestorAtividades {
         const tarefa = this.tarefas.find(t => t.id === tarefaId);
         
         if (!tarefa) {
-            //console.log(`❌ Tarefa ${tarefaId} não encontrada`);
+            console.log(`❌ Tarefa ${tarefaId} não encontrada`);
             return 'Tarefa não encontrada';
         }
         
         // Usar 'titulo' se existir, senão usar 'nome'
         const nome = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
-        //console.log(`✅ Tarefa ${tarefaId}: ${nome}`);
+        console.log(`✅ Tarefa ${tarefaId}: ${nome}`);
         return nome;
     }
 
     async verificarAutenticacao() {
-        //console.log('🔐 Verificando autenticação...');
+        console.log('🔐 Verificando autenticação...');
         const usuarioLogado = localStorage.getItem('usuarioLogado');
         
         if (!usuarioLogado) {
-            //console.log('❌ Usuário não autenticado, redirecionando...');
+            console.log('❌ Usuário não autenticado, redirecionando...');
             window.location.href = 'login.html';
             return;
         }
         
         this.usuario = JSON.parse(usuarioLogado);
-        //console.log(`✅ Usuário autenticado: ${this.usuario.nome || this.usuario.usuario}`);
+        console.log(`✅ Usuário autenticado: ${this.usuario.nome || this.usuario.usuario}`);
         
         // Atualizar interface
         if (document.getElementById('userName')) {
@@ -725,7 +725,7 @@ class GestorAtividades {
     }
 
     async carregarDados() {
-        //console.log('📊 Carregando dados do Firebase...');
+        console.log('📊 Carregando dados do Firebase...');
         
         try {
             // Carregar usuários
@@ -734,11 +734,11 @@ class GestorAtividades {
                 id: doc.id,
                 ...doc.data()
             }));
-            //console.log(`✅ ${this.usuarios.length} usuários carregados`);
+            console.log(`✅ ${this.usuarios.length} usuários carregados`);
     
             // OBTER GRUPOS DO USUÁRIO LOGADO
             const usuarioAtual = this.usuario.usuario;
-            //console.log(`👤 Usuário atual: ${usuarioAtual}`);
+            console.log(`👤 Usuário atual: ${usuarioAtual}`);
             
             // Buscar grupos onde o usuário é membro
             const gruposSnapshot = await db.collection('grupos')
@@ -751,7 +751,14 @@ class GestorAtividades {
             }));
             
             const gruposIdsUsuario = gruposUsuario.map(g => g.id);
-            //console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
+            console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
+            
+            // Se o usuário não pertence a nenhum grupo, ainda pode ver atividades onde é observador
+            if (gruposIdsUsuario.length === 0) {
+                console.log('⚠️ Usuário não é membro de nenhum grupo');
+            } else {
+                console.log(`✅ Usuário é membro de ${gruposIdsUsuario.length} grupo(s)`);
+            }
     
             // Carregar TODAS as tarefas
             const tarefasSnapshot = await db.collection('tarefas').get();
@@ -771,8 +778,8 @@ class GestorAtividades {
                 };
             });
     
-            //console.log(`✅ ${todasAtividades.length} atividades carregadas no total`);
-            //console.log(`✅ ${todasTarefas.length} tarefas carregadas no total`);
+            console.log(`✅ ${todasAtividades.length} atividades carregadas no total`);
+            console.log(`✅ ${todasTarefas.length} tarefas carregadas no total`);
     
             // Filtrar atividades que o usuário tem acesso:
             // 1. Atividades onde o usuário é observador
@@ -781,32 +788,33 @@ class GestorAtividades {
                 return observadores.includes(usuarioAtual);
             });
             
-            //console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
+            console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
     
             // 2. Filtrar tarefas baseadas no acesso do usuário
             const tarefasFiltradas = todasTarefas.filter(tarefa => {
-                // A PRIMEIRA CONDIÇÃO: Se o usuário pertence a algum grupo envolvido na tarefa
-                // Verificar se há interseção entre grupos da tarefa e grupos do usuário
-                if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso) && tarefa.gruposAcesso.length > 0) {
-                    const pertenceAoGrupo = tarefa.gruposAcesso.some(grupoId => 
-                        gruposIdsUsuario.includes(grupoId)
+                // Se o usuário não tem grupos de acesso, verificar se tem atividades como observador nesta tarefa
+                if (gruposIdsUsuario.length === 0) {
+                    // Verificar se há atividades nesta tarefa onde o usuário é observador
+                    const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
+                    const temAtividadeComoObservador = atividadesTarefa.some(a => 
+                        a.observadores && a.observadores.includes(usuarioAtual)
                     );
-                    
-                    if (pertenceAoGrupo) {
-                        return true; // Usuário pertence a um grupo envolvido na tarefa
-                    }
+                    return temAtividadeComoObservador;
                 }
                 
-                // SEGUNDA CONDIÇÃO: Se não pertence a grupo, verificar se tem atividades como observador nesta tarefa
-                const atividadesTarefa = todasAtividades.filter(a => a.tarefaId === tarefa.id);
-                const temAtividadeComoObservador = atividadesTarefa.some(a => 
-                    a.observadores && a.observadores.includes(usuarioAtual)
-                );
+                // Se o usuário tem grupos, verificar acesso normal
+                if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+                    console.log(`❌ Tarefa ${tarefa.id} não tem gruposAcesso definido`);
+                    return false;
+                }
                 
-                return temAtividadeComoObservador;
+                // Verificar se há interseção entre grupos da tarefa e grupos do usuário
+                return tarefa.gruposAcesso.some(grupoId => 
+                    gruposIdsUsuario.includes(grupoId)
+                );
             });
     
-            //console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
+            console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
             
             // Agrupar atividades por tarefa, considerando o acesso do usuário
             this.tarefas = tarefasFiltradas.map(tarefa => {
@@ -840,12 +848,13 @@ class GestorAtividades {
                 };
             });
     
-            // NÃO REMOVER tarefas que não têm atividades visíveis
-            // As tarefas devem aparecer mesmo sem atividades se o usuário tiver acesso
-            //console.log(`📊 Total de tarefas disponíveis: ${this.tarefas.length}`);
+            // Remover tarefas que não têm atividades visíveis para o usuário
+            this.tarefas = this.tarefas.filter(tarefa => tarefa.atividades.length > 0);
+            
+            console.log(`✅ Após filtragem: ${this.tarefas.length} tarefas com atividades visíveis para o usuário`);
             
             this.tarefas.forEach(tarefa => {
-                //console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
+                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
             });
     
             // Atualizar status
@@ -860,7 +869,7 @@ class GestorAtividades {
     }
 
     inicializarGraficos() {
-        //console.log('📊 Inicializando gráficos...');
+        console.log('📊 Inicializando gráficos...');
         this.inicializarGraficoStatus();
         this.inicializarGraficoProgresso();
         this.inicializarGraficoTimeline();
@@ -871,7 +880,7 @@ class GestorAtividades {
             const ctx = document.getElementById('statusChart').getContext('2d');
             const dados = this.calcularEstatisticas();
             
-            //console.log('Dados para gráfico de status:', dados);
+            console.log('Dados para gráfico de status:', dados);
             
             this.charts.status = new Chart(ctx, {
                 type: 'doughnut',
@@ -906,7 +915,7 @@ class GestorAtividades {
                     }
                 }
             });
-            //console.log('✅ Gráfico de status inicializado');
+            console.log('✅ Gráfico de status inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de status:', error);
         }
@@ -951,7 +960,7 @@ class GestorAtividades {
                     }
                 }
             });
-            //console.log('✅ Gráfico de progresso inicializado');
+            console.log('✅ Gráfico de progresso inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de progresso:', error);
         }
@@ -988,7 +997,7 @@ class GestorAtividades {
                     }
                 }
             });
-            //console.log('✅ Gráfico de timeline inicializado');
+            console.log('✅ Gráfico de timeline inicializado');
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico de timeline:', error);
         }
@@ -1021,7 +1030,7 @@ class GestorAtividades {
             });
         });
     
-        //console.log('📊 Estatísticas:', { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas });
+        console.log('📊 Estatísticas:', { total, naoIniciadas, pendentes, andamento, concluidas, atrasadas });
         
         // Atualizar interface
         document.getElementById('total-atividades').textContent = total;
@@ -1035,7 +1044,7 @@ class GestorAtividades {
     }
 
     renderizarTarefas() {
-        //console.log('🎨 Renderizando tarefas...');
+        console.log('🎨 Renderizando tarefas...');
         const container = document.getElementById('tarefas-container');
         
         // Verificar se há tarefas para o usuário atual
@@ -1137,7 +1146,7 @@ class GestorAtividades {
             `;
         }).join('');
         
-        //console.log(`✅ Renderizadas ${this.tarefas.length} tarefas`);
+        console.log(`✅ Renderizadas ${this.tarefas.length} tarefas`);
         
         // Restaurar o estado de expansão
         setTimeout(() => {
@@ -1209,10 +1218,10 @@ class GestorAtividades {
         const andamento = atividadesVisiveis.filter(a => a.status === 'andamento').length;
         const concluidas = atividadesVisiveis.filter(a => a.status === 'concluido').length;
         
-        //console.log(`📊 Estatísticas da tarefa "${this.getNomeTarefa(tarefa.id)}": 
-        //    Total atividades: ${todasAtividades.length}
-        //    Visíveis para usuário: ${total}
-        //    Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
+        console.log(`📊 Estatísticas da tarefa "${this.getNomeTarefa(tarefa.id)}": 
+            Total atividades: ${todasAtividades.length}
+            Visíveis para usuário: ${total}
+            Acesso completo: ${tarefa.acessoCompleto ? 'SIM' : 'NÃO'}`);
         
         return {
             total,
@@ -1590,11 +1599,11 @@ class GestorAtividades {
     }
 
     configurarListeners() {
-        //console.log('🎧 Configurando listeners...');
+        console.log('🎧 Configurando listeners...');
         
         // Listener para atualizações de atividades
         db.collection('atividades').onSnapshot(() => {
-            //console.log('🔄 Atualizando atividades em tempo real...');
+            console.log('🔄 Atualizando atividades em tempo real...');
             this.carregarDados().then(() => {
                 this.renderizarTarefas();
                 this.atualizarGraficos();
@@ -1603,7 +1612,7 @@ class GestorAtividades {
         
         // Listener para tarefas
         db.collection('tarefas').onSnapshot(() => {
-            //console.log('🔄 Atualizando lista de tarefas...');
+            console.log('🔄 Atualizando lista de tarefas...');
             this.carregarDados().then(() => {
                 this.renderizarTarefas();
                 this.atualizarGraficos();
@@ -1614,7 +1623,7 @@ class GestorAtividades {
     }
     
     atualizarGraficos() {
-        //console.log('📈 Atualizando gráficos...');
+        console.log('📈 Atualizando gráficos...');
         
         if (this.charts.status) {
             const dados = this.calcularEstatisticas();
@@ -1648,13 +1657,13 @@ class GestorAtividades {
 
     async processarConclusaoAtividade(atividadeId) {
         try {
-            //console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
+            console.log(`🔍 Processando conclusão da atividade: ${atividadeId}`);
             
             // PRIMEIRO: Buscar a atividade que foi concluída
             const atividadeConcluidaDoc = await db.collection('atividades').doc(atividadeId).get();
             
             if (!atividadeConcluidaDoc.exists) {
-                //console.log(`❌ Atividade ${atividadeId} não encontrada`);
+                console.log(`❌ Atividade ${atividadeId} não encontrada`);
                 return;
             }
             
@@ -1664,10 +1673,10 @@ class GestorAtividades {
             // Ou seja: atividades cujos IDs estão em atividadesVinculadas da atividade concluída
             const atividadesVinculadasIds = atividadeConcluida.atividadesVinculadas || [];
             
-            //console.log(`📋 Atividade ${atividadeId} tem ${atividadesVinculadasIds.length} atividade(s) em seus vínculos:`, atividadesVinculadasIds);
+            console.log(`📋 Atividade ${atividadeId} tem ${atividadesVinculadasIds.length} atividade(s) em seus vínculos:`, atividadesVinculadasIds);
             
             if (atividadesVinculadasIds.length > 0) {
-                //console.log(`🔄 Processando ${atividadesVinculadasIds.length} atividades que estão nos vínculos de ${atividadeId}`);
+                console.log(`🔄 Processando ${atividadesVinculadasIds.length} atividades que estão nos vínculos de ${atividadeId}`);
                 
                 const batch = db.batch();
                 let atualizadas = 0;
@@ -1687,18 +1696,18 @@ class GestorAtividades {
                                 dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                             });
                             atualizadas++;
-                            //console.log(`✅ Marcando atividade ${vinculadaId} (que está no vínculo de ${atividadeId}) como pendente`);
+                            console.log(`✅ Marcando atividade ${vinculadaId} (que está no vínculo de ${atividadeId}) como pendente`);
                         } else {
-                            //console.log(`ℹ️ Atividade ${vinculadaId} já está concluída, mantendo status`);
+                            console.log(`ℹ️ Atividade ${vinculadaId} já está concluída, mantendo status`);
                         }
                     }
                 }
                 
                 if (atualizadas > 0) {
                     await batch.commit();
-                    //console.log(`✅ ${atualizadas} atividades foram atualizadas para "pendente"`);
+                    console.log(`✅ ${atualizadas} atividades foram atualizadas para "pendente"`);
                 } else {
-                    //console.log(`ℹ️ Nenhuma atividade precisa ser atualizada para pendente`);
+                    console.log(`ℹ️ Nenhuma atividade precisa ser atualizada para pendente`);
                 }
                 
                 // Recarregar dados após atualização
@@ -1710,7 +1719,7 @@ class GestorAtividades {
                     });
                 }, 1000);
             } else {
-                //console.log(`ℹ️ Atividade ${atividadeId} não tem atividades em seus vínculos`);
+                console.log(`ℹ️ Atividade ${atividadeId} não tem atividades em seus vínculos`);
             }
             
         } catch (error) {
@@ -1719,7 +1728,7 @@ class GestorAtividades {
     }
 
     async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
-        //console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
+        console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
         
         const modal = document.getElementById('modalAtividade');
@@ -1915,7 +1924,7 @@ async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExisten
 }
 
 async function salvarAtividade(tarefaId, tipo) {
-    //console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
+    console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
     
     const titulo = document.getElementById('tituloAtividade').value;
     const responsavel = document.getElementById('responsavelAtividade').value;
@@ -1956,14 +1965,13 @@ async function salvarAtividade(tarefaId, tipo) {
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // IMPORTANTE: Definir status anterior e status atual
+    // IMPORTANTE: NÃO alterar o status na edição
     if (gestorAtividades && gestorAtividades.atividadeEditando) {
-        // Se está editando, NÃO alterar o status e statusAnterior
-        // Esses campos permanecem como estão no Firestore
+        // Se está editando, NÃO incluir o status nos dados
+        // O status permanece o mesmo
     } else {
-        // Se está criando nova, definir ambos como 'nao_iniciado'
+        // Se está criando nova, definir como 'nao_iniciado'
         atividade.status = 'nao_iniciado';
-        atividade.statusAnterior = 'nao_iniciado'; // ← NOVO CAMPO
         // Adicionar quem criou a atividade
         atividade.criadoPor = gestorAtividades ? gestorAtividades.usuario.usuario : 'desconhecido';
     }
@@ -1972,7 +1980,7 @@ async function salvarAtividade(tarefaId, tipo) {
         let atividadeId;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
-            // Se está editando, usar update mantendo status e statusAnterior
+            // Se está editando, usar update mantendo o status atual
             atividadeId = gestorAtividades.atividadeEditando;
             
             // 1. Buscar vínculos antigos para remover
@@ -1980,12 +1988,9 @@ async function salvarAtividade(tarefaId, tipo) {
             const antigosVinculosIds = atividadeAntiga.exists ? 
                 atividadeAntiga.data().atividadesVinculadas || [] : [];
             
-            // 2. Atualizar a atividade principal (NÃO incluir status ou statusAnterior)
-            delete atividade.status; // Remover para não atualizar
-            delete atividade.statusAnterior; // Remover para não atualizar
-            
+            // 2. Atualizar a atividade principal (exceto status e criadoPor)
             await db.collection('atividades').doc(atividadeId).update(atividade);
-            //console.log(`✅ Atividade ${atividadeId} atualizada`);
+            console.log(`✅ Atividade ${atividadeId} atualizada`);
             
             // 3. REMOVER vínculos antigos das atividades
             for (const vinculoId of antigosVinculosIds) {
@@ -2001,23 +2006,23 @@ async function salvarAtividade(tarefaId, tipo) {
                         atividadesVinculadas: novasAtividadesVinculadas,
                         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    //console.log(`🔄 Removido vínculo de ${atividadeId} na atividade ${vinculoId}`);
+                    console.log(`🔄 Removido vínculo de ${atividadeId} na atividade ${vinculoId}`);
                 }
             }
             
         } else {
-            // Criar nova atividade (com status e statusAnterior como 'nao_iniciado')
+            // Criar nova atividade (com status 'nao_iniciado' e criadoPor)
             const docRef = await db.collection('atividades').add({
                 ...atividade,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
             atividadeId = docRef.id;
-            //console.log(`✅ Nova atividade ${atividadeId} criada com statusAnterior: nao_iniciado`);
+            console.log(`✅ Nova atividade ${atividadeId} criada por ${atividade.criadoPor}`);
         }
         
         // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
         if (atividadesParaVincular.length > 0) {
-            //console.log(`🔗 Adicionando vínculo da atividade ${atividadeId} em ${atividadesParaVincular.length} atividades selecionadas`);
+            console.log(`🔗 Adicionando vínculo da atividade ${atividadeId} em ${atividadesParaVincular.length} atividades selecionadas`);
             
             const batch = db.batch();
             let atualizadas = 0;
@@ -2037,14 +2042,14 @@ async function salvarAtividade(tarefaId, tipo) {
                             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         atualizadas++;
-                        //console.log(`✅ Adicionado vínculo de ${atividadeId} na atividade ${selecionadaId}`);
+                        console.log(`✅ Adicionado vínculo de ${atividadeId} na atividade ${selecionadaId}`);
                     }
                 }
             }
             
             if (atualizadas > 0) {
                 await batch.commit();
-                //console.log(`✅ ${atualizadas} atividades tiveram a atividade ${atividadeId} adicionada como vínculo`);
+                console.log(`✅ ${atualizadas} atividades tiveram a atividade ${atividadeId} adicionada como vínculo`);
             }
         }
         
@@ -2066,7 +2071,7 @@ async function salvarAtividade(tarefaId, tipo) {
 }
     
 async function editarAtividade(atividadeId) {
-    //console.log(`✏️ Editando atividade: ${atividadeId}`);
+    console.log(`✏️ Editando atividade: ${atividadeId}`);
     
     try {
         // Verificar permissões antes de editar
@@ -2141,7 +2146,7 @@ async function excluirAtividade(atividadeId) {
         if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
         
         await db.collection('atividades').doc(atividadeId).delete();
-        //console.log(`🗑️ Atividade ${atividadeId} excluída`);
+        console.log(`🗑️ Atividade ${atividadeId} excluída`);
         alert('✅ Atividade excluída com sucesso!');
         
         if (gestorAtividades) {
@@ -2157,7 +2162,7 @@ async function excluirAtividade(atividadeId) {
 }
 
 async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) {
-    //console.log(`🔄 Alterando status da atividade ${atividadeId} para ${novoStatus}`);
+    console.log(`🔄 Alterando status da atividade ${atividadeId} para ${novoStatus}`);
     
     // Verificar se o usuário é o responsável
     if (!gestorAtividades || !gestorAtividades.usuario) {
@@ -2191,19 +2196,14 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             return;
         }
         
-        // Verificar se realmente há mudança de status
-        if (atividade.status === novoStatus) {
-            //console.log(`ℹ️ Status já é ${novoStatus}, sem alteração necessária`);
-            return;
-        }
-        
         const select = document.querySelector(`.status-select[data-id="${atividadeId}"]`);
+        const statusAnterior = select ? select.value : 'nao_iniciado';
         
         if (novoStatus === 'concluido') {
             const confirmar = confirm(`Deseja realmente alterar o status de "${tituloAtividade}" para "Concluído"?\n\n⚠️ Esta ação processará automaticamente as atividades vinculadas.`);
             
             if (!confirmar) {
-                if (select) select.value = atividade.status;
+                if (select) select.value = statusAnterior;
                 return;
             }
         }
@@ -2213,29 +2213,12 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
             select.disabled = true;
         }
         
-        // IMPORTANTE: Preparar observadores com asterisco
-        const observadores = atividade.observadores || [];
-        const observadoresComAsterisco = observadores.map(obs => {
-            // Se já tem asterisco, mantém
-            if (obs.endsWith('*')) {
-                return obs;
-            }
-            // Se não tem asterisco, adiciona
-            return obs + '*';
-        });
-        
-        //console.log(`📝 Observadores com asterisco:`, observadoresComAsterisco);
-        
-        // Atualizar no Firestore com statusAnterior, status E observadores
         await db.collection('atividades').doc(atividadeId).update({
-            statusAnterior: atividade.status, // Salvar status anterior
-            status: novoStatus, // Definir novo status
-            observadores: observadoresComAsterisco, // Adicionar asterisco aos observadores
+            status: novoStatus,
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        //console.log(`✅ Status da atividade "${tituloAtividade}" alterado: ${atividade.status} → ${novoStatus}`);
-        //console.log(`✅ Asterisco adicionado a ${observadores.length} observador(es)`);
+        console.log(`✅ Status da atividade "${tituloAtividade}" alterado para: ${novoStatus}`);
         
         const checklistItem = select ? select.closest('.checklist-item') : null;
         if (checklistItem) {
@@ -2275,11 +2258,10 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
     }
 }
 
-
 // ========== INICIALIZAÇÃO ==========
 
 document.addEventListener('DOMContentLoaded', () => {
-    //console.log('📄 DOM carregado, inicializando...');
+    console.log('📄 DOM carregado, inicializando...');
     
     // Criar instância do gestor
     gestorAtividades = new GestorAtividades();
@@ -2289,7 +2271,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar listener para conclusões
     setTimeout(() => {
-        //console.log('⏰ Configurando listener para conclusões...');
+        console.log('⏰ Configurando listener para conclusões...');
         configurarListenerConclusoes();
     }, 3000);
 });
