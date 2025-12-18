@@ -806,7 +806,7 @@ class GestorAtividades {
         console.log('📊 Carregando dados do Firebase...');
         
         try {
-            // 1. CARREGAR USUÁRIOS DO BANCO DE LOGINS (substituindo 'usuarios' do banco principal)
+            // 1. CARREGAR USUÁRIOS DO BANCO DE LOGINS
             console.log('👥 Carregando usuários do banco de logins...');
             
             if (!window.dbLogins) {
@@ -821,18 +821,15 @@ class GestorAtividades {
                 } else {
                     const loginsData = loginsDoc.data();
                     
-                    // Converter o mapa de usuários em array
+                    // Converter o mapa de usuários em array - USANDO APENAS LOGIN
                     this.usuarios = Object.entries(loginsData).map(([uid, userData]) => ({
                         id: uid,
-                        usuario: userData.login,
-                        nome: userData.displayName || userData.login,
+                        usuario: userData.login, // ← APENAS O LOGIN
+                        nome: userData.displayName || userData.login, // ← nome apenas para referência
                         perfil: userData.perfil || 'padrao',
                         status: userData.status || 'ativo',
-                        isOnline: userData.isOnline || false,
-                        // Mantenha compatibilidade com campos que podem ser usados no sistema
-                        email: userData.login, // Para compatibilidade
-                        tipo: userData.perfil || 'usuario' // Para compatibilidade
-                    })).filter(user => user.status === 'ativo'); // Apenas usuários ativos
+                        isOnline: userData.isOnline || false
+                    })).filter(user => user.status === 'ativo');
                     
                     console.log(`✅ ${this.usuarios.length} usuários ativos carregados do banco de logins`);
                 }
@@ -1821,7 +1818,7 @@ class GestorAtividades {
     }
 
     async abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExistente = null) {
-        //console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
+        console.log(`📋 Abrindo modal para ${atividadeExistente ? 'editar' : 'criar'} atividade`);
         this.atividadeEditando = atividadeExistente ? atividadeExistente.id : null;
         
         const modal = document.getElementById('modalAtividade');
@@ -1837,9 +1834,10 @@ class GestorAtividades {
         
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
         
+        // MODIFICAÇÃO AQUI: Mostrar apenas o login (username) no select
         const usuariosOptions = this.usuarios.map(user => {
-            const nomeExibicao = user.nome || user.usuario;
-            return `<option value="${user.usuario}">${nomeExibicao}</option>`;
+            // MOSTRAR APENAS O LOGIN (username) - não mostrar o nome
+            return `<option value="${user.usuario}">${user.usuario}</option>`;
         }).join('');
         
         const formatarDataParaInput = (dataString) => {
@@ -1910,7 +1908,7 @@ class GestorAtividades {
                         <label for="responsavelAtividade">Responsável *</label>
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
-                            ${usuariosOptions}
+                            ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -1935,8 +1933,9 @@ class GestorAtividades {
                                 <span id="observadoresPreview">Nenhum observador selecionado</span>
                                 <i class="fas fa-chevron-down"></i>
                             </div>
+                            <!-- AQUI TAMBÉM: mostra apenas logins -->
                             <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
-                                ${usuariosOptions}
+                                ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
                             </select>
                         </div>
                         <small class="form-text">Clique para selecionar múltiplos observadores (Ctrl+Clique para seleção múltipla)</small>
@@ -1985,8 +1984,29 @@ class GestorAtividades {
             // Configurar o multi-select
             configurarMultiSelectBehavior();
             
-            // Atualizar preview inicial
-            atualizarPreviewObservadores();
+            // Atualizar preview inicial - PRECISA SER AJUSTADA TAMBÉM
+            setTimeout(() => {
+                const select = document.getElementById('observadorAtividade');
+                const preview = document.getElementById('observadoresPreview');
+                const previewContainer = document.querySelector('.multi-select-preview');
+                
+                if (select && preview && previewContainer) {
+                    const selecionados = Array.from(select.selectedOptions).map(opt => opt.text); // AQUI: opt.text já será o login
+                    if (selecionados.length > 0) {
+                        if (selecionados.length === 1) {
+                            preview.textContent = selecionados[0];
+                        } else if (selecionados.length === 2) {
+                            preview.textContent = selecionados.join(' e ');
+                        } else {
+                            preview.textContent = `${selecionados.length} observadores selecionados`;
+                        }
+                        previewContainer.classList.add('has-selected');
+                    } else {
+                        preview.textContent = 'Nenhum observador selecionado';
+                        previewContainer.classList.remove('has-selected');
+                    }
+                }
+            }, 50);
         }, 100);
         
         verificarConclusaoVinculos();
