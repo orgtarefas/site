@@ -20,7 +20,7 @@ let dbLogins = null;
 
 // Inicialização
 // Configurar event listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Verificando autenticação...';
     
@@ -40,16 +40,23 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📋 Dados completos do usuário logado:', usuarioLogado);
     console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
     
-    // Se não tiver grupos, tentar carregar de outras formas
+    // ⚡ AJUSTE IMPORTANTE: Se não tiver grupos, buscar AGORA antes de continuar
     if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
-        console.log('⚠️ Usuário não tem grupos definidos. Tentando buscar do Firebase...');
+        console.log('🔄 Carregando grupos do usuário antes de continuar...');
+        document.getElementById('loadingText').textContent = 'Carregando grupos do usuário...';
         
-        // Verificar se está usando LOGINS_ORGTAREFAS
-        if (usuarioLogado.documento === 'LOGINS_ORGTAREFAS') {
-            console.log('🎯 Usuário vem de LOGINS_ORGTAREFAS');
-            // Neste caso, pode não ter grupos predefinidos
-            // Vamos carregar todos os grupos disponíveis
-            usuarioLogado.grupos = ['todos_grupos']; // Placeholder
+        // Aguardar um pouco para garantir que Firebase está pronto
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+            // Chamar a função que carrega grupos diretamente
+            await carregarGruposDoUsuarioLogado();
+            
+            // Recarregar usuário logado atualizado
+            const usuarioAtualizado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
+        } catch (error) {
+            console.error('❌ Erro ao carregar grupos:', error);
         }
     }
     
@@ -82,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarSistema();
 });
 
-function inicializarSistema() {
+async function inicializarSistema() {
     console.log('🔥 Inicializando DOIS bancos Firebase...');
     document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
 
@@ -157,8 +164,40 @@ function inicializarSistema() {
     
     // Continuar com o resto do sistema
     try {
-        carregarUsuarios();
-        carregarGrupos();
+        // PRIMEIRO: Carregar usuários e grupos DO USUÁRIO LOGADO
+        console.log('📥 Carregando dados do usuário...');
+        document.getElementById('loadingText').textContent = 'Carregando seus dados...';
+        
+        // Carregar usuários primeiro
+        await carregarUsuarios();
+        
+        // Verificar e carregar grupos do usuário logado ANTES de continuar
+        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        
+        if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
+            console.log('🔄 Usuário não tem grupos, carregando agora...');
+            document.getElementById('loadingText').textContent = 'Carregando seus grupos...';
+            
+            // Aguardar um pouco para garantir que Firebase está pronto
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Carregar grupos do usuário
+            await carregarGruposDoUsuarioLogado();
+            
+            // Recarregar usuário atualizado
+            const usuarioAtualizado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
+            
+            if (!usuarioAtualizado.grupos || usuarioAtualizado.grupos.length === 0) {
+                console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
+            }
+        }
+        
+        // DEPOIS: Carregar o resto
+        console.log('📊 Carregando dados do sistema...');
+        document.getElementById('loadingText').textContent = 'Carregando tarefas...';
+        
+        await carregarGrupos(); // Esta carrega todos os grupos do sistema
         configurarFirebase();
         
         // VERIFICAR SE É A PÁGINA HOME (index.html) ANTES DE INICIAR ALERTAS
@@ -189,7 +228,6 @@ function inicializarSistema() {
         mostrarErro('Erro ao conectar com o banco de dados');
     }
 }
-
 
 function configurarDataMinima() {
     const hoje = new Date().toISOString().split('T')[0];
@@ -248,6 +286,15 @@ async function carregarGruposDoUsuarioLogado() {
         const usuarioAtual = usuarioLogado.usuario;
         console.log(`🔍 Procurando grupos para: ${usuarioAtual}`);
         
+        // Aguardar um pouco para garantir que o Firebase está inicializado
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Verificar se db está disponível
+        if (!window.db) {
+            console.log('⏳ Aguardando inicialização do Firebase...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
         // Buscar TODOS os grupos para ver em quais o usuário está incluído
         const gruposSnapshot = await db.collection('grupos').get();
         
@@ -266,7 +313,6 @@ async function carregarGruposDoUsuarioLogado() {
             const grupoId = doc.id;
             
             console.log(`\n📋 Grupo: ${grupoData.nome || grupoId} (ID: ${grupoId})`);
-            console.log(`   Dados completos do grupo:`, grupoData);
             
             // Verificar TODAS as propriedades do grupo que podem conter usuários
             const propriedadesComUsuarios = ['usuarios', 'users', 'membros', 'members', 'integrantes'];
@@ -309,31 +355,21 @@ async function carregarGruposDoUsuarioLogado() {
         
         if (gruposDoUsuario.length === 0) {
             console.log(`⚠️ ATENÇÃO: Usuário ${usuarioAtual} não está em nenhum grupo!`);
-            console.log(`💡 Possíveis causas:`);
-            console.log(`   1. O usuário não foi adicionado a nenhum grupo`);
-            console.log(`   2. A estrutura dos dados de grupo é diferente do esperado`);
-            console.log(`   3. O nome de usuário pode estar em formato diferente (com email, etc.)`);
         }
         
         // Atualizar o objeto usuarioLogado com os grupos encontrados
-        if (!usuarioLogado.grupos) {
-            usuarioLogado.grupos = [];
-        }
-        
-        // Adicionar os grupos encontrados
-        gruposDoUsuario.forEach(grupoId => {
-            if (!usuarioLogado.grupos.includes(grupoId)) {
-                usuarioLogado.grupos.push(grupoId);
-            }
-        });
+        usuarioLogado.grupos = gruposDoUsuario;
         
         // Salvar de volta no localStorage
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
         
         console.log('👥 Grupos atualizados do usuário:', usuarioLogado.grupos);
         
+        return gruposDoUsuario;
+        
     } catch (error) {
         console.error('❌ Erro ao carregar grupos do usuário:', error);
+        return [];
     }
 }
 
