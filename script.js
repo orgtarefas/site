@@ -32,6 +32,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('👤 Usuário logado:', usuarioLogado.nome);
     document.getElementById('userName').textContent = usuarioLogado.nome;
+
+    // DEBUG: Verificar dados do usuário logado
+    console.log('📋 Dados completos do usuário logado:', usuarioLogado);
+    console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
+    
+    // Se não tiver grupos, tentar carregar de outras formas
+    if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
+        console.log('⚠️ Usuário não tem grupos definidos. Tentando buscar do Firebase...');
+        
+        // Verificar se está usando LOGINS_ORGTAREFAS
+        if (usuarioLogado.documento === 'LOGINS_ORGTAREFAS') {
+            console.log('🎯 Usuário vem de LOGINS_ORGTAREFAS');
+            // Neste caso, pode não ter grupos predefinidos
+            // Vamos carregar todos os grupos disponíveis
+            usuarioLogado.grupos = ['todos_grupos']; // Placeholder
+        }
+    }
     
     // Configurar data mínima
     configurarDataMinima();
@@ -1515,40 +1532,78 @@ function atualizarEstatisticas() {
 
 function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
-    if (!container) return;
+    if (!container) {
+        console.error('❌ Container de tarefas não encontrado!');
+        return;
+    }
+    
+    console.log('📊 Atualizando lista de tarefas...');
+    console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
     
     // Obter usuário logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const usuarioGrupos = usuarioLogado?.grupos || [];
     
+    console.log(`👤 Usuário logado: ${usuarioLogado?.usuario}`);
+    console.log(`👥 Grupos do usuário: ${usuarioGrupos.length} grupos`, usuarioGrupos);
+    
+    // DEBUG: Listar todas as tarefas disponíveis
+    console.log('🔍 Todas as tarefas disponíveis no sistema:');
+    tarefas.forEach((tarefa, index) => {
+        console.log(`${index + 1}. ${tarefa.titulo} | Grupos: ${JSON.stringify(tarefa.gruposAcesso)} | Status: ${tarefa.status}`);
+    });
+    
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
+        // DEBUG: Mostrar verificação para cada tarefa
+        console.log(`\n🔍 Verificando tarefa: ${tarefa.titulo}`);
+        console.log(`   Grupos da tarefa: ${JSON.stringify(tarefa.gruposAcesso)}`);
+        
         // Se a tarefa não tem grupos definidos, mostra para todos
         if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
+            console.log(`   ✅ MOSTRAR: Tarefa sem grupos definidos (mostra para todos)`);
             return true;
         }
         
         // Verifica se usuário pertence a algum dos grupos da tarefa
-        return tarefa.gruposAcesso.some(grupoId => 
+        const temAcesso = tarefa.gruposAcesso.some(grupoId => 
             usuarioGrupos.includes(grupoId)
         );
+        
+        console.log(`   ${temAcesso ? '✅ MOSTRAR' : '❌ OCULTAR'}: Usuário ${temAcesso ? 'tem' : 'NÃO tem'} acesso`);
+        
+        return temAcesso;
     });
     
+    console.log(`📊 Tarefas após filtro de grupos: ${tarefasFiltradasPorGrupo.length}`);
+    
+    // Aplicar outros filtros (busca, status, etc.)
     const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
-
+    
+    console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
+    
+    // Se não houver tarefas, mostrar mensagem
     if (tarefasFiltradas.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-tasks"></i>
                 <h3>Nenhuma tarefa encontrada</h3>
                 <p>Clique em "Nova Tarefa" para começar</p>
+                <small style="margin-top: 10px; color: #666;">
+                    Usuário: ${usuarioLogado?.usuario}<br>
+                    Grupos: ${usuarioGrupos.join(', ') || 'Nenhum grupo definido'}
+                </small>
             </div>
         `;
         return;
     }
 
     // Renderizar tarefas
+    console.log('🎨 Renderizando tarefas...');
+    
     container.innerHTML = tarefasFiltradas.map(tarefa => {
+        console.log(`   Renderizando: ${tarefa.titulo}`);
+        
         // Adicionar informação de grupos (todos os grupos)
         let gruposInfo = '';
         if (tarefa.gruposAcesso && Array.isArray(tarefa.gruposAcesso)) {
@@ -1653,7 +1708,57 @@ function atualizarListaTarefas() {
         </div>
         `;
     }).join('');
+    
+    console.log('✅ Lista de tarefas renderizada!');
 }
+
+// Função de debug para testar acesso às tarefas
+window.debugTarefas = function() {
+    console.log('🔍 DEBUG - Sistema de Tarefas');
+    console.log('===========================');
+    
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    console.log('👤 Usuário:', usuarioLogado?.usuario);
+    console.log('📋 Dados completos:', usuarioLogado);
+    
+    console.log('\n📊 ESTATÍSTICAS:');
+    console.log(`- Total tarefas: ${tarefas.length}`);
+    console.log(`- Total grupos carregados: ${grupos.length}`);
+    console.log(`- Total atividades: ${Object.keys(atividadesPorTarefa).length} tarefas com atividades`);
+    
+    console.log('\n🔍 TAREFAS DISPONÍVEIS:');
+    tarefas.forEach((tarefa, index) => {
+        console.log(`${index + 1}. "${tarefa.titulo}"`);
+        console.log(`   ID: ${tarefa.id}`);
+        console.log(`   Status: ${tarefa.status}`);
+        console.log(`   Grupos: ${JSON.stringify(tarefa.gruposAcesso)}`);
+        console.log(`   Atividades: ${atividadesPorTarefa[tarefa.id]?.length || 0}`);
+        console.log('---');
+    });
+    
+    console.log('\n👥 GRUPOS DISPONÍVEIS:');
+    grupos.forEach((grupo, index) => {
+        console.log(`${index + 1}. ${grupo.nome} (ID: ${grupo.id})`);
+    });
+    
+    console.log('\n🎯 VERIFICAÇÃO DE ACESSO:');
+    const usuarioGrupos = usuarioLogado?.grupos || [];
+    console.log(`Usuário pertence aos grupos: ${usuarioGrupos.join(', ') || 'Nenhum'}`);
+    
+    tarefas.forEach((tarefa, index) => {
+        let temAcesso = false;
+        
+        if (!tarefa.gruposAcesso || tarefa.gruposAcesso.length === 0) {
+            temAcesso = true;
+        } else {
+            temAcesso = tarefa.gruposAcesso.some(grupoId => 
+                usuarioGrupos.includes(grupoId)
+            );
+        }
+        
+        console.log(`${index + 1}. "${tarefa.titulo.substring(0, 50)}..." - ${temAcesso ? '✅ ACESSO PERMITIDO' : '❌ SEM ACESSO'}`);
+    });
+};
 
 // FUNÇÕES AUXILIARES PARA ATIVIDADES
 function getIconTipo(tipo) {
