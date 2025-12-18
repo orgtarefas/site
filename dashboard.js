@@ -159,9 +159,9 @@ function atualizarPreviewObservadores() {
         const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
         if (selecionados.length > 0) {
             if (selecionados.length === 1) {
-                preview.textContent = selecionados[0];
+                preview.textContent = selecionados[0]; // Mostra apenas o login
             } else if (selecionados.length === 2) {
-                preview.textContent = selecionados.join(' e ');
+                preview.textContent = selecionados.join(' e '); // Mostra apenas os logins
             } else {
                 preview.textContent = `${selecionados.length} observadores selecionados`;
             }
