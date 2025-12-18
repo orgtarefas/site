@@ -1526,11 +1526,11 @@ function preencherFormulario(tarefaId) {
     }
     
     //console.log('📝 Formulário preenchido:', {
-        tituloOriginal: tituloOriginal,
-        gruposAcesso: tarefa.gruposAcesso,
-        nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
-        tituloCompleto: tarefa.titulo
-    });
+    //    tituloOriginal: tituloOriginal,
+    //    gruposAcesso: tarefa.gruposAcesso,
+    //    nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
+    //    tituloCompleto: tarefa.titulo
+    //});
 }
 
 // FUNÇÃO AUXILIAR: Extrair título sem os grupos (para formulário de edição)
