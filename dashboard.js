@@ -559,7 +559,7 @@ function configurarListenerConclusoes() {
 // ========== CLASSE PRINCIPAL ==========
 class GestorAtividades {
     constructor() {
-        //console.log('🏗️ Criando nova instância do GestorAtividades');
+        console.log('🏗️ Criando nova instância do GestorAtividades');
         this.tarefas = [];
         this.usuarios = [];
         this.usuario = null;
@@ -569,18 +569,18 @@ class GestorAtividades {
     }
 
     async init() {
-        //console.log('🚀 Inicializando Gestor de Atividades...');
+        console.log('🚀 Inicializando Gestor de Atividades...');
         
-        // Verificar autenticação
+        // Verificar autenticação NO BANCO DE LOGINS
         await this.verificarAutenticacao();
         
-        // Carregar dados PRIMEIRO
+        // Carregar dados dos DOIS BANCOS
         await this.carregarDados();
         
         // Carregar atividades disponíveis para vínculos
         await this.carregarAtividadesParaVinculo();
         
-        // Inicializar gráficos DEPOIS de carregar dados
+        // Inicializar gráficos
         this.inicializarGraficos();
         
         // Renderizar tarefas
@@ -589,7 +589,7 @@ class GestorAtividades {
         // Configurar listeners
         this.configurarListeners();
         
-        //console.log('✅ Gestor de Atividades inicializado com sucesso!');
+        console.log('✅ Gestor de Atividades inicializado com sucesso!');
     }
 
     // função 
@@ -607,9 +607,9 @@ class GestorAtividades {
 
     async carregarAtividadesParaVinculo() {
         try {
-            //console.log('🔗 Carregando atividades para vínculo...');
+            console.log('🔗 Carregando atividades para vínculo do banco principal...');
             
-            // Primeiro, obter grupos do usuário
+            // Primeiro, obter grupos do usuário (do banco principal)
             const usuarioAtual = this.usuario.usuario;
             const gruposSnapshot = await db.collection('grupos')
                 .where('membros', 'array-contains', usuarioAtual)
@@ -617,14 +617,13 @@ class GestorAtividades {
             
             const gruposIdsUsuario = gruposSnapshot.docs.map(doc => doc.id);
             
-            // Se o usuário não pertence a nenhum grupo, não mostrar atividades para vínculo
             if (gruposIdsUsuario.length === 0) {
                 this.atividadesDisponiveis = [];
-                //console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
+                console.log('⚠️ Usuário não pertence a nenhum grupo - sem atividades para vínculo');
                 return;
             }
             
-            // Carregar TODAS as tarefas e filtrar
+            // Carregar TODAS as tarefas do banco principal
             const todasTarefasSnapshot = await db.collection('tarefas').get();
             
             // Filtrar tarefas que o usuário tem acesso
@@ -644,11 +643,11 @@ class GestorAtividades {
             
             if (tarefasIds.length === 0) {
                 this.atividadesDisponiveis = [];
-                //console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
+                console.log('⚠️ Nenhuma tarefa disponível para o usuário - sem atividades para vínculo');
                 return;
             }
             
-            // Carregar atividades APENAS das tarefas que o usuário tem acesso
+            // Carregar atividades APENAS das tarefas que o usuário tem acesso (do banco principal)
             const snapshot = await db.collection('atividades')
                 .where('tarefaId', 'in', tarefasIds)
                 .get();
@@ -659,7 +658,7 @@ class GestorAtividades {
                 tarefaNome: this.getNomeTarefa(doc.data().tarefaId)
             }));
             
-            //console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do(s) grupo(s) do usuário)`);
+            console.log(`✅ ${this.atividadesDisponiveis.length} atividades disponíveis para vínculo (do banco principal)`);
             
         } catch (error) {
             console.error('❌ Erro ao carregar atividades para vínculo:', error);
@@ -698,47 +697,150 @@ class GestorAtividades {
     }
 
     async verificarAutenticacao() {
-        //console.log('🔐 Verificando autenticação...');
+        console.log('🔐 Verificando autenticação no banco de logins...');
         const usuarioLogado = localStorage.getItem('usuarioLogado');
         
         if (!usuarioLogado) {
-            //console.log('❌ Usuário não autenticado, redirecionando...');
+            console.log('❌ Usuário não autenticado, redirecionando...');
             window.location.href = 'login.html';
             return;
         }
         
-        this.usuario = JSON.parse(usuarioLogado);
-        //console.log(`✅ Usuário autenticado: ${this.usuario.nome || this.usuario.usuario}`);
-        
-        // Atualizar interface
-        if (document.getElementById('userName')) {
-            document.getElementById('userName').textContent = this.usuario.nome || this.usuario.usuario;
+        try {
+            const usuario = JSON.parse(usuarioLogado);
+            console.log('👤 Usuário no localStorage:', usuario.usuario);
+            
+            // VERIFICAÇÃO NO NOVO BANCO DE LOGINS
+            console.log('🔍 Verificando no banco de logins...');
+            
+            if (!window.dbLogins) {
+                console.error('❌ Banco de logins não disponível');
+                alert('Erro no sistema de autenticação. Banco de logins não disponível.');
+                this.fazerLogout();
+                return;
+            }
+            
+            // Acessar o documento de logins no banco secundário
+            const loginsDoc = await dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS').get();
+            
+            if (!loginsDoc.exists) {
+                console.error('❌ Documento de logins não encontrado');
+                alert('Erro no sistema de autenticação. Tente novamente.');
+                this.fazerLogout();
+                return;
+            }
+            
+            const loginsData = loginsDoc.data();
+            
+            // Procurar o usuário pelo login
+            let usuarioEncontrado = null;
+            let userKey = null;
+            
+            // Iterar sobre todas as chaves (user18_uid, user19_uid, etc.)
+            for (const [key, userData] of Object.entries(loginsData)) {
+                if (userData && userData.login === usuario.usuario) {
+                    usuarioEncontrado = userData;
+                    userKey = key;
+                    break;
+                }
+            }
+            
+            if (!usuarioEncontrado) {
+                console.error(`❌ Usuário ${usuario.usuario} não encontrado no banco de logins`);
+                alert('Usuário não encontrado ou inválido.');
+                this.fazerLogout();
+                return;
+            }
+            
+            // Verificar status do usuário
+            if (usuarioEncontrado.status !== 'ativo') {
+                console.error(`❌ Usuário ${usuario.usuario} não está ativo`);
+                alert('Sua conta está inativa. Entre em contato com o administrador.');
+                this.fazerLogout();
+                return;
+            }
+            
+            // Atualizar objeto do usuário com dados do banco de logins
+            this.usuario = {
+                usuario: usuarioEncontrado.login,
+                nome: usuarioEncontrado.displayName || usuarioEncontrado.login,
+                perfil: usuarioEncontrado.perfil || 'padrao',
+                uid: userKey,
+                status: usuarioEncontrado.status,
+                isOnline: usuarioEncontrado.isOnline || false
+            };
+            
+            console.log(`✅ Usuário validado no banco de logins: ${this.usuario.nome} (${this.usuario.perfil})`);
+            
+            // Atualizar localStorage com dados completos
+            localStorage.setItem('usuarioLogado', JSON.stringify(this.usuario));
+            
+            // Atualizar interface
+            if (document.getElementById('userName')) {
+                document.getElementById('userName').textContent = this.usuario.nome;
+            }
+            
+            if (document.getElementById('data-atual')) {
+                document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
+            }
+            
+            // Esconder loading e mostrar conteúdo
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            
+        } catch (error) {
+            console.error('❌ Erro ao verificar autenticação:', error);
+            alert('Erro na autenticação. Tente fazer login novamente.');
+            this.fazerLogout();
         }
-        
-        if (document.getElementById('data-atual')) {
-            document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
-        }
-        
-        // Esconder loading e mostrar conteúdo
-        document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
     }
 
+    fazerLogout() {
+        console.log('🚪 Realizando logout...');
+        localStorage.removeItem('usuarioLogado');
+        window.location.href = 'login.html';
+    }
+
+
     async carregarDados() {
-        //console.log('📊 Carregando dados do Firebase...');
+        console.log('📊 Carregando dados do Firebase...');
         
         try {
-            // Carregar usuários
-            const usuariosSnapshot = await db.collection('usuarios').get();
-            this.usuarios = usuariosSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            //console.log(`✅ ${this.usuarios.length} usuários carregados`);
+            // 1. CARREGAR USUÁRIOS DO BANCO DE LOGINS (substituindo 'usuarios' do banco principal)
+            console.log('👥 Carregando usuários do banco de logins...');
+            
+            if (!window.dbLogins) {
+                console.error('❌ Banco de logins não disponível');
+                this.usuarios = [];
+            } else {
+                const loginsDoc = await dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS').get();
+                
+                if (!loginsDoc.exists) {
+                    console.error('❌ Documento de logins não encontrado');
+                    this.usuarios = [];
+                } else {
+                    const loginsData = loginsDoc.data();
+                    
+                    // Converter o mapa de usuários em array
+                    this.usuarios = Object.entries(loginsData).map(([uid, userData]) => ({
+                        id: uid,
+                        usuario: userData.login,
+                        nome: userData.displayName || userData.login,
+                        perfil: userData.perfil || 'padrao',
+                        status: userData.status || 'ativo',
+                        isOnline: userData.isOnline || false,
+                        // Mantenha compatibilidade com campos que podem ser usados no sistema
+                        email: userData.login, // Para compatibilidade
+                        tipo: userData.perfil || 'usuario' // Para compatibilidade
+                    })).filter(user => user.status === 'ativo'); // Apenas usuários ativos
+                    
+                    console.log(`✅ ${this.usuarios.length} usuários ativos carregados do banco de logins`);
+                }
+            }
     
-            // OBTER GRUPOS DO USUÁRIO LOGADO
+            // 2. OBTER GRUPOS DO USUÁRIO LOGADO (do banco principal)
             const usuarioAtual = this.usuario.usuario;
-            //console.log(`👤 Usuário atual: ${usuarioAtual}`);
+            console.log(`👤 Usuário atual: ${usuarioAtual}`);
             
             // Buscar grupos onde o usuário é membro
             const gruposSnapshot = await db.collection('grupos')
@@ -751,16 +853,16 @@ class GestorAtividades {
             }));
             
             const gruposIdsUsuario = gruposUsuario.map(g => g.id);
-            //console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
+            console.log(`📌 Usuário é membro dos grupos:`, gruposIdsUsuario);
     
-            // Carregar TODAS as tarefas
+            // 3. Carregar TODAS as tarefas (do banco principal)
             const tarefasSnapshot = await db.collection('tarefas').get();
             const todasTarefas = tarefasSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
     
-            // Carregar TODAS as atividades
+            // 4. Carregar TODAS as atividades (do banco principal)
             const atividadesSnapshot = await db.collection('atividades').get();
             const todasAtividades = atividadesSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -771,19 +873,19 @@ class GestorAtividades {
                 };
             });
     
-            //console.log(`✅ ${todasAtividades.length} atividades carregadas no total`);
-            //console.log(`✅ ${todasTarefas.length} tarefas carregadas no total`);
+            console.log(`✅ ${todasAtividades.length} atividades carregadas no total (banco principal)`);
+            console.log(`✅ ${todasTarefas.length} tarefas carregadas no total (banco principal)`);
     
-            // Filtrar atividades que o usuário tem acesso:
-            // 1. Atividades onde o usuário é observador
+            // 5. Filtrar atividades que o usuário tem acesso:
+            //    Atividades onde o usuário é observador
             const atividadesComoObservador = todasAtividades.filter(atividade => {
                 const observadores = atividade.observadores || [];
                 return observadores.includes(usuarioAtual);
             });
             
-            //console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
+            console.log(`👁️ Usuário é observador de ${atividadesComoObservador.length} atividades`);
     
-            // 2. Filtrar tarefas baseadas no acesso do usuário
+            // 6. Filtrar tarefas baseadas no acesso do usuário
             const tarefasFiltradas = todasTarefas.filter(tarefa => {
                 // A PRIMEIRA CONDIÇÃO: Se o usuário pertence a algum grupo envolvido na tarefa
                 // Verificar se há interseção entre grupos da tarefa e grupos do usuário
@@ -806,9 +908,9 @@ class GestorAtividades {
                 return temAtividadeComoObservador;
             });
     
-            //console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
+            console.log(`✅ ${tarefasFiltradas.length} tarefas disponíveis para o usuário:`);
             
-            // Agrupar atividades por tarefa, considerando o acesso do usuário
+            // 7. Agrupar atividades por tarefa, considerando o acesso do usuário
             this.tarefas = tarefasFiltradas.map(tarefa => {
                 // Para cada tarefa, filtrar as atividades que o usuário pode ver
                 const atividadesDaTarefa = todasAtividades.filter(atividade => {
@@ -840,15 +942,15 @@ class GestorAtividades {
                 };
             });
     
-            // NÃO REMOVER tarefas que não têm atividades visíveis
+            // 8. NÃO REMOVER tarefas que não têm atividades visíveis
             // As tarefas devem aparecer mesmo sem atividades se o usuário tiver acesso
-            //console.log(`📊 Total de tarefas disponíveis: ${this.tarefas.length}`);
+            console.log(`📊 Total de tarefas disponíveis: ${this.tarefas.length}`);
             
             this.tarefas.forEach(tarefa => {
-                //console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
+                console.log(`📌 Tarefa "${this.getNomeTarefa(tarefa.id)}" tem ${tarefa.atividades.length} atividades visíveis (acesso completo: ${tarefa.acessoCompleto})`);
             });
     
-            // Atualizar status
+            // 9. Atualizar status
             document.getElementById('status-sincronizacao').innerHTML = 
                 '<i class="fas fa-check-circle"></i> Sincronizado';
     
@@ -2279,7 +2381,7 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
 // ========== INICIALIZAÇÃO ==========
 
 document.addEventListener('DOMContentLoaded', () => {
-    //console.log('📄 DOM carregado, inicializando...');
+    console.log('📄 DOM carregado, inicializando...');
     
     // Criar instância do gestor
     gestorAtividades = new GestorAtividades();
@@ -2289,7 +2391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar listener para conclusões
     setTimeout(() => {
-        //console.log('⏰ Configurando listener para conclusões...');
+        console.log('⏰ Configurando listener para conclusões...');
         configurarListenerConclusoes();
     }, 3000);
 });
