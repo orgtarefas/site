@@ -182,20 +182,57 @@ async function carregarGrupos() {
     }
 }
 
-// FUNÇÃO: Carregar usuários
+// FUNÇÃO: Carregar usuários do banco LOGINS
 async function carregarUsuarios() {
-    console.log('👥 Carregando usuários...');
+    console.log('👥 Carregando usuários do LOGINS...');
     
     try {
-        const snapshot = await db.collection("usuarios").get();
+        // Verificar se temos acesso ao Firebase do logins
+        if (!window.firebaseLogins) {
+            console.error('❌ Firebase LOGINS não disponível');
+            // Carregar usuários do banco original como fallback
+            await carregarUsuariosFallback();
+            return;
+        }
         
-        usuarios = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        console.log('✅ Usuários carregados:', usuarios.length);
-
+        // Acessar o documento LOGINS_ORGTAREFAS no banco LOGINS
+        const docRef = window.firebaseLogins.doc(window.dbLogins, 'logins', 'LOGINS_ORGTAREFAS');
+        const docSnap = await window.firebaseLogins.getDoc(docRef);
+        
+        if (!docSnap.exists()) {
+            console.error('❌ Documento LOGINS_ORGTAREFAS não encontrado');
+            await carregarUsuariosFallback();
+            return;
+        }
+        
+        const dadosCompletos = docSnap.data();
+        console.log('✅ Documento LOGINS_ORGTAREFAS carregado');
+        
+        // Processar usuários da estrutura LOGINS_ORGTAREFAS
+        usuarios = [];
+        
+        Object.keys(dadosCompletos).forEach(key => {
+            // Verificar se é um campo userX_uid
+            if (key.startsWith('user') && (key.includes('_uid') || /\d/.test(key))) {
+                const userData = dadosCompletos[key];
+                
+                if (userData && userData.login) {
+                    usuarios.push({
+                        id: key, // Ex: user1_uid, user2_uid
+                        usuario: userData.login,
+                        nome: userData.displayName || userData.login,
+                        displayName: userData.displayName || userData.login,
+                        perfil: userData.perfil || '',
+                        status: userData.status || 'ativo',
+                        isOnline: userData.isOnline || false,
+                        email: userData.email || ''
+                    });
+                }
+            }
+        });
+        
+        console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
+        
         // Apenas preencher select de responsável para FILTRO
         const selectFiltro = document.getElementById('filterResponsavel');
         if (selectFiltro) {
@@ -209,7 +246,9 @@ async function carregarUsuarios() {
         }
         
     } catch (error) {
-        console.error('❌ Erro ao carregar usuários:', error);
+        console.error('❌ Erro ao carregar usuários do LOGINS:', error);
+        // Tentar carregar do banco original como fallback
+        await carregarUsuariosFallback();
     }
 }
 
