@@ -1328,10 +1328,19 @@ class GestorAtividades {
         const usuarioAtual = this.usuario ? this.usuario.usuario : null;
         
         if (atividades.length === 0) {
-            // [código permanece igual...]
+            // Verificar se o usuário tem acesso completo para poder adicionar atividades
+            if (tarefa.acessoCompleto) {
+                return this.renderizarTodasSecoesVazias(tarefa);
+            } else {
+                return `
+                    <div class="empty-activities">
+                        <p>Você não tem atividades visíveis nesta tarefa</p>
+                    </div>
+                `;
+            }
         }
     
-        // Agrupar por tipo
+        // Agrupar por tipo - SEMPRE as 3 fases
         const tipos = ['execucao', 'monitoramento', 'conclusao'];
         const titulos = {
             'execucao': 'Execução das Atividades',
@@ -1340,12 +1349,48 @@ class GestorAtividades {
         };
     
         return tipos.map(tipo => {
+            // Filtrar atividades deste tipo
             const atividadesTipo = atividades.filter(a => a.tipo === tipo);
             
-            if (atividadesTipo.length === 0) {
+            // Filtrar atividades visíveis para este usuário (se não tem acesso completo)
+            const atividadesVisiveisTipo = atividadesTipo.filter(atividade => {
+                // Se tem acesso completo à tarefa, pode ver todas as atividades
+                if (tarefa.acessoCompleto) {
+                    return true;
+                }
+                
+                // Se não tem acesso completo, verificar se é observador desta atividade específica
+                const observadores = atividade.observadores || [];
+                return observadores.includes(usuarioAtual);
+            });
+            
+            // Se o usuário não tem acesso completo E não tem atividades visíveis deste tipo,
+            // não mostrar a seção
+            if (!tarefa.acessoCompleto && atividadesVisiveisTipo.length === 0) {
                 return '';
             }
             
+            // Ordenar atividades por data de criação
+            const atividadesOrdenadas = atividadesVisiveisTipo.sort((a, b) => {
+                const getTimestamp = (atividade) => {
+                    if (atividade.dataRegistro && atividade.dataRegistro.toDate) {
+                        return atividade.dataRegistro.toDate().getTime();
+                    }
+                    if (atividade.dataRegistro) {
+                        return new Date(atividade.dataRegistro).getTime();
+                    }
+                    if (atividade.dataCriacao && atividade.dataCriacao.toDate) {
+                        return atividade.dataCriacao.toDate().getTime();
+                    }
+                    if (atividade.dataCriacao) {
+                        return new Date(atividade.dataCriacao).getTime();
+                    }
+                    return 0;
+                };
+                return getTimestamp(a) - getTimestamp(b);
+            });
+            
+            // Seção com ou sem atividades
             return `
                 <div class="activity-section">
                     <div class="section-header">
@@ -1362,179 +1407,221 @@ class GestorAtividades {
                             </button>` : ''
                         }
                     </div>
-                    <div class="checklist">
-                        ${atividadesTipo.map(atividade => {
-                            const status = atividade.status || 'nao_iniciado';
-                            const atividadesVinculadas = atividade.atividadesVinculadas || [];
-                            const temVinculos = atividadesVinculadas.length > 0;
-                            const observadores = atividade.observadores || [];
-                            const temObservadores = observadores.length > 0;
-                            const totalObservadores = observadores.length;
-                            
-                            // Verificar se o usuário atual é observador desta atividade
-                            const isObservador = usuarioAtual && observadores.includes(usuarioAtual);
-                            
-                            // Verificar permissões do usuário atual
-                            const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
-                            const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
-                            const podeEditarExcluir = tarefa.acessoCompleto || isResponsavel || isCriador;
-                            const podeAlterarStatus = isResponsavel;
-                            
-                            // **MUDANÇA AQUI: Mostrar apenas logins**
-                            const responsavelExibicao = atividade.responsavel || 'Não definido';
-                            const criadorExibicao = atividade.criadoPor || 'Não informado';
-                            
-                            // Título escapado para uso no select
-                            const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
-                            
-                            // **MUDANÇA AQUI: Observadores mostrar apenas logins**
-                            let observadoresHTML = '';
-                            let verMaisHTML = '';
-                            
-                            if (temObservadores) {
-                                // Limitar a 2 observadores
-                                const observadoresLimitados = totalObservadores > 2 ? 
-                                    observadores.slice(0, 2) : observadores;
+                    
+                    ${atividadesOrdenadas.length > 0 ? `
+                        <div class="checklist">
+                            ${atividadesOrdenadas.map(atividade => {
+                                const status = atividade.status || 'nao_iniciado';
+                                const atividadesVinculadas = atividade.atividadesVinculadas || [];
+                                const temVinculos = atividadesVinculadas.length > 0;
+                                const observadores = atividade.observadores || [];
+                                const temObservadores = observadores.length > 0;
+                                const totalObservadores = observadores.length;
                                 
-                                observadoresHTML = observadoresLimitados.map(obs => {
-                                    // **MOSTRAR APENAS O LOGIN**
-                                    return `<span class="observador-tag" data-observador="${obs}">${obs}</span>`;
-                                }).join('');
+                                // Verificar se o usuário atual é observador desta atividade
+                                const isObservador = usuarioAtual && observadores.includes(usuarioAtual);
                                 
-                                // Adicionar botão "Ver mais" se tiver mais de 2
-                                if (totalObservadores > 2) {
-                                    const restantes = totalObservadores - 2;
-                                    verMaisHTML = `
-                                        <button class="btn-ver-mais-observadores" 
-                                                data-atividade-id="${atividade.id}" 
-                                                onclick="mostrarTodosObservadores('${atividade.id}')"
-                                                title="Clique para ver todos os observadores">
-                                            <span class="observador-tag observador-ver-mais">
-                                                <i class="fas fa-users"></i> +${restantes}
-                                            </span>
-                                        </button>
+                                // Verificar permissões do usuário atual
+                                const isResponsavel = usuarioAtual && atividade.responsavel === usuarioAtual;
+                                const isCriador = usuarioAtual && atividade.criadoPor === usuarioAtual;
+                                const podeEditarExcluir = tarefa.acessoCompleto || isResponsavel || isCriador;
+                                const podeAlterarStatus = isResponsavel;
+                                
+                                // Mostrar apenas logins
+                                const responsavelExibicao = atividade.responsavel || 'Não definido';
+                                const criadorExibicao = atividade.criadoPor || 'Não informado';
+                                
+                                // Título escapado para uso no select
+                                const tituloEscapado = (atividade.titulo || '').replace(/'/g, "\\'");
+                                
+                                // Observadores mostrar apenas logins
+                                let observadoresHTML = '';
+                                let verMaisHTML = '';
+                                
+                                if (temObservadores) {
+                                    // Limitar a 2 observadores
+                                    const observadoresLimitados = totalObservadores > 2 ? 
+                                        observadores.slice(0, 2) : observadores;
+                                    
+                                    observadoresHTML = observadoresLimitados.map(obs => {
+                                        // MOSTRAR APENAS O LOGIN
+                                        return `<span class="observador-tag" data-observador="${obs}">${obs}</span>`;
+                                    }).join('');
+                                    
+                                    // Adicionar botão "Ver mais" se tiver mais de 2
+                                    if (totalObservadores > 2) {
+                                        const restantes = totalObservadores - 2;
+                                        verMaisHTML = `
+                                            <button class="btn-ver-mais-observadores" 
+                                                    data-atividade-id="${atividade.id}" 
+                                                    onclick="mostrarTodosObservadores('${atividade.id}')"
+                                                    title="Clique para ver todos os observadores">
+                                                <span class="observador-tag observador-ver-mais">
+                                                    <i class="fas fa-users"></i> +${restantes}
+                                                </span>
+                                            </button>
+                                        `;
+                                    }
+                                }
+                                
+                                const opcoesStatus = [
+                                    {value: 'nao_iniciado', label: 'Não Iniciado'},
+                                    {value: 'pendente', label: 'Pendente'},
+                                    {value: 'andamento', label: 'Em Andamento'},
+                                    {value: 'concluido', label: 'Concluído'}
+                                ];
+                                
+                                // Gerar conteúdo do controle de status (APENAS se for responsável)
+                                let statusControlHTML = '';
+                                if (podeAlterarStatus) {
+                                    const optionsHTML = opcoesStatus.map(opcao => `
+                                        <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
+                                            ${opcao.label}
+                                        </option>
+                                    `).join('');
+                                    
+                                    statusControlHTML = `
+                                        <div class="status-control">
+                                            <select class="status-select" 
+                                                    data-id="${atividade.id}"
+                                                    data-titulo="${tituloEscapado}"
+                                                    onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
+                                                ${optionsHTML}
+                                            </select>
+                                        </div>
                                     `;
                                 }
-                            }
-                            
-                            const opcoesStatus = [
-                                {value: 'nao_iniciado', label: 'Não Iniciado'},
-                                {value: 'pendente', label: 'Pendente'},
-                                {value: 'andamento', label: 'Em Andamento'},
-                                {value: 'concluido', label: 'Concluído'}
-                            ];
-                            
-                            // Gerar conteúdo do controle de status (APENAS se for responsável)
-                            let statusControlHTML = '';
-                            if (podeAlterarStatus) {
-                                const optionsHTML = opcoesStatus.map(opcao => `
-                                    <option value="${opcao.value}" ${status === opcao.value ? 'selected' : ''}>
-                                        ${opcao.label}
-                                    </option>
-                                `).join('');
                                 
-                                statusControlHTML = `
-                                    <div class="status-control">
-                                        <select class="status-select" 
-                                                data-id="${atividade.id}"
-                                                data-titulo="${tituloEscapado}"
-                                                onchange="alterarStatusAtividade('${atividade.id}', this.value, '${tituloEscapado}')">
-                                            ${optionsHTML}
-                                        </select>
+                                // Classe adicional para atividades onde o usuário é apenas observador
+                                const classeAcesso = !tarefa.acessoCompleto && isObservador ? 'acesso-observador' : '';
+                                
+                                return `
+                                    <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''} ${classeAcesso}">
+                                        <div class="item-info">
+                                            <div class="item-title">
+                                                ${atividade.titulo}
+                                                ${!tarefa.acessoCompleto && isObservador ? 
+                                                    `<span class="badge badge-acesso-parcial" style="margin-left: 8px; font-size: 10px;">
+                                                        <i class="fas fa-eye"></i> Observador
+                                                    </span>` : ''
+                                                }
+                                                ${temVinculos ? 
+                                                    `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
+                                                        <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
+                                                    </span>`
+                                                    : ''
+                                                }
+                                            </div>
+                                            ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
+                                            <div class="item-meta">
+                                                <!-- Mostrar apenas login do responsável -->
+                                                <span class="responsavel-info">
+                                                    <i class="fas fa-user"></i> 
+                                                    <strong>Responsável:</strong> ${responsavelExibicao}
+                                                </span>
+                                                ${atividade.criadoPor ? 
+                                                    `<!-- Mostrar apenas login do criador -->
+                                                    <span class="criador-info" title="Criado por ${criadorExibicao}">
+                                                        <i class="fas fa-user-plus"></i> 
+                                                        <strong>Criador:</strong> ${criadorExibicao}
+                                                    </span>` 
+                                                    : ''
+                                                }
+                                                ${temObservadores ? 
+                                                    `<!-- Mostrar apenas logins dos observadores -->
+                                                    <span class="observadores-container">
+                                                        <i class="fas fa-eye"></i> 
+                                                        <strong>Observadores:</strong> 
+                                                        ${observadoresHTML}
+                                                        ${verMaisHTML}
+                                                    </span>` 
+                                                    : ''
+                                                }
+                                                <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
+                                                
+                                                <span class="badge status-${status} status-meta-badge">
+                                                    ${getLabelStatus(status)}
+                                                </span>
+                                                
+                                                ${temVinculos ? 
+                                                    `<span class="vinculos-badge">
+                                                        <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
+                                                    </span>` 
+                                                    : ''
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="item-actions">
+                                            <!-- Controle de status: APENAS se for responsável (select) -->
+                                            ${statusControlHTML}
+                                            
+                                            <!-- Botões de ação -->
+                                            <div class="action-buttons">
+                                                ${podeEditarExcluir ? 
+                                                    `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>`
+                                                    :
+                                                    `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>`
+                                                }
+                                                ${podeEditarExcluir && (tarefa.acessoCompleto || isCriador) ? 
+                                                    `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>`
+                                                    :
+                                                    ''
+                                                }
+                                            </div>
+                                        </div>
                                     </div>
                                 `;
+                            }).join('')}
+                        </div>
+                    ` : `
+                        <div class="empty-section">
+                            <p>Nenhuma atividade cadastrada nesta fase</p>
+                            ${tarefa.acessoCompleto ? 
+                                `<button class="btn btn-outline btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
+                                    <i class="fas fa-plus"></i> Criar primeira atividade
+                                </button>` : 
+                                '<p class="text-muted small">Você não tem permissão para criar atividades nesta fase</p>'
                             }
-                            
-                            // Classe adicional para atividades onde o usuário é apenas observador
-                            const classeAcesso = !tarefa.acessoCompleto && isObservador ? 'acesso-observador' : '';
-                            
-                            return `
-                                <div class="checklist-item ${temVinculos ? 'atividade-com-vinculos' : ''} ${podeEditarExcluir ? 'pode-editar-atividade' : ''} ${classeAcesso}">
-                                    <div class="item-info">
-                                        <div class="item-title">
-                                            ${atividade.titulo}
-                                            ${!tarefa.acessoCompleto && isObservador ? 
-                                                `<span class="badge badge-acesso-parcial" style="margin-left: 8px; font-size: 10px;">
-                                                    <i class="fas fa-eye"></i> Observador
-                                                </span>` : ''
-                                            }
-                                            ${temVinculos ? 
-                                                `<span class="vinculos-tooltip" title="Esta atividade é vínculo de ${atividadesVinculadas.length} outra(s) atividade(s)">
-                                                    <i class="fas fa-link text-info" style="margin-left: 8px; font-size: 12px;"></i>
-                                                </span>`
-                                                : ''
-                                            }
-                                        </div>
-                                        ${atividade.descricao ? `<div class="item-desc">${atividade.descricao}</div>` : ''}
-                                        <div class="item-meta">
-                                            <!-- MUDANÇA: Mostrar apenas login do responsável -->
-                                            <span class="responsavel-info">
-                                                <i class="fas fa-user"></i> 
-                                                <strong>Responsável:</strong> ${responsavelExibicao}
-                                            </span>
-                                            ${atividade.criadoPor ? 
-                                                `<!-- MUDANÇA: Mostrar apenas login do criador -->
-                                                <span class="criador-info" title="Criado por ${criadorExibicao}">
-                                                    <i class="fas fa-user-plus"></i> 
-                                                    <strong>Criador:</strong> ${criadorExibicao}
-                                                </span>` 
-                                                : ''
-                                            }
-                                            ${temObservadores ? 
-                                                `<!-- MUDANÇA: Mostrar apenas logins dos observadores -->
-                                                <span class="observadores-container">
-                                                    <i class="fas fa-eye"></i> 
-                                                    <strong>Observadores:</strong> 
-                                                    ${observadoresHTML}
-                                                    ${verMaisHTML}
-                                                </span>` 
-                                                : ''
-                                            }
-                                            <span><i class="fas fa-calendar"></i> ${atividade.dataPrevista || 'Sem data'}</span>
-                                            
-                                            <span class="badge status-${status} status-meta-badge">
-                                                ${getLabelStatus(status)}
-                                            </span>
-                                            
-                                            ${temVinculos ? 
-                                                `<span class="vinculos-badge">
-                                                    <i class="fas fa-link"></i> ${atividadesVinculadas.length} vínculo(s)
-                                                </span>` 
-                                                : ''
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="item-actions">
-                                        <!-- Controle de status: APENAS se for responsável (select) -->
-                                        ${statusControlHTML}
-                                        
-                                        <!-- Botões de ação -->
-                                        <div class="action-buttons">
-                                            ${podeEditarExcluir ? 
-                                                `<button class="btn-icon btn-edit" onclick="editarAtividade('${atividade.id}')">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>`
-                                                :
-                                                `<button class="btn-icon btn-view" onclick="visualizarAtividade('${atividade.id}')" title="Visualizar atividade">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>`
-                                            }
-                                            ${podeEditarExcluir && (tarefa.acessoCompleto || isCriador) ? 
-                                                `<button class="btn-icon btn-delete" onclick="excluirAtividade('${atividade.id}')">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>`
-                                                :
-                                                ''
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
+                        </div>
+                    `}
                 </div>
             `;
         }).join('');
+    }
+    
+    // Adicione esta função auxiliar para renderizar todas as seções quando não há atividades
+    renderizarTodasSecoesVazias(tarefa) {
+        const tipos = ['execucao', 'monitoramento', 'conclusao'];
+        const titulos = {
+            'execucao': 'Execução das Atividades',
+            'monitoramento': 'Monitoramento', 
+            'conclusao': 'Conclusão e Revisão'
+        };
+        
+        return tipos.map(tipo => `
+            <div class="activity-section">
+                <div class="section-header">
+                    <h3>
+                        <i class="fas fa-list-check"></i> ${titulos[tipo]}
+                    </h3>
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
+                        <i class="fas fa-plus"></i> Nova Atividade
+                    </button>
+                </div>
+                <div class="empty-section">
+                    <p>Nenhuma atividade cadastrada nesta fase</p>
+                    <button class="btn btn-outline btn-sm" onclick="abrirModalAtividade('${tarefa.id}', '${tipo}')">
+                        <i class="fas fa-plus"></i> Criar primeira atividade
+                    </button>
+                </div>
+            </div>
+        `).join('');
     }
 
     getTextoStatusTarefa(tarefa) {
