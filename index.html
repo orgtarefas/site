@@ -48,7 +48,6 @@
                             <div class="alerts-container" id="observadorAlertsContainer">
                                 <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
                                     <i class="fas fa-eye"></i>
-                                    <!-- REMOVA O VALOR "1" E INICIE COM DISPLAY NONE -->
                                     <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
                                 </button>
                                 <div class="alert-dropdown" id="observadorAlertDropdown">
@@ -63,7 +62,7 @@
                             <!-- SINO 2: ALERTAS DE PENDENTE PARA O RESPONSÁVEL -->
                             <div class="alerts-container" id="responsavelAlertsContainer">
                                 <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
-                                    <i class="fas fa-bell"></i> <!-- AGORA É SINO -->
+                                    <i class="fas fa-bell"></i>
                                     <span class="alert-count" id="responsavelAlertCount" style="display: none;">0</span>
                                 </button>
                                 <div class="alert-dropdown" id="responsavelAlertDropdown">
@@ -233,32 +232,11 @@
         </div>
     </div>
 
-    <!-- Firebase v8 -->
+    <!-- Firebase SDK (apenas os scripts, SEM configuração) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
-    <script>
-        // Configuração do Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-            authDomain: "orgtarefas-85358.firebaseapp.com",
-            projectId: "orgtarefas-85358",
-            storageBucket: "orgtarefas-85358.firebasestorage.app",
-            messagingSenderId: "1023569488575",
-            appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
-        };
-
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        
-        console.log('✅ Firebase inicializado!');
-        
-        // Torna global
-        window.db = db;
-        window.firebase = firebase;
-    </script>
-    
+    <!-- script principal -->
     <script src="script.js"></script>
 </body>
 </html>
