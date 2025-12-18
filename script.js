@@ -21,41 +21,41 @@ let dbLogins = null;
 // Inicialização
 // Configurar event listeners
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Inicializando sistema...');
+    //console.log('🚀 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Verificando autenticação...';
     
     // Verificar se usuário está logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     
     if (!usuarioLogado) {
-        console.log('❌ Usuário não logado, redirecionando...');
+        //console.log('❌ Usuário não logado, redirecionando...');
         window.location.href = 'login.html';
         return;
     }
 
-    console.log('👤 Usuário logado:', usuarioLogado.nome);
+    //console.log('👤 Usuário logado:', usuarioLogado.nome);
     document.getElementById('userName').textContent = usuarioLogado.nome;
 
     // DEBUG: Verificar dados do usuário logado
-    console.log('📋 Dados completos do usuário logado:', usuarioLogado);
-    console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
+    //console.log('📋 Dados completos do usuário logado:', usuarioLogado);
+    //console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
     
     // PRIMEIRO: Inicializar os bancos Firebase ANTES de qualquer operação
-    console.log('🔥 Inicializando DOIS bancos Firebase PRIMEIRO...');
+    //console.log('🔥 Inicializando DOIS bancos Firebase PRIMEIRO...');
     await inicializarBancosFirebase();
     
     // DEPOIS: Continuar com o resto da inicialização
-    console.log('📥 Continuando inicialização do sistema...');
+    //console.log('📥 Continuando inicialização do sistema...');
     await inicializarSistema();
 });
 
 async function inicializarBancosFirebase() {
     try {
-        console.log('⚡ Inicializando bancos Firebase...');
+        //console.log('⚡ Inicializando bancos Firebase...');
         
         // Banco 1: ORGTAREFAS (já configurado no HTML, mas vamos garantir)
         if (!window.db) {
-            console.log('🔄 Configurando banco ORGTAREFAS...');
+            //console.log('🔄 Configurando banco ORGTAREFAS...');
             
             const firebaseConfigOrgtarefas = {
                 apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
@@ -69,13 +69,13 @@ async function inicializarBancosFirebase() {
             // Inicializar primeiro app (default)
             const appOrgtarefas = firebase.initializeApp(firebaseConfigOrgtarefas);
             window.db = appOrgtarefas.firestore();
-            console.log('✅ Banco ORGTAREFAS inicializado!');
+            //console.log('✅ Banco ORGTAREFAS inicializado!');
         } else {
-            console.log('✅ Banco ORGTAREFAS já está configurado');
+            //console.log('✅ Banco ORGTAREFAS já está configurado');
         }
         
         // Banco 2: LOGINS
-        console.log('🔄 Configurando banco de LOGINS...');
+        //console.log('🔄 Configurando banco de LOGINS...');
         
         const firebaseConfigLogins = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
@@ -90,17 +90,17 @@ async function inicializarBancosFirebase() {
             // Inicializar segundo app com nome diferente
             const appLogins = firebase.initializeApp(firebaseConfigLogins, "LoginsApp");
             window.dbLogins = appLogins.firestore();
-            console.log('✅ Banco LOGINS inicializado!');
+            //console.log('✅ Banco LOGINS inicializado!');
         } catch (error) {
             if (error.code === 'app/duplicate-app') {
-                console.log('ℹ️ Firebase já inicializado, usando referências existentes');
+                //console.log('ℹ️ Firebase já inicializado, usando referências existentes');
                 window.dbLogins = firebase.app("LoginsApp").firestore();
             } else {
                 throw error;
             }
         }
         
-        console.log('🎯 Ambos os bancos configurados: db (ORGTAREFAS) e dbLogins (LOGINS)');
+        //console.log('🎯 Ambos os bancos configurados: db (ORGTAREFAS) e dbLogins (LOGINS)');
         return true;
         
     } catch (error) {
@@ -110,7 +110,7 @@ async function inicializarBancosFirebase() {
 }
 
 async function inicializarSistema() {
-    console.log('📋 Inicializando sistema...');
+    //console.log('📋 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
 
     // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
@@ -137,7 +137,7 @@ async function inicializarSistema() {
     // ⚡ AJUSTE IMPORTANTE: Se não tiver grupos, buscar AGORA antes de continuar
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
-        console.log('🔄 Carregando grupos do usuário antes de continuar...');
+        //console.log('🔄 Carregando grupos do usuário antes de continuar...');
         document.getElementById('loadingText').textContent = 'Carregando grupos do usuário...';
         
         try {
@@ -146,7 +146,7 @@ async function inicializarSistema() {
             
             // Recarregar usuário logado atualizado
             const usuarioAtualizado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
+            //console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
         } catch (error) {
             console.error('❌ Erro ao carregar grupos:', error);
         }
@@ -180,7 +180,7 @@ async function inicializarSistema() {
     // Continuar com o resto do sistema
     try {
         // PRIMEIRO: Carregar usuários e grupos DO USUÁRIO LOGADO
-        console.log('📥 Carregando dados do usuário...');
+        //console.log('📥 Carregando dados do usuário...');
         document.getElementById('loadingText').textContent = 'Carregando seus dados...';
         
         // Carregar usuários primeiro (APENAS do LOGINS agora)
@@ -190,11 +190,11 @@ async function inicializarSistema() {
         const usuarioAtual = JSON.parse(localStorage.getItem('usuarioLogado'));
         
         if (!usuarioAtual.grupos || usuarioAtual.grupos.length === 0) {
-            console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
+            //console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
         }
         
         // DEPOIS: Carregar o resto
-        console.log('📊 Carregando dados do sistema...');
+        //console.log('📊 Carregando dados do sistema...');
         document.getElementById('loadingText').textContent = 'Carregando tarefas...';
         
         await carregarGrupos(); // Esta carrega todos os grupos do sistema
@@ -205,7 +205,7 @@ async function inicializarSistema() {
                           window.location.pathname.endsWith('/');
         
         if (isHomePage) {
-            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
+            //console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
             
             // Configurar listener específico para observadores
             configurarListenerObservadores();
@@ -214,12 +214,12 @@ async function inicializarSistema() {
             setTimeout(() => {
                 const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
                 if (usuarioLogado) {
-                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
+                    //console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
                     verificarAlertas();
                 }
             }, 3000);
         } else {
-            console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
+            //console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
         
     } catch (error) {
@@ -240,7 +240,7 @@ function configurarDataMinima() {
 
 // FUNÇÃO: Carregar grupos
 async function carregarGrupos() {
-    console.log('👥 Carregando grupos...');
+    //console.log('👥 Carregando grupos...');
     
     try {
         const snapshot = await db.collection("grupos").get();
@@ -250,7 +250,7 @@ async function carregarGrupos() {
             ...doc.data()
         }));
 
-        console.log('✅ Grupos carregados:', grupos.length);
+        //console.log('✅ Grupos carregados:', grupos.length);
 
         // Preencher select de grupos
         const selectGrupos = document.getElementById('tarefaGrupos');
@@ -274,24 +274,24 @@ async function carregarGrupos() {
 
 // Carregar grupos do usuário logado do banco ORGTAREFAS
 async function carregarGruposDoUsuarioLogado() {
-    console.log('👤 Buscando grupos do usuário logado...');
+    //console.log('👤 Buscando grupos do usuário logado...');
     
     try {
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
         if (!usuarioLogado || !usuarioLogado.usuario) {
-            console.log('⚠️ Usuário não logado');
+            //console.log('⚠️ Usuário não logado');
             return;
         }
         
         const usuarioAtual = usuarioLogado.usuario;
-        console.log(`🔍 Procurando grupos para: ${usuarioAtual}`);
+        //console.log(`🔍 Procurando grupos para: ${usuarioAtual}`);
         
         // Aguardar um pouco para garantir que o Firebase está inicializado
         await new Promise(resolve => setTimeout(resolve, 300));
         
         // Verificar se db está disponível
         if (!window.db) {
-            console.log('⏳ Aguardando inicialização do Firebase...');
+            //console.log('⏳ Aguardando inicialização do Firebase...');
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
@@ -299,11 +299,11 @@ async function carregarGruposDoUsuarioLogado() {
         const gruposSnapshot = await db.collection('grupos').get();
         
         if (gruposSnapshot.empty) {
-            console.log('❌ Nenhum grupo encontrado no sistema');
+            //console.log('❌ Nenhum grupo encontrado no sistema');
             return;
         }
         
-        console.log(`📊 Total de grupos no sistema: ${gruposSnapshot.docs.length}`);
+        //console.log(`📊 Total de grupos no sistema: ${gruposSnapshot.docs.length}`);
         
         const gruposDoUsuario = [];
     
@@ -312,7 +312,7 @@ async function carregarGruposDoUsuarioLogado() {
             const grupoData = doc.data();
             const grupoId = doc.id;
             
-            console.log(`\n📋 Grupo: ${grupoData.nome || grupoId} (ID: ${grupoId})`);
+            //console.log(`\n📋 Grupo: ${grupoData.nome || grupoId} (ID: ${grupoId})`);
             
             // Verificar TODAS as propriedades do grupo que podem conter usuários
             const propriedadesComUsuarios = ['usuarios', 'users', 'membros', 'members', 'integrantes'];
@@ -321,7 +321,7 @@ async function carregarGruposDoUsuarioLogado() {
             
             for (const prop of propriedadesComUsuarios) {
                 if (grupoData[prop] && Array.isArray(grupoData[prop])) {
-                    console.log(`   Propriedade "${prop}":`, grupoData[prop]);
+                    //console.log(`   Propriedade "${prop}":`, grupoData[prop]);
                     
                     // Verificar se o usuário atual está na lista
                     const usuarioNoGrupo = grupoData[prop].some(user => {
@@ -338,7 +338,7 @@ async function carregarGruposDoUsuarioLogado() {
                     });
                     
                     if (usuarioNoGrupo) {
-                        console.log(`   ✅ USUÁRIO ENCONTRADO no grupo via propriedade "${prop}"!`);
+                        //console.log(`   ✅ USUÁRIO ENCONTRADO no grupo via propriedade "${prop}"!`);
                         gruposDoUsuario.push(grupoId);
                         encontrado = true;
                         break;
@@ -347,14 +347,14 @@ async function carregarGruposDoUsuarioLogado() {
             }
             
             if (!encontrado) {
-                console.log(`   ❌ Usuário NÃO encontrado neste grupo`);
+                //console.log(`   ❌ Usuário NÃO encontrado neste grupo`);
             }
         });
         
-        console.log(`\n📊 RESUMO: Grupos encontrados para ${usuarioAtual}:`, gruposDoUsuario);
+        //console.log(`\n📊 RESUMO: Grupos encontrados para ${usuarioAtual}:`, gruposDoUsuario);
         
         if (gruposDoUsuario.length === 0) {
-            console.log(`⚠️ ATENÇÃO: Usuário ${usuarioAtual} não está em nenhum grupo!`);
+            //console.log(`⚠️ ATENÇÃO: Usuário ${usuarioAtual} não está em nenhum grupo!`);
         }
         
         // Atualizar o objeto usuarioLogado com os grupos encontrados
@@ -363,7 +363,7 @@ async function carregarGruposDoUsuarioLogado() {
         // Salvar de volta no localStorage
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
         
-        console.log('👥 Grupos atualizados do usuário:', usuarioLogado.grupos);
+        //console.log('👥 Grupos atualizados do usuário:', usuarioLogado.grupos);
         
         return gruposDoUsuario;
         
@@ -375,22 +375,22 @@ async function carregarGruposDoUsuarioLogado() {
 
 // Função de debug para ver estrutura dos grupos
 async function debugEstruturaGrupos() {
-    console.log('🔍 DEBUG - Estrutura dos grupos...');
+    //console.log('🔍 DEBUG - Estrutura dos grupos...');
     
     try {
         const snapshot = await db.collection('grupos').get();
         
-        console.log(`📊 Total de grupos: ${snapshot.docs.length}`);
+        //console.log(`📊 Total de grupos: ${snapshot.docs.length}`);
         
         snapshot.forEach((doc, index) => {
             const data = doc.data();
-            console.log(`\n${index + 1}. Grupo: ${data.nome || 'Sem nome'} (ID: ${doc.id})`);
-            console.log('   Chaves/propriedades:', Object.keys(data));
+            //console.log(`\n${index + 1}. Grupo: ${data.nome || 'Sem nome'} (ID: ${doc.id})`);
+            //console.log('   Chaves/propriedades:', Object.keys(data));
             
             // Mostrar todas as propriedades que são arrays
             Object.keys(data).forEach(key => {
                 if (Array.isArray(data[key])) {
-                    console.log(`   - ${key}:`, data[key]);
+                    //console.log(`   - ${key}:`, data[key]);
                 }
             });
         });
@@ -405,12 +405,12 @@ window.debugEstruturaGrupos = debugEstruturaGrupos;
 
 // FUNÇÃO: Carregar usuários do banco LOGINS
 async function carregarUsuarios() {
-    console.log('👥 Carregando usuários...');
+    //console.log('👥 Carregando usuários...');
     
     try {
         // Tenta primeiro do banco LOGINS
         if (window.dbLogins) {
-            console.log('📊 Buscando usuários no banco LOGINS...');
+            //console.log('📊 Buscando usuários no banco LOGINS...');
             
             // Acessar o documento LOGINS_ORGTAREFAS no banco LOGINS
             const docRef = window.dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS');
@@ -419,7 +419,7 @@ async function carregarUsuarios() {
             // CORREÇÃO: Usar propriedade exists, não método
             if (docSnap.exists) {  // <-- ALTERADO AQUI
                 const dadosCompletos = docSnap.data();
-                console.log('✅ Documento LOGINS_ORGTAREFAS carregado do banco LOGINS');
+                //console.log('✅ Documento LOGINS_ORGTAREFAS carregado do banco LOGINS');
                 
                 // Processar usuários da estrutura LOGINS_ORGTAREFAS
                 usuarios = [];
@@ -444,15 +444,15 @@ async function carregarUsuarios() {
                     }
                 });
                 
-                console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
+                //console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
                 
             } else {
-                console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado no banco LOGINS');
+                //console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado no banco LOGINS');
                 // NÃO tentar fallback para ORGTAREFAS
                 usuarios = [];
             }
         } else {
-            console.log('❌ Banco LOGINS não disponível');
+            //console.log('❌ Banco LOGINS não disponível');
             usuarios = [];
         }
         
@@ -479,7 +479,7 @@ async function carregarUsuarios() {
 }
 
 function configurarFirebase() {
-    console.log('📡 Configurando listener do Firestore...');
+    //console.log('📡 Configurando listener do Firestore...');
     document.getElementById('loadingText').textContent = 'Carregando tarefas...';
     
     // Listener em tempo real para tarefas
@@ -487,7 +487,7 @@ function configurarFirebase() {
         .orderBy("dataCriacao", "desc")
         .onSnapshot(
             async (snapshot) => {
-                console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
+                //console.log('📊 Dados recebidos:', snapshot.size, 'tarefas');
                 tarefas = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
@@ -516,13 +516,13 @@ function configurarFirebase() {
     // Listener para detectar mudanças de status e gerar alertas automáticos
     db.collection("atividades")
         .onSnapshot((snapshot) => {
-            console.log('🔄 Atualização de atividades - Total de documentos:', snapshot.size);
+            //console.log('🔄 Atualização de atividades - Total de documentos:', snapshot.size);
             
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             if (!usuarioLogado) return;
             
             snapshot.docChanges().forEach(change => {
-                console.log(`📝 Mudança tipo: ${change.type} - ID: ${change.doc.id}`);
+                //console.log(`📝 Mudança tipo: ${change.type} - ID: ${change.doc.id}`);
                 
                 if (change.type === 'modified') {
                     const novaAtividade = change.doc.data();
@@ -536,15 +536,15 @@ function configurarFirebase() {
                         const statusNovo = novaAtividade.status || 'nao_iniciado';
                         
                         if (statusAntigo !== statusNovo) {
-                            console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
-                            console.log(`📋 Dados antigos:`, atividadeAntiga);
-                            console.log(`📋 Dados novos:`, novaAtividade);
+                            //console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
+                            //console.log(`📋 Dados antigos:`, atividadeAntiga);
+                            //console.log(`📋 Dados novos:`, novaAtividade);
                             
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
                         }
                     } else {
-                        console.log('ℹ️ Sem dados anteriores disponíveis');
+                        //console.log('ℹ️ Sem dados anteriores disponíveis');
                     }
                 }
             });
@@ -566,16 +566,16 @@ window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
 // Função para gerar alertas automaticamente para observadores quando status muda
 async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividadeAntiga) {
     try {
-        console.log(`🔔 GERAR ALERTA: Atividade ${atividadeId}`);
-        console.log(`📊 Status anterior: ${atividadeAntiga.status || 'não definido'}`);
-        console.log(`📊 Status novo: ${novaAtividade.status || 'não definido'}`);
+        //console.log(`🔔 GERAR ALERTA: Atividade ${atividadeId}`);
+        //console.log(`📊 Status anterior: ${atividadeAntiga.status || 'não definido'}`);
+        //console.log(`📊 Status novo: ${novaAtividade.status || 'não definido'}`);
         
         // Verificar se realmente houve mudança
         const statusAntigo = atividadeAntiga.status || 'nao_iniciado';
         const statusNovo = novaAtividade.status || 'nao_iniciado';
         
         if (statusAntigo === statusNovo) {
-            console.log('ℹ️ Sem mudança real de status, ignorando');
+            //console.log('ℹ️ Sem mudança real de status, ignorando');
             return;
         }
         
@@ -583,11 +583,11 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         const observadores = novaAtividade.observadores || [];
         
         if (observadores.length === 0) {
-            console.log('ℹ️ Atividade não tem observadores');
+            //console.log('ℹ️ Atividade não tem observadores');
             return;
         }
         
-        console.log(`👥 Observadores encontrados:`, observadores);
+        //console.log(`👥 Observadores encontrados:`, observadores);
         
         // IMPORTANTE: Primeiro, garantir que todos os observadores têm asterisco
         const observadoresComAsterisco = observadores.map(obs => {
@@ -605,7 +605,7 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        console.log(`✅ Asteriscos adicionados aos observadores`);
+        //console.log(`✅ Asteriscos adicionados aos observadores`);
         
         // Obter usuário logado
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
@@ -620,11 +620,11 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         });
         
         if (!isObservador) {
-            console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
+            //console.log(`ℹ️ Usuário ${usuarioAtual} não é observador desta atividade`);
             return;
         }
         
-        console.log(`✅ Usuário ${usuarioAtual} É observador desta atividade`);
+        //console.log(`✅ Usuário ${usuarioAtual} É observador desta atividade`);
         
         // Buscar nome da tarefa
         let tarefaNome = 'Tarefa desconhecida';
@@ -656,8 +656,8 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
         // Adicionar ao array de alertas de observador
         alertasObservador.unshift(alerta);
         
-        console.log(`✅ Alerta criado: ${statusAntigo} → ${statusNovo}`);
-        console.log(`📊 Total de alertas: ${alertasObservador.length}`);
+        //console.log(`✅ Alerta criado: ${statusAntigo} → ${statusNovo}`);
+        //console.log(`📊 Total de alertas: ${alertasObservador.length}`);
         
         // Atualizar contadores
         atualizarContadoresAlertas();
@@ -676,7 +676,7 @@ async function gerarAlertaParaObservadores(atividadeId, novaAtividade, atividade
 
 // Função para forçar verificação de alertas (pode ser chamada manualmente)
 async function forcarVerificacaoAlertas() {
-    console.log('🔍 Forçando verificação de alertas...');
+    //console.log('🔍 Forçando verificação de alertas...');
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuarioLogado) return;
     
@@ -686,7 +686,7 @@ async function forcarVerificacaoAlertas() {
     await verificarAlertasResponsavel(usuarioAtual);
     atualizarContadoresAlertas();
     
-    console.log('✅ Verificação forçada concluída');
+    //console.log('✅ Verificação forçada concluída');
 }
 
 // Torna a função global
@@ -694,7 +694,7 @@ window.forcarVerificacaoAlertas = forcarVerificacaoAlertas;
 
 // Listener específico para detectar quando observadores são atualizados
 function configurarListenerObservadores() {
-    console.log('👁️ Configurando listener para observadores...');
+    //console.log('👁️ Configurando listener para observadores...');
     
     db.collection("atividades")
         .onSnapshot((snapshot) => {
@@ -716,14 +716,14 @@ function configurarListenerObservadores() {
                     
                     // Verificar se houve mudança nos observadores
                     if (JSON.stringify(obsAntigos) !== JSON.stringify(obsNovos)) {
-                        console.log(`👥 Observadores alterados na atividade ${change.doc.id}`);
+                        //console.log(`👥 Observadores alterados na atividade ${change.doc.id}`);
                         
                         // Verificar se o asterisco foi adicionado/removido para este usuário
                         const tinhaAsteriscoAntes = obsAntigos.includes(usuarioAtual + '*');
                         const temAsteriscoAgora = obsNovos.includes(usuarioAtual + '*');
                         
                         if (!tinhaAsteriscoAntes && temAsteriscoAgora) {
-                            console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
+                            //console.log(`⭐ NOVO ASTERISCO para ${usuarioAtual}`);
                             // Forçar verificação completa
                             setTimeout(() => {
                                 verificarAlertasObservador(usuarioAtual);
@@ -733,7 +733,7 @@ function configurarListenerObservadores() {
                     
                     // Verificar também se o status mudou (para garantir)
                     if (atividadeAntiga.status !== novaAtividade.status) {
-                        console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
+                        //console.log(`🔄 Status alterado: ${atividadeAntiga.status} → ${novaAtividade.status}`);
                         // Forçar verificação
                         setTimeout(() => {
                             verificarAlertasObservador(usuarioAtual);
@@ -745,7 +745,7 @@ function configurarListenerObservadores() {
 }
 
 async function carregarAtividadesParaTodasTarefas() {
-    console.log('📋 Carregando atividades para todas as tarefas...');
+    //console.log('📋 Carregando atividades para todas as tarefas...');
     
     try {
         // Buscar todas as atividades
@@ -755,7 +755,7 @@ async function carregarAtividadesParaTodasTarefas() {
             ...doc.data()
         }));
 
-        console.log('✅ Atividades carregadas:', todasAtividades.length);
+        //console.log('✅ Atividades carregadas:', todasAtividades.length);
 
         // Organizar atividades por tarefaId
         atividadesPorTarefa = {};
@@ -769,7 +769,7 @@ async function carregarAtividadesParaTodasTarefas() {
             }
         });
 
-        console.log('📊 Atividades organizadas por tarefa:', Object.keys(atividadesPorTarefa).length);
+        //console.log('📊 Atividades organizadas por tarefa:', Object.keys(atividadesPorTarefa).length);
         
         // Ordenar atividades dentro de cada tarefa
         Object.keys(atividadesPorTarefa).forEach(tarefaId => {
@@ -785,13 +785,13 @@ async function carregarAtividadesParaTodasTarefas() {
 
 // Função para verificar alertas
 async function verificarAlertas() {
-    console.log('🔔 Verificando alertas...');
+    //console.log('🔔 Verificando alertas...');
     
     const isHomePage = window.location.pathname.includes('index.html') || 
                       window.location.pathname.endsWith('/');
     
     if (!isHomePage) {
-        console.log('⏸️ Não é página Home - Pulando verificação de alertas');
+        //console.log('⏸️ Não é página Home - Pulando verificação de alertas');
         return;
     }
     
@@ -801,7 +801,7 @@ async function verificarAlertas() {
         
         const usuarioAtual = usuarioLogado.usuario;
         
-        console.log('🔄 Iniciando verificação completa de alertas...');
+        //console.log('🔄 Iniciando verificação completa de alertas...');
         
         
         // Verificar alertas de observador
@@ -814,7 +814,7 @@ async function verificarAlertas() {
         atualizarContadoresAlertas();
         
         // DEBUG: Mostrar estado atual dos alertas
-        console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
+        //console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
         
         // Verificar novamente em 30 segundos
         setTimeout(verificarAlertas, 30000);
@@ -827,20 +827,20 @@ async function verificarAlertas() {
 // Função para verificar alertas de observador
 async function verificarAlertasObservador(usuarioAtual) {
     try {
-        console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
+        //console.log(`🔍 Buscando alertas para observador: ${usuarioAtual}`);
         
         // Buscar atividades onde o usuário é observador COM asterisco
         const snapshot = await db.collection('atividades')
             .where('observadores', 'array-contains', usuarioAtual + '*')
             .get();
         
-        console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
+        //console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
         
         // DEBUG: Mostrar o que foi encontrado
         snapshot.docs.forEach((doc, index) => {
             const data = doc.data();
-            console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
-            console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
+            //console.log(`${index + 1}. ${data.titulo || 'Sem título'} (${doc.id})`);
+            //console.log(`   Status: ${data.status} | StatusAnterior: ${data.statusAnterior}`);
         });
         
         const atividades = snapshot.docs.map(doc => ({
@@ -856,7 +856,7 @@ async function verificarAlertasObservador(usuarioAtual) {
             return status !== statusAnterior;
         });
         
-        console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
+        //console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
         
         // Limpar alertas anteriores
         alertasObservador = [];
@@ -895,7 +895,7 @@ async function verificarAlertasObservador(usuarioAtual) {
             };
             
             alertasObservador.push(alerta);
-            console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
+            //console.log(`✅ Alerta criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
         }
         
         // Atualizar interface
@@ -921,13 +921,13 @@ async function debugObservadores() {
     
     const usuarioAtual = usuarioLogado.usuario;
     
-    console.log('🔍 DEBUG - Estado dos observadores para:', usuarioAtual);
+    //console.log('🔍 DEBUG - Estado dos observadores para:', usuarioAtual);
     
     try {
         // Buscar todas as atividades
         const snapshot = await db.collection('atividades').get();
         
-        console.log('📊 Todas as atividades:', snapshot.docs.length);
+        //console.log('📊 Todas as atividades:', snapshot.docs.length);
         
         snapshot.docs.forEach(doc => {
             const data = doc.data();
@@ -940,12 +940,12 @@ async function debugObservadores() {
             });
             
             if (isObservador) {
-                console.log(`\n📋 Atividade: ${data.titulo || 'Sem título'} (${doc.id})`);
-                console.log(`   Observadores:`, observadores);
-                console.log(`   Tem "*" para ${usuarioAtual}?: ${observadores.includes(usuarioAtual + '*') ? 'SIM' : 'NÃO'}`);
-                console.log(`   Status: ${data.status || 'não definido'}`);
-                console.log(`   StatusAnterior: ${data.statusAnterior || 'não definido'}`);
-                console.log(`   Diferentes?: ${data.status !== data.statusAnterior ? 'SIM' : 'NÃO'}`);
+                //console.log(`\n📋 Atividade: ${data.titulo || 'Sem título'} (${doc.id})`);
+                //console.log(`   Observadores:`, observadores);
+                //console.log(`   Tem "*" para ${usuarioAtual}?: ${observadores.includes(usuarioAtual + '*') ? 'SIM' : 'NÃO'}`);
+                //console.log(`   Status: ${data.status || 'não definido'}`);
+                //console.log(`   StatusAnterior: ${data.statusAnterior || 'não definido'}`);
+                //console.log(`   Diferentes?: ${data.status !== data.statusAnterior ? 'SIM' : 'NÃO'}`);
             }
         });
         
@@ -960,7 +960,7 @@ window.debugObservadores = debugObservadores;
 // Função para limpar o cache (opcional, para testes)
 function limparCacheAlertas() {
     ultimoStatusNotificado = {};
-    console.log('🧹 Cache de alertas limpo');
+    //console.log('🧹 Cache de alertas limpo');
 }
 
 // Função para verificar alertas de responsável - APENAS PENDENTES
@@ -976,7 +976,7 @@ async function verificarAlertasResponsavel(usuarioAtual) {
             ...doc.data()
         }));
         
-        console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
+        //console.log(`👤 Usuário é responsável por ${atividadesComoResponsavel.length} atividades`);
         
         // FILTRAR APENAS STATUS "pendente"
         const atividadesPendentes = atividadesComoResponsavel.filter(atividade => {
@@ -984,7 +984,7 @@ async function verificarAlertasResponsavel(usuarioAtual) {
             return status === 'pendente';
         });
         
-        console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
+        //console.log(`⏰ ${atividadesPendentes.length} atividades pendentes`);
         
         // Atualizar array de alertas (substituir completamente)
         alertasResponsavel = atividadesPendentes.map(atividade => {
@@ -1119,7 +1119,7 @@ function atualizarContadoresAlertas() {
     const naoLidosResponsavel = alertasResponsavel.length;
     
     // DEBUG: Log para verificar valores
-    console.log(`🔢 Contadores: Observador=${naoLidosObservador}, Responsável=${naoLidosResponsavel}`);
+    //console.log(`🔢 Contadores: Observador=${naoLidosObservador}, Responsável=${naoLidosResponsavel}`);
     
     // Obter elementos DOM
     const observadorCountEl = document.getElementById('observadorAlertCount');
@@ -1136,7 +1136,7 @@ function atualizarContadoresAlertas() {
         responsavelCountEl.style.display = naoLidosResponsavel > 0 ? 'flex' : 'none';
     }
     
-    console.log('✅ Contadores atualizados');
+    //console.log('✅ Contadores atualizados');
 }
 
 // Função para abrir dropdown de alertas de observador
@@ -1146,7 +1146,7 @@ function abrirAlertasObservador() {
                       window.location.pathname.endsWith('/');
     
     if (!isHomePage) {
-        console.log('⚠️ Função disponível apenas na página Home');
+        //console.log('⚠️ Função disponível apenas na página Home');
         return;
     }
     
@@ -1235,7 +1235,7 @@ function abrirAlertasResponsavel() {
                       window.location.pathname.endsWith('/');
     
     if (!isHomePage) {
-        console.log('⚠️ Função disponível apenas na página Home');
+        //console.log('⚠️ Função disponível apenas na página Home');
         return;
     }
     
@@ -1319,7 +1319,7 @@ async function verificarInicialAlertas() {
     
     const usuarioAtual = usuarioLogado.usuario;
     
-    console.log('🚀 Verificação inicial de alertas...');
+    //console.log('🚀 Verificação inicial de alertas...');
     
     // Aguardar 3 segundos para garantir que tudo carregou
     setTimeout(async () => {
@@ -1327,7 +1327,7 @@ async function verificarInicialAlertas() {
         await verificarAlertasResponsavel(usuarioAtual);
         atualizarContadoresAlertas();
         
-        console.log('✅ Verificação inicial concluída');
+        //console.log('✅ Verificação inicial concluída');
     }, 3000);
 }
 
@@ -1360,7 +1360,7 @@ async function marcarAlertaComoLido(alertaId, tipo) {
                         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
-                    console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
+                    //console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
                     
                     // Remover da lista local
                     alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
@@ -1525,7 +1525,7 @@ function preencherFormulario(tarefaId) {
         }
     }
     
-    console.log('📝 Formulário preenchido:', {
+    //console.log('📝 Formulário preenchido:', {
         tituloOriginal: tituloOriginal,
         gruposAcesso: tarefa.gruposAcesso,
         nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
@@ -1601,7 +1601,7 @@ function limparFormulario() {
 
 // CRUD Operations
 async function salvarTarefa() {
-    console.log('💾 Salvando tarefa...');
+    //console.log('💾 Salvando tarefa...');
     
     // Obter grupos selecionados
     const gruposSelect = document.getElementById('tarefaGrupos');
@@ -1648,11 +1648,11 @@ async function salvarTarefa() {
 
     try {
         if (modoEdicao && editandoTarefaId) {
-            console.log('✏️ Editando tarefa:', editandoTarefaId);
+            //console.log('✏️ Editando tarefa:', editandoTarefaId);
             // Na edição, mantém o Status existente (não atualiza)
             await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
         } else {
-            console.log('🆕 Criando nova tarefa');
+            //console.log('🆕 Criando nova tarefa');
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             await db.collection("tarefas").add({
                 ...tarefa,
@@ -1672,7 +1672,7 @@ async function salvarTarefa() {
 async function excluirTarefa(tarefaId) {
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     
-    console.log('🗑️ Excluindo tarefa:', tarefaId);
+    //console.log('🗑️ Excluindo tarefa:', tarefaId);
     
     try {
         await db.collection("tarefas").doc(tarefaId).delete();
@@ -1715,7 +1715,7 @@ function alternarAtividade(atividadeId) {
 }
 
 function atualizarAtividadeTexto(atividadeId, texto) {
-    console.log('Texto da atividade atualizado:', texto);
+    //console.log('Texto da atividade atualizado:', texto);
 }
 
 function removerAtividade(atividadeId) {
@@ -1802,31 +1802,31 @@ function atualizarListaTarefas() {
         return;
     }
     
-    console.log('📊 Atualizando lista de tarefas...');
-    console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
+    //console.log('📊 Atualizando lista de tarefas...');
+    //console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
     
     // Obter usuário logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const usuarioGrupos = usuarioLogado?.grupos || [];
     
-    console.log(`👤 Usuário logado: ${usuarioLogado?.usuario}`);
-    console.log(`👥 Grupos do usuário: ${usuarioGrupos.length} grupos`, usuarioGrupos);
+    //console.log(`👤 Usuário logado: ${usuarioLogado?.usuario}`);
+    //console.log(`👥 Grupos do usuário: ${usuarioGrupos.length} grupos`, usuarioGrupos);
     
     // DEBUG: Listar todas as tarefas disponíveis
-    console.log('🔍 Todas as tarefas disponíveis no sistema:');
+    //console.log('🔍 Todas as tarefas disponíveis no sistema:');
     tarefas.forEach((tarefa, index) => {
-        console.log(`${index + 1}. ${tarefa.titulo} | Grupos: ${JSON.stringify(tarefa.gruposAcesso)} | Status: ${tarefa.status}`);
+        //console.log(`${index + 1}. ${tarefa.titulo} | Grupos: ${JSON.stringify(tarefa.gruposAcesso)} | Status: ${tarefa.status}`);
     });
     
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
         // DEBUG: Mostrar verificação para cada tarefa
-        console.log(`\n🔍 Verificando tarefa: ${tarefa.titulo}`);
-        console.log(`   Grupos da tarefa: ${JSON.stringify(tarefa.gruposAcesso)}`);
+        //console.log(`\n🔍 Verificando tarefa: ${tarefa.titulo}`);
+        //console.log(`   Grupos da tarefa: ${JSON.stringify(tarefa.gruposAcesso)}`);
         
         // Se a tarefa não tem grupos definidos, mostra para todos
         if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-            console.log(`   ✅ MOSTRAR: Tarefa sem grupos definidos (mostra para todos)`);
+            //console.log(`   ✅ MOSTRAR: Tarefa sem grupos definidos (mostra para todos)`);
             return true;
         }
         
@@ -1835,17 +1835,17 @@ function atualizarListaTarefas() {
             usuarioGrupos.includes(grupoId)
         );
         
-        console.log(`   ${temAcesso ? '✅ MOSTRAR' : '❌ OCULTAR'}: Usuário ${temAcesso ? 'tem' : 'NÃO tem'} acesso`);
+        //console.log(`   ${temAcesso ? '✅ MOSTRAR' : '❌ OCULTAR'}: Usuário ${temAcesso ? 'tem' : 'NÃO tem'} acesso`);
         
         return temAcesso;
     });
     
-    console.log(`📊 Tarefas após filtro de grupos: ${tarefasFiltradasPorGrupo.length}`);
+    //console.log(`📊 Tarefas após filtro de grupos: ${tarefasFiltradasPorGrupo.length}`);
     
     // Aplicar outros filtros (busca, status, etc.)
     const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
     
-    console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
+    //console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
     
     // Se não houver tarefas, mostrar mensagem
     if (tarefasFiltradas.length === 0) {
@@ -1864,10 +1864,10 @@ function atualizarListaTarefas() {
     }
 
     // Renderizar tarefas
-    console.log('🎨 Renderizando tarefas...');
+    //console.log('🎨 Renderizando tarefas...');
     
     container.innerHTML = tarefasFiltradas.map(tarefa => {
-        console.log(`   Renderizando: ${tarefa.titulo}`);
+        //console.log(`   Renderizando: ${tarefa.titulo}`);
         
         // Adicionar informação de grupos (todos os grupos)
         let gruposInfo = '';
@@ -1974,41 +1974,41 @@ function atualizarListaTarefas() {
         `;
     }).join('');
     
-    console.log('✅ Lista de tarefas renderizada!');
+    //console.log('✅ Lista de tarefas renderizada!');
 }
 
 // Função de debug para testar acesso às tarefas
 window.debugTarefas = function() {
-    console.log('🔍 DEBUG - Sistema de Tarefas');
-    console.log('===========================');
+    //console.log('🔍 DEBUG - Sistema de Tarefas');
+    //console.log('===========================');
     
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    console.log('👤 Usuário:', usuarioLogado?.usuario);
-    console.log('📋 Dados completos:', usuarioLogado);
+    //console.log('👤 Usuário:', usuarioLogado?.usuario);
+    //console.log('📋 Dados completos:', usuarioLogado);
     
-    console.log('\n📊 ESTATÍSTICAS:');
-    console.log(`- Total tarefas: ${tarefas.length}`);
-    console.log(`- Total grupos carregados: ${grupos.length}`);
-    console.log(`- Total atividades: ${Object.keys(atividadesPorTarefa).length} tarefas com atividades`);
+    //console.log('\n📊 ESTATÍSTICAS:');
+    //console.log(`- Total tarefas: ${tarefas.length}`);
+    //console.log(`- Total grupos carregados: ${grupos.length}`);
+    //console.log(`- Total atividades: ${Object.keys(atividadesPorTarefa).length} tarefas com atividades`);
     
-    console.log('\n🔍 TAREFAS DISPONÍVEIS:');
+    //console.log('\n🔍 TAREFAS DISPONÍVEIS:');
     tarefas.forEach((tarefa, index) => {
-        console.log(`${index + 1}. "${tarefa.titulo}"`);
-        console.log(`   ID: ${tarefa.id}`);
-        console.log(`   Status: ${tarefa.status}`);
-        console.log(`   Grupos: ${JSON.stringify(tarefa.gruposAcesso)}`);
-        console.log(`   Atividades: ${atividadesPorTarefa[tarefa.id]?.length || 0}`);
-        console.log('---');
+        //console.log(`${index + 1}. "${tarefa.titulo}"`);
+        //console.log(`   ID: ${tarefa.id}`);
+        //console.log(`   Status: ${tarefa.status}`);
+        //console.log(`   Grupos: ${JSON.stringify(tarefa.gruposAcesso)}`);
+        //console.log(`   Atividades: ${atividadesPorTarefa[tarefa.id]?.length || 0}`);
+        //console.log('---');
     });
     
-    console.log('\n👥 GRUPOS DISPONÍVEIS:');
+    //console.log('\n👥 GRUPOS DISPONÍVEIS:');
     grupos.forEach((grupo, index) => {
-        console.log(`${index + 1}. ${grupo.nome} (ID: ${grupo.id})`);
+        //console.log(`${index + 1}. ${grupo.nome} (ID: ${grupo.id})`);
     });
     
-    console.log('\n🎯 VERIFICAÇÃO DE ACESSO:');
+    //console.log('\n🎯 VERIFICAÇÃO DE ACESSO:');
     const usuarioGrupos = usuarioLogado?.grupos || [];
-    console.log(`Usuário pertence aos grupos: ${usuarioGrupos.join(', ') || 'Nenhum'}`);
+    //console.log(`Usuário pertence aos grupos: ${usuarioGrupos.join(', ') || 'Nenhum'}`);
     
     tarefas.forEach((tarefa, index) => {
         let temAcesso = false;
@@ -2021,7 +2021,7 @@ window.debugTarefas = function() {
             );
         }
         
-        console.log(`${index + 1}. "${tarefa.titulo.substring(0, 50)}..." - ${temAcesso ? '✅ ACESSO PERMITIDO' : '❌ SEM ACESSO'}`);
+        //console.log(`${index + 1}. "${tarefa.titulo.substring(0, 50)}..." - ${temAcesso ? '✅ ACESSO PERMITIDO' : '❌ SEM ACESSO'}`);
     });
 };
 
@@ -2167,7 +2167,7 @@ function mostrarErro(mensagem) {
 }
 
 function logout() {
-    console.log('🚪 Fazendo logout...');
+    //console.log('🚪 Fazendo logout...');
     localStorage.removeItem('usuarioLogado');
     window.location.href = 'login.html';
 }
