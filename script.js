@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Inicializar sistema
-    inicializarSistema();
+    await inicializarSistema();
 });
 
 async function inicializarSistema() {
