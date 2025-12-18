@@ -45,7 +45,7 @@ let allUsers = {}; // Cache de todos os usuários
 
 // ========== INICIALIZAÇÃO ==========
 async function init() {
-    console.log('🚀 Inicializando Chat...');
+    //console.log('🚀 Inicializando Chat...');
     
     try {
         // ========== 1. INICIALIZAR FIREBASE ==========
@@ -55,7 +55,7 @@ async function init() {
         loginsDb = getFirestore(loginsApp);
         chatDb = getDatabase(chatApp);
         
-        console.log('✅ Firebase inicializado');
+        //console.log('✅ Firebase inicializado');
         
         // ========== 2. LOGIN DO USUÁRIO ==========
         await autoLogin();
@@ -75,7 +75,7 @@ async function init() {
         // ========== 6. CONFIGURAR ATUALIZAÇÕES ==========
         setupUsersStatusUpdates(); // Status online/offline em tempo real
         
-        console.log('✅ Chat inicializado com sucesso');
+        //console.log('✅ Chat inicializado com sucesso');
         
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
@@ -83,7 +83,7 @@ async function init() {
         
         // Tentar recarregar após 5 segundos se houver erro
         setTimeout(() => {
-            console.log('🔄 Tentando reconectar...');
+            //console.log('🔄 Tentando reconectar...');
             init();
         }, 5000);
     }
@@ -91,25 +91,25 @@ async function init() {
 
 // ========== AUTO-LOGIN AUTOMÁTICO ==========
 async function autoLogin() {
-    console.log('🔐 Tentando auto-login...');
+    //console.log('🔐 Tentando auto-login...');
     
     const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
     if (!usuarioLogadoStr) {
-        console.log('⚠️ Nenhum usuário logado');
+        //console.log('⚠️ Nenhum usuário logado');
         window.location.href = 'index.html';
         return;
     }
     
     try {
         const usuarioLogado = JSON.parse(usuarioLogadoStr);
-        console.log('👤 Usuário:', usuarioLogado.usuario);
+        //console.log('👤 Usuário:', usuarioLogado.usuario);
         
         // Buscar no Firestore
         const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
         const docSnap = await getDoc(loginsRef);
         
         if (!docSnap.exists()) {
-            console.log('❌ Documento não encontrado');
+            //console.log('❌ Documento não encontrado');
             return;
         }
         
@@ -127,7 +127,7 @@ async function autoLogin() {
         }
         
         if (!userFound) {
-            console.log('❌ Usuário não encontrado');
+            //console.log('❌ Usuário não encontrado');
             return;
         }
         
@@ -139,11 +139,11 @@ async function autoLogin() {
             perfil: userFound.perfil || 'usuario'
         };
         
-        console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
+        //console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
         
         // Inicializar cache de usuários
         allUsers = loginsData;
-        console.log(`📊 ${Object.keys(allUsers).length} usuários carregados`);
+        //console.log(`📊 ${Object.keys(allUsers).length} usuários carregados`);
         
         // Configurar cache em tempo real
         setupUsersCache();
@@ -192,7 +192,7 @@ async function loadAllUsers() {
         
         if (docSnap.exists()) {
             allUsers = docSnap.data();
-            console.log(`📊 ${Object.keys(allUsers).length} usuários carregados no cache`);
+            //console.log(`📊 ${Object.keys(allUsers).length} usuários carregados no cache`);
         }
     } catch (error) {
         console.error('❌ Erro ao carregar usuários:', error);
@@ -222,7 +222,7 @@ function getUserInfo(userId) {
     }
     
     // Se não encontrou, tentar buscar no Firestore em tempo real
-    console.log(`🔍 Buscando informações do usuário: ${userId}`);
+    //console.log(`🔍 Buscando informações do usuário: ${userId}`);
     
     // Retornar valores padrão enquanto busca
     return {
@@ -269,7 +269,7 @@ async function setupUsersCache() {
     onSnapshot(loginsRef, (doc) => {
         if (doc.exists()) {
             allUsers = doc.data();
-            console.log(`📊 Cache de usuários atualizado: ${Object.keys(allUsers).length} usuários`);
+            //console.log(`📊 Cache de usuários atualizado: ${Object.keys(allUsers).length} usuários`);
             
             // Atualizar interface se houver mudanças
             if (currentUser) {
@@ -498,7 +498,7 @@ window.startConversation = async function(otherUserId) {
     
     currentConversation = [currentUser.uid, otherUserId].sort().join('_');
     
-    console.log('💬 Iniciando conversa com:', otherUserId);
+    //console.log('💬 Iniciando conversa com:', otherUserId);
     
     // Obter informações do usuário
     const userInfo = getUserInfo(otherUserId);
@@ -552,7 +552,7 @@ window.startConversation = async function(otherUserId) {
 window.openConversation = function(conversationId, otherUserId) {
     currentConversation = conversationId;
     
-    console.log('📂 Abrindo conversa:', conversationId);
+    //console.log('📂 Abrindo conversa:', conversationId);
     
     // Obter informações do usuário
     const userInfo = getUserInfo(otherUserId);
@@ -631,11 +631,11 @@ async function sendMessage() {
     const text = input.value.trim();
     
     if (!text || !currentUser || !currentConversation) {
-        console.log('⚠️ Não pode enviar:', { text, currentUser, currentConversation });
+        //console.log('⚠️ Não pode enviar:', { text, currentUser, currentConversation });
         return;
     }
     
-    console.log('📤 Enviando mensagem:', text);
+    //console.log('📤 Enviando mensagem:', text);
     
     try {
         const messageId = push(ref(chatDb, 'messages')).key;
@@ -667,7 +667,7 @@ async function sendMessage() {
         input.value = '';
         input.focus();
         
-        console.log('✅ Mensagem enviada!');
+        //console.log('✅ Mensagem enviada!');
         
     } catch (error) {
         console.error('❌ Erro ao enviar:', error);
@@ -705,13 +705,13 @@ function scrollToBottom() {
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
-    console.log('🔧 Configurando listeners...');
+    //console.log('🔧 Configurando listeners...');
     
     // Botão enviar
     const sendBtn = document.getElementById('send-btn');
     if (sendBtn) {
         sendBtn.addEventListener('click', sendMessage);
-        console.log('✅ Botão enviar configurado');
+        //console.log('✅ Botão enviar configurado');
     }
     
     // Input Enter
@@ -723,7 +723,7 @@ function setupEventListeners() {
                 sendMessage();
             }
         });
-        console.log('✅ Input configurado');
+        //console.log('✅ Input configurado');
     }
     
     // Menu toggle
@@ -749,7 +749,7 @@ function setupEventListeners() {
     }
     
     // Log ao configurar
-    console.log('📝 Listeners configurados');
+    //console.log('📝 Listeners configurados');
 }
 
 // ========== NOTIFICAÇÃO ==========
