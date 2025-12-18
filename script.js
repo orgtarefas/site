@@ -15,6 +15,9 @@ let alertasResponsavel = [];
 let ultimaVerificacaoAlertas = null;
 let ultimoStatusNotificado = {};
 
+// Variável para o banco de logins
+let dbLogins = null;
+
 // Inicialização
 // Configurar event listeners
 document.addEventListener('DOMContentLoaded', function() {
@@ -80,8 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function inicializarSistema() {
-    console.log('🔥 Inicializando Firebase...');
-    document.getElementById('loadingText').textContent = 'Conectando ao banco de dados...';
+    console.log('🔥 Inicializando DOIS bancos Firebase...');
+    document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
 
     // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
     const observadorCountEl = document.getElementById('observadorAlertCount');
@@ -97,15 +100,62 @@ function inicializarSistema() {
         responsavelCountEl.style.display = 'none';
     }
     
-    // Aguardar Firebase carregar
-    if (!window.db) {
-        console.log('⏳ Aguardando Firebase...');
-        setTimeout(inicializarSistema, 100);
-        return;
+    // CONFIGURAÇÃO DOS DOIS BANCOS
+    try {
+        // Banco 1: ORGTAREFAS (já configurado no HTML, mas vamos garantir)
+        if (!window.db) {
+            console.log('⚠️ Banco ORGTAREFAS não encontrado, configurando...');
+            
+            const firebaseConfigOrgtarefas = {
+                apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
+                authDomain: "orgtarefas-85358.firebaseapp.com",
+                projectId: "orgtarefas-85358",
+                storageBucket: "orgtarefas-85358.firebasestorage.app",
+                messagingSenderId: "1023569488575",
+                appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
+            };
+            
+            // Inicializar primeiro app (default)
+            const appOrgtarefas = firebase.initializeApp(firebaseConfigOrgtarefas);
+            window.db = appOrgtarefas.firestore();
+            console.log('✅ Banco ORGTAREFAS inicializado!');
+        } else {
+            console.log('✅ Banco ORGTAREFAS já está configurado');
+        }
+        
+        // Banco 2: LOGINS
+        console.log('📱 Inicializando banco de LOGINS...');
+        
+        const firebaseConfigLogins = {
+            apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
+            authDomain: "logins-c3407.firebaseapp.com",
+            projectId: "logins-c3407",
+            storageBucket: "logins-c3407.firebasestorage.app",
+            messagingSenderId: "809861558230",
+            appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
+        };
+        
+        // Inicializar segundo app com nome diferente
+        const appLogins = firebase.initializeApp(firebaseConfigLogins, "LoginsApp");
+        window.dbLogins = appLogins.firestore();
+        console.log('✅ Banco LOGINS inicializado!');
+        
+        console.log('🎯 Ambos os bancos configurados: db (ORGTAREFAS) e dbLogins (LOGINS)');
+        
+    } catch (error) {
+        console.error('❌ Erro ao configurar bancos:', error);
+        
+        // Se já foi inicializado, pega a referência
+        if (error.code === 'app/duplicate-app') {
+            console.log('ℹ️ Firebase já inicializado, usando referências existentes');
+            window.dbLogins = firebase.app("LoginsApp").firestore();
+        } else {
+            console.log('⚠️ Continuando apenas com banco ORGTAREFAS');
+            window.dbLogins = null;
+        }
     }
-
-    console.log('✅ Firebase carregado!');
     
+    // Continuar com o resto do sistema
     try {
         carregarUsuarios();
         carregarGrupos();
@@ -139,6 +189,7 @@ function inicializarSistema() {
         mostrarErro('Erro ao conectar com o banco de dados');
     }
 }
+
 
 function configurarDataMinima() {
     const hoje = new Date().toISOString().split('T')[0];
@@ -184,71 +235,84 @@ async function carregarGrupos() {
 
 // FUNÇÃO: Carregar usuários do banco LOGINS
 async function carregarUsuarios() {
-    console.log('👥 Carregando usuários do LOGINS...');
+    console.log('👥 Carregando usuários...');
     
     try {
-        // Verificar se temos acesso ao Firebase do logins
-        if (!window.firebaseLogins) {
-            console.error('❌ Firebase LOGINS não disponível');
-            // Carregar usuários do banco original como fallback
-            await carregarUsuariosFallback();
-            return;
-        }
-        
-        // Acessar o documento LOGINS_ORGTAREFAS no banco LOGINS
-        const docRef = window.firebaseLogins.doc(window.dbLogins, 'logins', 'LOGINS_ORGTAREFAS');
-        const docSnap = await window.firebaseLogins.getDoc(docRef);
-        
-        if (!docSnap.exists()) {
-            console.error('❌ Documento LOGINS_ORGTAREFAS não encontrado');
-            await carregarUsuariosFallback();
-            return;
-        }
-        
-        const dadosCompletos = docSnap.data();
-        console.log('✅ Documento LOGINS_ORGTAREFAS carregado');
-        
-        // Processar usuários da estrutura LOGINS_ORGTAREFAS
-        usuarios = [];
-        
-        Object.keys(dadosCompletos).forEach(key => {
-            // Verificar se é um campo userX_uid
-            if (key.startsWith('user') && (key.includes('_uid') || /\d/.test(key))) {
-                const userData = dadosCompletos[key];
+        // Tenta primeiro do banco LOGINS
+        if (window.dbLogins) {
+            console.log('📊 Buscando usuários no banco LOGINS...');
+            
+            // Acessar o documento LOGINS_ORGTAREFAS no banco LOGINS
+            const docRef = window.dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS');
+            const docSnap = await docRef.get();
+            
+            if (docSnap.exists()) {
+                const dadosCompletos = docSnap.data();
+                console.log('✅ Documento LOGINS_ORGTAREFAS carregado do banco LOGINS');
                 
-                if (userData && userData.login) {
-                    usuarios.push({
-                        id: key, // Ex: user1_uid, user2_uid
-                        usuario: userData.login,
-                        nome: userData.displayName || userData.login,
-                        displayName: userData.displayName || userData.login,
-                        perfil: userData.perfil || '',
-                        status: userData.status || 'ativo',
-                        isOnline: userData.isOnline || false,
-                        email: userData.email || ''
-                    });
-                }
+                // Processar usuários da estrutura LOGINS_ORGTAREFAS
+                usuarios = [];
+                
+                Object.keys(dadosCompletos).forEach(key => {
+                    // Verificar se é um campo userX_uid
+                    if (key.startsWith('user') && (key.includes('_uid') || /\d/.test(key))) {
+                        const userData = dadosCompletos[key];
+                        
+                        if (userData && userData.login) {
+                            usuarios.push({
+                                id: key,
+                                usuario: userData.login,
+                                nome: userData.displayName || userData.login,
+                                displayName: userData.displayName || userData.login,
+                                perfil: userData.perfil || '',
+                                status: userData.status || 'ativo',
+                                isOnline: userData.isOnline || false,
+                                email: userData.email || ''
+                            });
+                        }
+                    }
+                });
+                
+                console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
+                
+            } else {
+                console.log('⚠️ Documento LOGINS_ORGTAREFAS não encontrado, usando fallback');
+                throw new Error('Documento não encontrado');
             }
-        });
-        
-        console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
-        
-        // Apenas preencher select de responsável para FILTRO
-        const selectFiltro = document.getElementById('filterResponsavel');
-        if (selectFiltro) {
-            selectFiltro.innerHTML = '<option value="">Todos</option>';
-            usuarios.forEach(usuario => {
-                const option = document.createElement('option');
-                option.value = usuario.usuario || usuario.id;
-                option.textContent = usuario.nome || usuario.usuario || usuario.id;
-                selectFiltro.appendChild(option);
-            });
+        } else {
+            throw new Error('Banco LOGINS não disponível');
         }
         
     } catch (error) {
-        console.error('❌ Erro ao carregar usuários do LOGINS:', error);
-        // Tentar carregar do banco original como fallback
-        await carregarUsuariosFallback();
+        console.log('⚠️ Fallback: Carregando usuários do banco ORGTAREFAS...');
+        
+        // Fallback: carregar do banco ORGTAREFAS
+        try {
+            const snapshot = await db.collection("usuarios").get();
+            
+            usuarios = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            console.log('✅ Usuários carregados do ORGTAREFAS (fallback):', usuarios.length);
+            
+        } catch (fallbackError) {
+            console.error('❌ Erro ao carregar usuários (fallback):', fallbackError);
+            usuarios = [];
+        }
+    }
+    
+    // Preencher select de responsável para FILTRO
+    const selectFiltro = document.getElementById('filterResponsavel');
+    if (selectFiltro) {
+        selectFiltro.innerHTML = '<option value="">Todos</option>';
+        usuarios.forEach(usuario => {
+            const option = document.createElement('option');
+            option.value = usuario.usuario || usuario.id;
+            option.textContent = usuario.nome || usuario.usuario || usuario.id;
+            selectFiltro.appendChild(option);
+        });
     }
 }
 
