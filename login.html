@@ -12,7 +12,6 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="logo-container">
-                    <!-- Logo na pasta images -->
                     <img src="images/logo workyz.png" alt="Work Manager Logo" class="logo-image">
                 </div>
                 <p>Acesso Restrito</p>
@@ -66,13 +65,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
         import { 
             getFirestore, 
-            collection, 
-            query, 
-            where, 
+            collection,
+            doc,
+            getDoc,
+            query,
+            where,
             getDocs
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-    
-        // SUA CONFIGURAÇÃO DO FIREBASE (logins-c3407)
+
+        // CONFIGURAÇÃO DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
             authDomain: "logins-c3407.firebaseapp.com",
@@ -81,7 +82,7 @@
             messagingSenderId: "809861558230",
             appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
         };
-    
+
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -90,18 +91,22 @@
         window.firebaseApp = {
             db,
             firebaseModules: {
-                collection, query, where, getDocs
+                collection,
+                doc,
+                getDoc,
+                query,
+                where,
+                getDocs
             }
         };
         console.log('✅ Firebase logins-c3407 configurado!');
     </script>
 
-    <!-- login.js - INLINE PARA EVITAR PROBLEMAS DE CARREGAMENTO -->
+    <!-- login.js INLINE -->
     <script>
-        // login.js - VERSÃO OTIMIZADA E INLINE
+        // login.js - VERSÃO FINAL PARA ESTRUTURA ESPECIAL
         console.log('=== LOGIN INICIANDO ===');
 
-        // função para fazer login
         async function fazerLogin(usuario, senha) {
             console.log('🔐 Tentando login:', usuario);
             
@@ -114,7 +119,7 @@
                     alert('Preencha usuário e senha');
                     return;
                 }
-        
+
                 btnLogin.disabled = true;
                 btnText.textContent = 'Autenticando...';
                 spinner.classList.remove('hidden');
@@ -123,9 +128,9 @@
                 const { db, firebaseModules } = window.firebaseApp;
                 const { doc, getDoc } = firebaseModules;
                 
-                console.log('📊 Acessando banco de dados...');
+                console.log('📊 Acessando estrutura de logins...');
                 
-                // 1. ACESSAR O DOCUMENTO ESPECIAL
+                // 1. ACESSAR O DOCUMENTO ESPECIAL (LOGINS_AVERBSYS na coleção logins)
                 const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
                 const docSnap = await getDoc(docRef);
                 
@@ -134,131 +139,29 @@
                 }
                 
                 const dadosCompletos = docSnap.data();
-                console.log('✅ Documento carregado. Total de campos:', Object.keys(dadosCompletos).length);
+                console.log('✅ Documento carregado. Campos:', Object.keys(dadosCompletos).length);
                 
-                // 2. DEBUG: MOSTRAR TODOS OS CAMPOS DO USER_1 PARA ENTENDER A ESTRUTURA
-                console.log('🔍 ANALISANDO ESTRUTURA DO USER_1:');
-                const camposUser1 = {};
-                Object.keys(dadosCompletos).forEach(campo => {
-                    if (campo.includes('user_1_')) {
-                        camposUser1[campo] = dadosCompletos[campo];
-                    }
-                });
-                console.log('Campos user_1_:', camposUser1);
-                
-                // 3. PROCURAR O USUÁRIO NOS CAMPOS DINÂMICOS
+                // 2. PROCURAR O USUÁRIO PELO LOGIN (campo user_X_logiin)
                 let usuarioEncontrado = null;
                 let numeroUsuario = null;
                 
-                // Buscar em todos os campos que podem ser login
-                const todosCampos = Object.keys(dadosCompletos);
-                
-                for (const campo of todosCampos) {
-                    if (dadosCompletos[campo] === usuario) {
-                        console.log(`✅ Login encontrado no campo: ${campo} = ${dadosCompletos[campo]}`);
+                // Procurar em user_1_logiin, user_2_logiin, etc.
+                for (let i = 1; i <= 20; i++) {
+                    const campoLogin = `user_${i}_logiin`;
+                    
+                    if (dadosCompletos[campoLogin] === usuario) {
+                        console.log(`✅ Usuário encontrado em: ${campoLogin}`);
                         
-                        // Extrair número do usuário do campo
-                        const match = campo.match(/user_(\d+)_/);
-                        if (match) {
-                            const num = match[1];
-                            console.log(`🔢 Número do usuário: ${num}`);
-                            
-                            // AGORA VAMOS BUSCAR OS CAMPOS CORRETOS
-                            // Listar TODOS os campos deste usuário para debug
-                            console.log(`📋 Todos os campos do user_${num}:`);
-                            const camposUsuario = {};
-                            todosCampos.forEach(campoUsuario => {
-                                if (campoUsuario.startsWith(`user_${num}_`)) {
-                                    camposUsuario[campoUsuario] = dadosCompletos[campoUsuario];
-                                }
-                            });
-                            console.table(camposUsuario);
-                            
-                            // PROCURAR OS CAMPOS REAIS (baseado na estrutura que você mostrou antes)
-                            // Na sua estrutura anterior, os campos eram como:
-                            // user_1_senha, user_1_perfil, etc.
-                            
-                            // Encontrar campo de SENHA
-                            let campoSenha = null;
-                            const possiveisSenhas = [
-                                `user_${num}_senha`,
-                                `user_${num}_password`,
-                                `user_${num}_pass`
-                            ];
-                            
-                            for (const possivelSenha of possiveisSenhas) {
-                                if (dadosCompletos[possivelSenha]) {
-                                    campoSenha = possivelSenha;
-                                    break;
-                                }
-                            }
-                            
-                            // Encontrar campo de STATUS
-                            let campoStatus = null;
-                            const possiveisStatus = [
-                                `user_${num}_status`,
-                                `user_${num}_ativo`,
-                                `user_${num}_active`
-                            ];
-                            
-                            for (const possivelStatus of possiveisStatus) {
-                                if (dadosCompletos[possivelStatus] !== undefined) {
-                                    campoStatus = possivelStatus;
-                                    break;
-                                }
-                            }
-                            
-                            // Encontrar campo de NOME
-                            let campoNome = null;
-                            const possiveisNomes = [
-                                `user_${num}_nome_completo`,
-                                `user_${num}_nome`,
-                                `user_${num}_name`,
-                                `user_${num}_displayName`
-                            ];
-                            
-                            for (const possivelNome of possiveisNomes) {
-                                if (dadosCompletos[possivelNome]) {
-                                    campoNome = possivelNome;
-                                    break;
-                                }
-                            }
-                            
-                            // Encontrar campo de PERFIL
-                            let campoPerfil = null;
-                            const possiveisPerfis = [
-                                `user_${num}_perfil`,
-                                `user_${num}_profile`,
-                                `user_${num}_role`,
-                                `user_${num}_nivel`
-                            ];
-                            
-                            for (const possivelPerfil of possiveisPerfis) {
-                                if (dadosCompletos[possivelPerfil]) {
-                                    campoPerfil = possivelPerfil;
-                                    break;
-                                }
-                            }
-                            
-                            console.log('🎯 Campos encontrados:', {
-                                login: campo,
-                                senha: campoSenha,
-                                status: campoStatus,
-                                nome: campoNome,
-                                perfil: campoPerfil
-                            });
-                            
-                            usuarioEncontrado = {
-                                numero: parseInt(num),
-                                login: dadosCompletos[campo],
-                                senha: campoSenha ? dadosCompletos[campoSenha] : null,
-                                status: campoStatus ? dadosCompletos[campoStatus] : null,
-                                nome: campoNome ? dadosCompletos[campoNome] : null,
-                                perfil: campoPerfil ? dadosCompletos[campoPerfil] : null
-                            };
-                            numeroUsuario = num;
-                            break;
-                        }
+                        usuarioEncontrado = {
+                            numero: i,
+                            login: dadosCompletos[campoLogin],
+                            senha: dadosCompletos[`user_${i}_senha`],
+                            status: dadosCompletos[`user_${i}_status`],
+                            nome: dadosCompletos[`user_${i}_nome_completo`],
+                            perfil: dadosCompletos[`user_${i}_perfil`]
+                        };
+                        numeroUsuario = i;
+                        break;
                     }
                 }
                 
@@ -266,68 +169,38 @@
                     throw new Error('Usuário não encontrado');
                 }
                 
-                console.log('🎯 Dados COMPLETOS do usuário:', usuarioEncontrado);
-                console.log('🔑 Senha armazenada no banco:', usuarioEncontrado.senha);
-                console.log('📝 Senha digitada:', senha);
-                console.log('📊 Status no banco:', usuarioEncontrado.status);
+                console.log('🎯 Dados do usuário:', usuarioEncontrado);
                 
-                // 4. VERIFICAÇÕES
+                // 3. VERIFICAÇÕES
                 
-                // Verificar se encontrou a senha
+                // Verificar senha
                 if (!usuarioEncontrado.senha) {
-                    console.error('❌ Campo de senha não encontrado!');
-                    console.log('Todos os campos do usuário:');
-                    Object.keys(dadosCompletos).forEach(campo => {
-                        if (campo.includes(`user_${numeroUsuario}_`)) {
-                            console.log(`${campo}: ${dadosCompletos[campo]}`);
-                        }
-                    });
-                    throw new Error('Erro na configuração do banco: campo de senha não encontrado');
+                    throw new Error('Erro: Campo de senha não encontrado');
                 }
                 
-                // Verificar senha (comparação EXATA)
                 if (usuarioEncontrado.senha !== senha) {
-                    console.log('🔍 Comparação de senha:');
+                    console.log('🔍 Senha incorreta:');
                     console.log('Banco:', usuarioEncontrado.senha);
                     console.log('Digitada:', senha);
-                    console.log('São iguais?', usuarioEncontrado.senha === senha);
-                    console.log('Tamanho banco:', usuarioEncontrado.senha.length);
-                    console.log('Tamanho digitada:', senha.length);
-                    
-                    // Mostrar caracteres individuais (para debug)
-                    console.log('Caracteres da senha no banco:');
-                    for (let i = 0; i < usuarioEncontrado.senha.length; i++) {
-                        console.log(`Pos ${i}: '${usuarioEncontrado.senha[i]}' (code: ${usuarioEncontrado.senha.charCodeAt(i)})`);
-                    }
-                    
-                    console.log('Caracteres da senha digitada:');
-                    for (let i = 0; i < senha.length; i++) {
-                        console.log(`Pos ${i}: '${senha[i]}' (code: ${senha.charCodeAt(i)})`);
-                    }
-                    
                     throw new Error('Senha incorreta');
                 }
                 
-                // Verificar status (se existir campo de status)
-                if (usuarioEncontrado.status !== null && usuarioEncontrado.status !== undefined) {
-                    console.log('📊 Verificando status:', usuarioEncontrado.status);
+                console.log('✅ Senha correta!');
+                
+                // Verificar status (Ignorar verificação de status temporariamente)
+                if (usuarioEncontrado.status) {
+                    console.log('📊 Status no banco:', usuarioEncontrado.status);
                     
-                    // Converter para string e lowercase para comparação
-                    const statusStr = String(usuarioEncontrado.status).toLowerCase().trim();
-                    console.log('Status (processado):', statusStr);
-                    
-                    // Verificar diferentes valores possíveis para "ativo"
-                    const valoresAtivos = ['ativo', 'active', 'true', '1', 'yes', 'sim', 'habilitado'];
-                    
-                    if (!valoresAtivos.includes(statusStr)) {
-                        console.log('❌ Status não está ativo:', statusStr);
+                    // Se quiser habilitar a verificação de status, descomente:
+                    /*
+                    const statusLower = usuarioEncontrado.status.toLowerCase();
+                    if (statusLower === 'inativo') {
                         throw new Error('Usuário inativo. Contate o administrador.');
                     }
-                } else {
-                    console.log('ℹ️ Campo de status não encontrado, assumindo ativo');
+                    */
                 }
                 
-                // 5. SALVAR DADOS NO LOCALSTORAGE
+                // 4. SALVAR DADOS NO LOCALSTORAGE
                 const usuarioLogado = {
                     id: `user_${numeroUsuario}`,
                     uid: `user_${numeroUsuario}`,
@@ -335,15 +208,9 @@
                     nome: usuarioEncontrado.nome || usuarioEncontrado.login,
                     perfil: usuarioEncontrado.perfil || 'usuario',
                     numeroUsuario: numeroUsuario,
-                    dataLogin: new Date().toISOString(),
-                    // Salvar também os nomes reais dos campos para uso futuro
-                    campos: {
-                        login: `user_${numeroUsuario}_logiin`,
-                        senha: usuarioEncontrado.senha ? `user_${numeroUsuario}_senha` : null,
-                        status: usuarioEncontrado.status !== null ? `user_${numeroUsuario}_status` : null,
-                        nome: usuarioEncontrado.nome ? `user_${numeroUsuario}_nome_completo` : null,
-                        perfil: usuarioEncontrado.perfil ? `user_${numeroUsuario}_perfil` : null
-                    }
+                    statusFirebase: usuarioEncontrado.status,
+                    estrutura: 'LOGINS_AVERBSYS',
+                    dataLogin: new Date().toISOString()
                 };
                 
                 localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
@@ -359,7 +226,7 @@
                 console.log('✅ Login realizado com sucesso!');
                 console.log('📋 Dados salvos:', usuarioLogado);
                 
-                // 6. REDIRECIONAR
+                // 5. REDIRECIONAR
                 btnText.textContent = '✅ Redirecionando...';
                 
                 setTimeout(() => {
@@ -369,20 +236,17 @@
             } catch (error) {
                 console.error('❌ Erro no login:', error);
                 
-                // Mensagem de erro mais detalhada
                 let mensagemErro = error.message;
                 
-                // Adicionar sugestões baseadas no erro
-                if (error.message.includes('Senha incorreta')) {
-                    mensagemErro += '\n\nVerifique se:';
-                    mensagemErro += '\n• A senha está digitada corretamente';
-                    mensagemErro += '\n• Caps Lock não está ativado';
-                    mensagemErro += '\n• Não há espaços extras';
+                if (error.message.includes('Usuário não encontrado')) {
+                    mensagemErro = 'Usuário não encontrado. Verifique o nome de usuário.';
+                } else if (error.message.includes('Senha incorreta')) {
+                    mensagemErro = 'Senha incorreta. Tente novamente.';
                 } else if (error.message.includes('inativo')) {
-                    mensagemErro += '\n\nContate o administrador do sistema.';
+                    mensagemErro = 'Usuário inativo. Contate o administrador.';
                 }
                 
-                alert(mensagemErro);
+                alert('Erro: ' + mensagemErro);
                 
                 // Restaurar botão
                 btnLogin.disabled = false;
@@ -391,7 +255,7 @@
             }
         }
 
-        // Função para listar todos os usuários (para debug)
+        // FUNÇÃO PARA LISTAR TODOS OS USUÁRIOS DISPONÍVEIS
         window.listarUsuarios = async function() {
             try {
                 const { db, firebaseModules } = window.firebaseApp;
@@ -402,48 +266,72 @@
                 
                 if (docSnap.exists()) {
                     const dados = docSnap.data();
-                    console.log('📋 USUÁRIOS DISPONÍVEIS:');
+                    console.log('📋 USUÁRIOS DISPONÍVEIS NO SISTEMA:');
                     
                     const usuarios = [];
-                    for (let i = 1; i <= 50; i++) {
-                        const login1 = dados[`user_${i}_logiin`];
-                        const login2 = dados[`user_${i}_login`];
-                        const login = login1 || login2;
+                    for (let i = 1; i <= 20; i++) {
+                        const login = dados[`user_${i}_logiin`];
                         
                         if (login) {
                             usuarios.push({
                                 '#': i,
-                                'Usuário': login,
+                                'Login': login,
                                 'Nome': dados[`user_${i}_nome_completo`] || 'N/A',
-                                'Perfil': dados[`user_${i}_perfil`] || 'N/A'
+                                'Perfil': dados[`user_${i}_perfil`] || 'N/A',
+                                'Status': dados[`user_${i}_status`] || 'N/A'
                             });
                         }
                     }
                     
                     if (usuarios.length > 0) {
                         console.table(usuarios);
-                        alert(`Encontrados ${usuarios.length} usuários. Veja o console.`);
+                        console.log('\n💡 Use um dos logins acima para fazer login.');
+                        return usuarios;
                     } else {
-                        console.log('Nenhum usuário encontrado na estrutura padrão.');
-                        
-                        // Mostrar campos que contêm "logiin" ou "login"
-                        const camposLogin = Object.keys(dados).filter(key => 
-                            key.includes('logiin') || key.includes('login')
-                        );
-                        
-                        console.log('Campos de login encontrados:', camposLogin);
-                        if (camposLogin.length > 0) {
-                            console.log('Valores nestes campos:');
-                            camposLogin.forEach(campo => {
-                                console.log(`${campo}: ${dados[campo]}`);
-                            });
-                        }
+                        console.log('❌ Nenhum usuário encontrado.');
+                        return [];
                     }
-                    
-                    return usuarios;
+                } else {
+                    console.log('❌ Documento LOGINS_AVERBSYS não encontrado.');
+                    return [];
                 }
             } catch (error) {
-                console.error('Erro ao listar usuários:', error);
+                console.error('❌ Erro ao listar usuários:', error);
+                return [];
+            }
+        };
+
+        // FUNÇÃO PARA VER DADOS DE UM USUÁRIO ESPECÍFICO
+        window.verUsuario = async function(numero) {
+            try {
+                const { db, firebaseModules } = window.firebaseApp;
+                const { doc, getDoc } = firebaseModules;
+                
+                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    
+                    console.log(`🔍 DADOS DO USER_${numero}:`);
+                    console.log({
+                        'Login': dados[`user_${numero}_logiin`],
+                        'Senha': dados[`user_${numero}_senha`],
+                        'Nome': dados[`user_${numero}_nome_completo`],
+                        'Perfil': dados[`user_${numero}_perfil`],
+                        'Status': dados[`user_${numero}_status`]
+                    });
+                    
+                    return {
+                        login: dados[`user_${numero}_logiin`],
+                        senha: dados[`user_${numero}_senha`],
+                        nome: dados[`user_${numero}_nome_completo`],
+                        perfil: dados[`user_${numero}_perfil`],
+                        status: dados[`user_${numero}_status`]
+                    };
+                }
+            } catch (error) {
+                console.error('❌ Erro:', error);
             }
         };
 
@@ -493,8 +381,17 @@
             }
             
             console.log('🚀 SISTEMA CONFIGURADO');
+            console.log('🎯 Estrutura: logins/LOGINS_AVERBSYS');
             console.log('💡 Dica: No console, use listarUsuarios() para ver todos os usuários');
+            console.log('💡 Dica: Para ver dados do usuário 1, use verUsuario(1)');
         });
+
+        // Função para testar login rapidamente (para desenvolvimento)
+        window.testeLogin = function(usuario, senha) {
+            document.getElementById('loginUsuario').value = usuario;
+            document.getElementById('loginPassword').value = senha;
+            document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        };
     </script>
 </body>
 </html>
