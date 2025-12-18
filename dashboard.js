@@ -1,5 +1,5 @@
 // arquivo dashboard.js AJUSTAR BANCO USUÁRIOS PARA BANCO LOGIN
-//console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
+console.log('=== GESTOR DE ATIVIDADES INICIANDO ===');
 
 // ========== VARIÁVEIS GLOBAIS ==========
 let tarefasExpandidas = new Set();
