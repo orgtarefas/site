@@ -187,7 +187,7 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
         
-        console.log('✅ Firebase v8 inicializado no dashboard!');
+        //console.log('✅ Firebase v8 inicializado no dashboard!');
         
         // Torna global
         window.db = db;
@@ -199,7 +199,7 @@
             if (window.db && window.db.collection) {
                 window.db.collection('usuarios').limit(1).get()
                     .then(snapshot => {
-                        console.log(`✅ Conexão Firebase OK! ${snapshot.size} documento(s)`);
+                        //console.log(`✅ Conexão Firebase OK! ${snapshot.size} documento(s)`);
                         document.getElementById('status-sincronizacao').innerHTML = 
                             '<i class="fas fa-check-circle"></i> Conectado';
                     })
@@ -215,18 +215,18 @@
     <!-- Script de inicialização rápida -->
     <script>
         // Inicialização RÁPIDA do dashboard
-        console.log('=== GESTOR DE ATIVIDADES INICIANDO ==='); <!-- Mudei o log -->
+        //console.log('=== GESTOR DE ATIVIDADES INICIANDO ==='); <!-- Mudei o log -->
         
         // Verificar autenticação
         const usuarioLogado = localStorage.getItem('usuarioLogado');
         
         if (!usuarioLogado) {
-            console.log('❌ Nenhum usuário logado, redirecionando...');
+            //console.log('❌ Nenhum usuário logado, redirecionando...');
             window.location.href = 'login.html';
         } else {
             try {
                 const usuario = JSON.parse(usuarioLogado);
-                console.log('👤 Usuário:', usuario.nome || usuario.usuario);
+                //console.log('👤 Usuário:', usuario.nome || usuario.usuario);
                 
                 // Atualizar interface rapidamente
                 setTimeout(() => {
@@ -245,7 +245,7 @@
                         if (loadingScreen && mainContent) {
                             loadingScreen.style.display = 'none';
                             mainContent.style.display = 'block';
-                            console.log('✅ Gestor de Atividades carregado!'); <!-- Mudei o log -->
+                            //console.log('✅ Gestor de Atividades carregado!'); <!-- Mudei o log -->
                         }
                     }, 1000);
                     
@@ -259,8 +259,8 @@
         
         // Verificar Firebase
         setTimeout(() => {
-            console.log('Firebase carregado?', window.db ? '✅ SIM' : '❌ NÃO');
-            console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
+            //console.log('Firebase carregado?', window.db ? '✅ SIM' : '❌ NÃO');
+            //console.log('db.collection é função?', window.db ? typeof window.db.collection : 'N/A');
         }, 1500);
     </script>
 
