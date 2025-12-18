@@ -416,7 +416,8 @@ async function carregarUsuarios() {
             const docRef = window.dbLogins.collection('logins').doc('LOGINS_ORGTAREFAS');
             const docSnap = await docRef.get();
             
-            if (docSnap.exists()) {
+            // CORREÇÃO: Usar propriedade exists, não método
+            if (docSnap.exists) {  // <-- ALTERADO AQUI
                 const dadosCompletos = docSnap.data();
                 console.log('✅ Documento LOGINS_ORGTAREFAS carregado do banco LOGINS');
                 
