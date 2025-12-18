@@ -67,11 +67,8 @@
         import { 
             getFirestore, 
             collection, 
-            query, 
-            where, 
-            getDocs,
-            doc,
-            updateDoc
+            doc, 
+            getDoc
         } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
         // SUA CONFIGURAÇÃO DO FIREBASE (logins-c3407)
@@ -92,12 +89,327 @@
         window.firebaseApp = {
             db,
             firebaseModules: {
-                collection, query, where, getDocs, doc, updateDoc
+                collection,
+                doc,
+                getDoc
             }
         };
         console.log('✅ Firebase logins-c3407 configurado!');
     </script>
 
-    <script src="login.js"></script>
+    <!-- login.js - INLINE PARA EVITAR PROBLEMAS DE CARREGAMENTO -->
+    <script>
+        // login.js - VERSÃO OTIMIZADA E INLINE
+        console.log('=== LOGIN INICIANDO ===');
+
+        // Sistema de login para estrutura de campos dinâmicos
+        async function fazerLogin(usuario, senha) {
+            console.log('🔐 Tentando login:', usuario);
+            
+            const btnLogin = document.getElementById('btnLogin');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+            
+            try {
+                if (!usuario || !senha) {
+                    alert('Preencha usuário e senha');
+                    return;
+                }
+
+                btnLogin.disabled = true;
+                btnText.textContent = 'Autenticando...';
+                spinner.classList.remove('hidden');
+                
+                // Acesso ao Firebase
+                const { db, firebaseModules } = window.firebaseApp;
+                const { doc, getDoc } = firebaseModules;
+                
+                console.log('📊 Acessando banco de dados...');
+                
+                // 1. ACESSAR O DOCUMENTO ESPECIAL
+                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+                const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) {
+                    throw new Error('Banco de logins não encontrado');
+                }
+                
+                const dadosCompletos = docSnap.data();
+                console.log('✅ Documento carregado. Total de campos:', Object.keys(dadosCompletos).length);
+                
+                // 2. PROCURAR O USUÁRIO NOS CAMPOS DINÂMICOS
+                let usuarioEncontrado = null;
+                let numeroUsuario = null;
+                
+                // Procurar em user_1_logiin, user_2_logiin, etc.
+                for (let i = 1; i <= 50; i++) {
+                    // Tente diferentes variações do campo login
+                    const possiveisCamposLogin = [
+                        `user_${i}_logiin`,  // Com "logiin" (dois i)
+                        `user_${i}_login`,   // Com "login" (um i)
+                        `user_${i}_user`,    // Outra possibilidade
+                        `user_${i}_username` // Outra possibilidade
+                    ];
+                    
+                    for (const campoLogin of possiveisCamposLogin) {
+                        if (dadosCompletos[campoLogin] === usuario) {
+                            console.log(`✅ Usuário encontrado no campo: ${campoLogin}`);
+                            
+                            // Encontrar os campos correspondentes
+                            const campoSenha = `user_${i}_senha`;
+                            const campoNome = `user_${i}_nome_completo`;
+                            const campoPerfil = `user_${i}_perfil`;
+                            const campoStatus = `user_${i}_status`;
+                            
+                            usuarioEncontrado = {
+                                numero: i,
+                                login: dadosCompletos[campoLogin],
+                                senha: dadosCompletos[campoSenha],
+                                nome: dadosCompletos[campoNome],
+                                perfil: dadosCompletos[campoPerfil],
+                                status: dadosCompletos[campoStatus]
+                            };
+                            numeroUsuario = i;
+                            break;
+                        }
+                    }
+                    
+                    if (usuarioEncontrado) break;
+                }
+                
+                // Se ainda não encontrou, fazer busca em todos os campos
+                if (!usuarioEncontrado) {
+                    console.log('🔍 Busca avançada em todos os campos...');
+                    
+                    const todosCampos = Object.keys(dadosCompletos);
+                    
+                    for (const campo of todosCampos) {
+                        if (dadosCompletos[campo] === usuario) {
+                            console.log(`🎯 Valor encontrado no campo: ${campo}`);
+                            
+                            // Tentar extrair o número do campo
+                            const match = campo.match(/user_(\d+)_/);
+                            if (match) {
+                                const num = match[1];
+                                console.log(`🔢 Número do usuário extraído: ${num}`);
+                                
+                                usuarioEncontrado = {
+                                    numero: parseInt(num),
+                                    login: dadosCompletos[campo],
+                                    senha: dadosCompletos[`user_${num}_senha`],
+                                    nome: dadosCompletos[`user_${num}_nome_completo`],
+                                    perfil: dadosCompletos[`user_${num}_perfil`],
+                                    status: dadosCompletos[`user_${num}_status`]
+                                };
+                                numeroUsuario = num;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (!usuarioEncontrado) {
+                    // Mostrar usuários disponíveis para ajudar
+                    console.log('👥 Listando usuários disponíveis:');
+                    const usuariosDisponiveis = [];
+                    
+                    for (let i = 1; i <= 20; i++) {
+                        const login1 = dadosCompletos[`user_${i}_logiin`];
+                        const login2 = dadosCompletos[`user_${i}_login`];
+                        const login = login1 || login2;
+                        
+                        if (login) {
+                            usuariosDisponiveis.push({
+                                usuário: login,
+                                nome: dadosCompletos[`user_${i}_nome_completo`] || 'Não informado'
+                            });
+                        }
+                    }
+                    
+                    console.table(usuariosDisponiveis);
+                    throw new Error('Usuário não encontrado. Verifique o nome de usuário.');
+                }
+                
+                console.log('🎯 Dados do usuário:', usuarioEncontrado);
+                
+                // 3. VERIFICAÇÕES
+                if (!usuarioEncontrado.senha) {
+                    console.error('❌ Campo de senha não encontrado!');
+                    console.log('Campos disponíveis para este usuário:', 
+                        Object.keys(dadosCompletos).filter(key => key.includes(`user_${numeroUsuario}_`))
+                    );
+                    throw new Error('Erro na configuração do banco de dados.');
+                }
+                
+                if (usuarioEncontrado.senha !== senha) {
+                    throw new Error('Senha incorreta');
+                }
+                
+                // Verificar status se existir
+                if (usuarioEncontrado.status && usuarioEncontrado.status !== 'ativo') {
+                    throw new Error('Usuário inativo. Contate o administrador.');
+                }
+                
+                // 4. SALVAR DADOS NO LOCALSTORAGE
+                const usuarioLogado = {
+                    id: `user_${numeroUsuario}`,
+                    uid: `user_${numeroUsuario}`,
+                    usuario: usuarioEncontrado.login,
+                    nome: usuarioEncontrado.nome || usuarioEncontrado.login,
+                    perfil: usuarioEncontrado.perfil || 'usuario',
+                    numeroUsuario: numeroUsuario,
+                    estrutura: 'campos_dinamicos',
+                    dataLogin: new Date().toISOString()
+                };
+                
+                localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
+                
+                // Salvar para lembrar usuário
+                const rememberMe = document.getElementById('rememberMe').checked;
+                if (rememberMe) {
+                    localStorage.setItem('savedUser', usuario);
+                } else {
+                    localStorage.removeItem('savedUser');
+                }
+                
+                console.log('✅ Login realizado com sucesso!');
+                console.log('📋 Dados salvos:', usuarioLogado);
+                
+                // 5. REDIRECIONAR
+                btnText.textContent = '✅ Redirecionando...';
+                
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+                
+            } catch (error) {
+                console.error('❌ Erro no login:', error);
+                
+                let mensagemErro = 'Erro ao fazer login';
+                
+                if (error.message.includes('Usuário não encontrado')) {
+                    mensagemErro = 'Usuário não encontrado';
+                } else if (error.message.includes('Senha incorreta')) {
+                    mensagemErro = 'Senha incorreta';
+                } else if (error.message.includes('inativo')) {
+                    mensagemErro = 'Usuário inativo';
+                } else {
+                    mensagemErro = error.message;
+                }
+                
+                alert('Erro: ' + mensagemErro);
+                
+                // Restaurar botão
+                btnLogin.disabled = false;
+                btnText.textContent = 'Entrar no Sistema';
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // Função para listar todos os usuários (para debug)
+        window.listarUsuarios = async function() {
+            try {
+                const { db, firebaseModules } = window.firebaseApp;
+                const { doc, getDoc } = firebaseModules;
+                
+                const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    console.log('📋 USUÁRIOS DISPONÍVEIS:');
+                    
+                    const usuarios = [];
+                    for (let i = 1; i <= 50; i++) {
+                        const login1 = dados[`user_${i}_logiin`];
+                        const login2 = dados[`user_${i}_login`];
+                        const login = login1 || login2;
+                        
+                        if (login) {
+                            usuarios.push({
+                                '#': i,
+                                'Usuário': login,
+                                'Nome': dados[`user_${i}_nome_completo`] || 'N/A',
+                                'Perfil': dados[`user_${i}_perfil`] || 'N/A'
+                            });
+                        }
+                    }
+                    
+                    if (usuarios.length > 0) {
+                        console.table(usuarios);
+                        alert(`Encontrados ${usuarios.length} usuários. Veja o console.`);
+                    } else {
+                        console.log('Nenhum usuário encontrado na estrutura padrão.');
+                        
+                        // Mostrar campos que contêm "logiin" ou "login"
+                        const camposLogin = Object.keys(dados).filter(key => 
+                            key.includes('logiin') || key.includes('login')
+                        );
+                        
+                        console.log('Campos de login encontrados:', camposLogin);
+                        if (camposLogin.length > 0) {
+                            console.log('Valores nestes campos:');
+                            camposLogin.forEach(campo => {
+                                console.log(`${campo}: ${dados[campo]}`);
+                            });
+                        }
+                    }
+                    
+                    return usuarios;
+                }
+            } catch (error) {
+                console.error('Erro ao listar usuários:', error);
+            }
+        };
+
+        // CONFIGURAÇÃO DO FORMULÁRIO
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== FORMULÁRIO PRONTO ===');
+            
+            // Configurar formulário
+            const form = document.getElementById('loginForm');
+            const usuarioInput = document.getElementById('loginUsuario');
+            const senhaInput = document.getElementById('loginPassword');
+            
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const usuario = usuarioInput.value.trim();
+                    const senha = senhaInput.value;
+                    
+                    console.log('📤 Formulário enviado:', { usuario });
+                    fazerLogin(usuario, senha);
+                });
+            }
+            
+            // Atalhos de teclado
+            usuarioInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    senhaInput.focus();
+                }
+            });
+            
+            senhaInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    form.dispatchEvent(new Event('submit'));
+                }
+            });
+            
+            // Verificar se há usuário lembrado
+            const savedUser = localStorage.getItem('savedUser');
+            if (savedUser) {
+                usuarioInput.value = savedUser;
+                document.getElementById('rememberMe').checked = true;
+                senhaInput.focus();
+            } else {
+                usuarioInput.focus();
+            }
+            
+            console.log('🚀 SISTEMA CONFIGURADO');
+            console.log('💡 Dica: No console, use listarUsuarios() para ver todos os usuários');
+        });
+    </script>
 </body>
 </html>
