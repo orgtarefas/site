@@ -1,7 +1,7 @@
-// login.js - VERSÃO OTIMIZADA PARA LOGINS-C3407
-console.log('=== LOGIN INICIANDO ===');
+// login.js - VERSÃO PARA ESTRUTURA DE CAMPOS DINÂMICOS
+console.log('=== LOGIN INICIANDO (NOVA ESTRUTURA) ===');
 
-// Sistema de login para nova base logins-c3407
+// Sistema de login para estrutura de campos dinâmicos
 async function fazerLogin(usuario, senha) {
     console.log('🔐 Tentando login:', usuario);
     
@@ -10,86 +10,138 @@ async function fazerLogin(usuario, senha) {
     const spinner = document.getElementById('spinner');
     
     try {
-        // Validação básica
         if (!usuario || !senha) {
-            alert('⚠️ Preencha usuário e senha');
+            alert('Preencha usuário e senha');
             return;
         }
 
-        // Estado de carregamento
         btnLogin.disabled = true;
         btnText.textContent = 'Autenticando...';
         spinner.classList.remove('hidden');
         
-        // Acessar Firebase
+        // Acesso ao Firebase
         const { db, firebaseModules } = window.firebaseApp;
-        const { collection, query, where, getDocs, doc, updateDoc } = firebaseModules;
+        const { collection, doc, getDoc } = firebaseModules;
         
-        // 1. BUSCAR USUÁRIO NA NOVA COLEÇÃO LOGINS_ORGTAREFAS
-        console.log('🔍 Buscando usuário na coleção LOGINS_ORGTAREFAS...');
-        const usuariosRef = collection(db, 'LOGINS_ORGTAREFAS');
-        const q = query(usuariosRef, where('login', '==', usuario));
+        console.log('📊 Acessando estrutura especial...');
         
-        const querySnapshot = await getDocs(q);
+        // 1. ACESSAR O DOCUMENTO ESPECIAL
+        const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+        const docSnap = await getDoc(docRef);
         
-        if (querySnapshot.empty) {
-            throw new Error('❌ Usuário não encontrado');
+        if (!docSnap.exists()) {
+            throw new Error('Banco de logins não encontrado');
         }
         
-        // Pegar o primeiro resultado (deve ser único)
-        const usuarioDoc = querySnapshot.docs[0];
-        const userData = usuarioDoc.data();
-        const userId = usuarioDoc.id;
+        const dadosCompletos = docSnap.data();
+        console.log('✅ Documento carregado. Campos:', Object.keys(dadosCompletos).length);
         
-        console.log('✅ Usuário encontrado:', {
-            id: userId,
-            login: userData.login,
-            displayName: userData.displayName,
-            perfil: userData.perfil,
-            status: userData.status
-        });
+        // 2. PROCURAR O USUÁRIO NOS CAMPOS DINÂMICOS
+        let usuarioEncontrado = null;
+        let numeroUsuario = null;
         
-        // 2. VERIFICAÇÕES
-        // Verificar status
-        if (userData.status !== 'ativo') {
-            throw new Error('🚫 Usuário inativo. Contate o administrador.');
+        // Procurar em user_1_logiin, user_2_logiin, etc.
+        for (let i = 1; i <= 20; i++) { // Ajuste o limite conforme necessário
+            const campoLogin = `user_${i}_logiin`;
+            const campoSenha = `user_${i}_senha`;
+            const campoNome = `user_${i}_nome_completo`;
+            const campoPerfil = `user_${i}_perfil`;
+            const campoStatus = `user_${i}_status`;
+            
+            // Verificar se existe o campo de login
+            if (dadosCompletos[campoLogin] === usuario) {
+                console.log(`✅ Usuário encontrado no campo: ${campoLogin}`);
+                
+                usuarioEncontrado = {
+                    numero: i,
+                    login: dadosCompletos[campoLogin],
+                    senha: dadosCompletos[campoSenha],
+                    nome: dadosCompletos[campoNome],
+                    perfil: dadosCompletos[campoPerfil],
+                    status: dadosCompletos[campoStatus] || 'ativo'
+                };
+                numeroUsuario = i;
+                break;
+            }
+            
+            // Também verificar campo "login" (sem número)
+            const campoLoginSimples = `user_${i}_login`;
+            if (dadosCompletos[campoLoginSimples] === usuario) {
+                console.log(`✅ Usuário encontrado no campo: ${campoLoginSimples}`);
+                
+                usuarioEncontrado = {
+                    numero: i,
+                    login: dadosCompletos[campoLoginSimples],
+                    senha: dadosCompletos[campoSenha],
+                    nome: dadosCompletos[campoNome],
+                    perfil: dadosCompletos[campoPerfil],
+                    status: dadosCompletos[campoStatus] || 'ativo'
+                };
+                numeroUsuario = i;
+                break;
+            }
         }
         
-        // Verificar senha
-        if (userData.senha !== senha) {
-            throw new Error('🔒 Senha incorreta');
-        }
-        
-        // 3. ATUALIZAR STATUS PARA ONLINE (opcional)
-        try {
-            const userRef = doc(db, 'LOGINS_ORGTAREFAS', userId);
-            await updateDoc(userRef, {
-                isOnline: true,
-                ultimoLogin: new Date().toISOString()
+        // Se não encontrou, procurar por "thiago.barbosa" especificamente
+        if (!usuarioEncontrado) {
+            console.log('🔍 Buscando usuário específico...');
+            
+            // Vamos procurar em TODOS os campos que contenham "logiin" ou "login"
+            Object.keys(dadosCompletos).forEach(campo => {
+                if (campo.includes('logiin') || campo.includes('login')) {
+                    if (dadosCompletos[campo] === usuario) {
+                        console.log(`✅ Encontrado no campo: ${campo}`);
+                        
+                        // Extrair número do campo (user_X_)
+                        const match = campo.match(/user_(\d+)_/);
+                        if (match) {
+                            const num = match[1];
+                            usuarioEncontrado = {
+                                numero: parseInt(num),
+                                login: dadosCompletos[campo],
+                                senha: dadosCompletos[`user_${num}_senha`],
+                                nome: dadosCompletos[`user_${num}_nome_completo`],
+                                perfil: dadosCompletos[`user_${num}_perfil`],
+                                status: dadosCompletos[`user_${num}_status`] || 'ativo'
+                            };
+                            numeroUsuario = num;
+                        }
+                    }
+                }
             });
-            console.log('✅ Status atualizado para online');
-        } catch (updateError) {
-            console.warn('⚠️ Não foi possível atualizar status online:', updateError);
-            // Não falhar o login por isso
+        }
+        
+        if (!usuarioEncontrado) {
+            throw new Error('Usuário não encontrado');
+        }
+        
+        console.log('🎯 Dados do usuário:', usuarioEncontrado);
+        
+        // 3. VERIFICAÇÕES
+        if (usuarioEncontrado.status !== 'ativo') {
+            throw new Error('Usuário inativo. Contate o administrador.');
+        }
+        
+        if (usuarioEncontrado.senha !== senha) {
+            throw new Error('Senha incorreta');
         }
         
         // 4. SALVAR DADOS NO LOCALSTORAGE
-        // Mapeamento dos campos da nova estrutura
         const usuarioLogado = {
-            id: userId,
-            uid: userId,
-            usuario: userData.login,
-            login: userData.login, // Para compatibilidade
-            nome: userData.displayName || userData.login,
-            displayName: userData.displayName || userData.login,
-            nivel: userData.perfil || 'usuario',
-            perfil: userData.perfil || 'usuario',
-            email: userData.email || '',
-            status: userData.status || 'ativo',
-            isOnline: true,
-            grupos: userData.grupos || [], // Se existir na nova estrutura
-            dataLogin: new Date().toISOString(),
-            projeto: 'logins-c3407' // Identificador da base
+            id: `user_${numeroUsuario}`,
+            uid: `user_${numeroUsuario}`,
+            usuario: usuarioEncontrado.login,
+            login: usuarioEncontrado.login,
+            nome: usuarioEncontrado.nome || usuarioEncontrado.login,
+            displayName: usuarioEncontrado.nome || usuarioEncontrado.login,
+            nivel: usuarioEncontrado.perfil || 'usuario',
+            perfil: usuarioEncontrado.perfil || 'usuario',
+            status: usuarioEncontrado.status || 'ativo',
+            numeroUsuario: numeroUsuario,
+            estrutura: 'campos_dinamicos', // Identificar a estrutura
+            colecao: 'logins',
+            documento: 'LOGINS_AVERBSYS',
+            dataLogin: new Date().toISOString()
         };
         
         localStorage.setItem('usuarioLogado', JSON.stringify(usuarioLogado));
@@ -102,11 +154,11 @@ async function fazerLogin(usuario, senha) {
             localStorage.removeItem('savedUser');
         }
         
-        console.log('🎉 Login realizado com sucesso!');
-        console.log('📋 Dados do usuário:', {
+        console.log('✅ Login realizado com sucesso!');
+        console.log('📋 Dados salvos:', {
             nome: usuarioLogado.nome,
             perfil: usuarioLogado.perfil,
-            projeto: usuarioLogado.projeto
+            numero: usuarioLogado.numeroUsuario
         });
         
         // 5. REDIRECIONAR
@@ -117,108 +169,83 @@ async function fazerLogin(usuario, senha) {
         }, 800);
         
     } catch (error) {
-        console.error('💥 Erro no login:', error);
+        console.error('❌ Erro no login:', error);
         
-        // Mensagens amigáveis de erro
         let mensagemErro = 'Erro ao fazer login';
         
         if (error.message.includes('Usuário não encontrado')) {
-            mensagemErro = 'Usuário não encontrado. Verifique o nome de usuário.';
+            mensagemErro = 'Usuário não encontrado';
         } else if (error.message.includes('Senha incorreta')) {
-            mensagemErro = 'Senha incorreta. Tente novamente.';
+            mensagemErro = 'Senha incorreta';
         } else if (error.message.includes('inativo')) {
             mensagemErro = error.message;
-        } else if (error.message.includes('permission-denied') || error.message.includes('permission')) {
-            mensagemErro = 'Sem permissão para acessar o sistema. Contate o administrador.';
         } else {
-            mensagemErro = `Erro: ${error.message}`;
+            mensagemErro = error.message;
         }
         
-        // Mostrar alerta
-        alert(mensagemErro);
+        alert('Erro: ' + mensagemErro);
         
         // Restaurar botão
         btnLogin.disabled = false;
         btnText.textContent = 'Entrar no Sistema';
         spinner.classList.add('hidden');
+    }
+}
+
+// Função auxiliar para listar todos os usuários (para debug)
+async function listarTodosUsuarios() {
+    try {
+        const { db, firebaseModules } = window.firebaseApp;
+        const { collection, doc, getDoc } = firebaseModules;
         
-        // Focar no campo de senha para tentar novamente
-        setTimeout(() => {
-            document.getElementById('loginPassword').focus();
-        }, 100);
+        const docRef = doc(db, 'logins', 'LOGINS_AVERBSYS');
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const dados = docSnap.data();
+            console.log('📋 LISTA COMPLETA DE USUÁRIOS:');
+            
+            for (let i = 1; i <= 20; i++) {
+                const login = dados[`user_${i}_logiin`] || dados[`user_${i}_login`];
+                if (login) {
+                    console.log(`${i}. ${login} - ${dados[`user_${i}_nome_completo`]} (${dados[`user_${i}_perfil`]})`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao listar usuários:', error);
     }
 }
 
 // CONFIGURAÇÃO DO FORMULÁRIO
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📝 FORMULÁRIO DE LOGIN PRONTO');
+    console.log('=== FORMULÁRIO PRONTO ===');
     
     // Configurar formulário
     const form = document.getElementById('loginForm');
-    const usuarioInput = document.getElementById('loginUsuario');
-    const senhaInput = document.getElementById('loginPassword');
-    
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            const usuario = usuarioInput.value.trim();
-            const senha = senhaInput.value;
+            const usuario = document.getElementById('loginUsuario').value.trim();
+            const senha = document.getElementById('loginPassword').value;
             
-            console.log('📤 Formulário enviado:', { usuario: usuario });
+            console.log('Formulário enviado:', { usuario });
             fazerLogin(usuario, senha);
         });
     }
     
-    // Enter para avançar entre campos
-    usuarioInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            senhaInput.focus();
-        }
-    });
-    
-    senhaInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            form.dispatchEvent(new Event('submit'));
-        }
-    });
-    
     // Verificar se há usuário lembrado
     const savedUser = localStorage.getItem('savedUser');
     if (savedUser) {
-        usuarioInput.value = savedUser;
+        document.getElementById('loginUsuario').value = savedUser;
         document.getElementById('rememberMe').checked = true;
-        senhaInput.focus(); // Foca na senha automaticamente
+        document.getElementById('loginPassword').focus();
     } else {
-        usuarioInput.focus(); // Foca no usuário se não tiver salvo
+        document.getElementById('loginUsuario').focus();
     }
     
-    console.log('🚀 SISTEMA DE LOGIN CONFIGURADO');
-    console.log('📊 Usando base: logins-c3407');
-    console.log('📁 Coleção: LOGINS_ORGTAREFAS');
-});
+    // Botão de teste (opcional - pode remover depois)
+    console.log('=== SISTEMA CONFIGURADO ===');
+    console.log('🎯 Estrutura especial detectada: Campos dinâmicos em logins/LOGINS_AVERBSYS');
 
-// Função de logout para limpar dados (se necessário em outras páginas)
-function fazerLogout() {
-    // Tentar atualizar status para offline
-    try {
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-        if (usuarioLogado && window.firebaseApp) {
-            const { db, firebaseModules } = window.firebaseApp;
-            const { doc, updateDoc } = firebaseModules;
-            
-            const userRef = doc(db, 'LOGINS_ORGTAREFAS', usuarioLogado.id);
-            updateDoc(userRef, {
-                isOnline: false,
-                ultimoLogout: new Date().toISOString()
-            }).catch(e => console.warn('Não foi possível atualizar logout:', e));
-        }
-    } catch (error) {
-        console.warn('Erro ao tentar logout remoto:', error);
-    }
-    
-    // Limpar localStorage
-    localStorage.removeItem('usuarioLogado');
-    console.log('👋 Logout realizado');
-}
+});
