@@ -446,31 +446,19 @@ async function carregarUsuarios() {
                 console.log('✅ Usuários carregados do LOGINS:', usuarios.length);
                 
             } else {
-                console.log('⚠️ Documento LOGINS_ORGTAREFAS não encontrado, usando fallback');
-                throw new Error('Documento não encontrado');
+                console.log('❌ Documento LOGINS_ORGTAREFAS não encontrado no banco LOGINS');
+                // NÃO tentar fallback para ORGTAREFAS
+                usuarios = [];
             }
         } else {
-            throw new Error('Banco LOGINS não disponível');
+            console.log('❌ Banco LOGINS não disponível');
+            usuarios = [];
         }
         
     } catch (error) {
-        console.log('⚠️ Fallback: Carregando usuários do banco ORGTAREFAS...');
-        
-        // Fallback: carregar do banco ORGTAREFAS
-        try {
-            const snapshot = await db.collection("usuarios").get();
-            
-            usuarios = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            console.log('✅ Usuários carregados do ORGTAREFAS (fallback):', usuarios.length);
-            
-        } catch (fallbackError) {
-            console.error('❌ Erro ao carregar usuários (fallback):', fallbackError);
-            usuarios = [];
-        }
+        console.error('❌ Erro ao carregar usuários do LOGINS:', error);
+        // NÃO tentar fallback para ORGTAREFAS
+        usuarios = [];
     }
     
     // AGORA CARREGAR OS GRUPOS DO USUÁRIO LOGADO
