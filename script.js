@@ -306,7 +306,7 @@ async function carregarGruposDoUsuarioLogado() {
         console.log(`📊 Total de grupos no sistema: ${gruposSnapshot.docs.length}`);
         
         const gruposDoUsuario = [];
-        
+    
         // DEBUG: Mostrar todos os grupos e suas estruturas
         gruposSnapshot.forEach(doc => {
             const grupoData = doc.data();
