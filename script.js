@@ -203,7 +203,6 @@ async function inicializarSistema() {
         // Tornar estatísticas clicáveis (sem notificação)
         setTimeout(() => {
             criarEstatisticasClicaveis();
-            adicionarCSSEstatisticasSimples();
         }, 1000);
         
         // VERIFICAR SE É A PÁGINA HOME (index.html) ANTES DE INICIAR ALERTAS
