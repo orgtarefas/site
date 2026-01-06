@@ -7,67 +7,9 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="teste.css">
-    
-    <!-- Prevenir erros do script.js ANTES de carregá-lo -->
-    <script>
-        // Proteger funções antes do script.js carregar
-        (function() {
-            console.log('🛡️ Configurando proteção para script.js...');
-            
-            // Função para verificar se estamos na página teste
-            window.isTestPage = function() {
-                return window.location.pathname.includes('teste.html');
-            };
-            
-            // Sobrescrever funções problemáticas se estiver na página teste
-            if (window.isTestPage()) {
-                // Estas funções serão sobrescritas ANTES do script.js carregar
-                window._protecaoAtiva = true;
-                
-                // Funções que serão protegidas
-                const funcoesParaProteger = [
-                    'atualizarListaTarefas',
-                    'criarEstatisticasClicaveis', 
-                    'atualizarEstatisticas',
-                    'atualizarInterface',
-                    'configurarDataMinima',
-                    'limparFormulario',
-                    'salvarTarefa',
-                    'excluirTarefa',
-                    'adicionarAtividade',
-                    'alternarAtividade',
-                    'atualizarAtividadeTexto',
-                    'removerAtividade',
-                    'abrirModalTarefa',
-                    'fecharModalTarefa'
-                ];
-                
-                // Criar versões seguras
-                funcoesParaProteger.forEach(funcao => {
-                    window[funcao] = function() {
-                        console.log(`ℹ️ ${funcao}() chamada - Ignorada na página teste`);
-                        return null;
-                    };
-                });
-                
-                // Proteger específicas que podem causar erros
-                window.atualizarListaTarefas = function() {
-                    console.log('ℹ️ atualizarListaTarefas() - Página teste não tem container de tarefas');
-                    return Promise.resolve();
-                };
-                
-                window.criarEstatisticasClicaveis = function() {
-                    console.log('ℹ️ criarEstatisticasClicaveis() - Página teste não tem estatísticas');
-                    return null;
-                };
-                
-                console.log('✅ Proteção ativada para página teste');
-            }
-        })();
-    </script>
 </head>
 <body>
-    <!-- Tela de Carregamento SIMPLIFICADA (sem texto dinâmico) -->
+    <!-- Tela de Carregamento -->
     <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
         <div style="text-align: center;">
             <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
@@ -76,7 +18,7 @@
     </div>
 
     <div class="container" id="mainContent" style="display: none;">
-        <!-- CABEÇALHO PROFISSIONAL (VERSÃO SIMPLIFICADA) -->
+        <!-- CABEÇALHO PROFISSIONAL -->
         <header class="home-header">
             <div class="header-full">
                 <!-- Logo à esquerda -->
@@ -102,7 +44,7 @@
                         </button>
                     </div>
                     
-                    <!-- Status e informações do usuário (SIMPLIFICADO) -->
+                    <!-- Status e informações do usuário -->
                     <div class="header-status">
                         <!-- Container para os sinos lado a lado -->
                         <div class="alert-bells-container">
@@ -122,7 +64,7 @@
                             </div>
                         </div>
                         
-                        <!-- Status de conexão SIMPLIFICADO -->
+                        <!-- Status de conexão -->
                         <span class="status-sync">
                             <i class="fas fa-bolt"></i> Conectado
                         </span>
@@ -185,66 +127,54 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
-    <!-- Carregar script.js de forma CONTROLADA -->
+    <!-- Carregar script.js de forma segura -->
     <script>
-        // Carregar script.js com proteção
-        function carregarScriptJS() {
-            console.log('📦 Carregando script.js com proteção...');
-            
-            return new Promise((resolve) => {
-                const script = document.createElement('script');
-                script.src = 'script.js';
-                
-                script.onload = function() {
-                    console.log('✅ script.js carregado');
-                    
-                    // Restaurar funções importantes do cabeçalho
-                    if (window._protecaoAtiva) {
-                        console.log('🔄 Restaurando funções do cabeçalho...');
-                        
-                        // Funções que PRECISAM funcionar (cabeçalho)
-                        const funcoesCabeçalho = [
-                            'abrirAlertasObservador',
-                            'abrirAlertasResponsavel',
-                            'logout',
-                            'verificarAlertas',
-                            'verificarAlertasObservador',
-                            'verificarAlertasResponsavel',
-                            'atualizarContadoresAlertas',
-                            'marcarAlertaComoLido',
-                            'irParaAtividade'
-                        ];
-                        
-                        // Verificar quais estão disponíveis
-                        funcoesCabeçalho.forEach(funcao => {
-                            if (typeof window['_original_' + funcao] === 'function') {
-                                window[funcao] = window['_original_' + funcao];
-                                console.log(`✅ Restaurada: ${funcao}`);
-                            }
-                        });
-                    }
-                    
-                    resolve();
-                };
-                
-                script.onerror = function() {
-                    console.error('❌ Erro ao carregar script.js');
-                    resolve();
-                };
-                
-                document.head.appendChild(script);
-            });
-        }
+        // Proteger funções problemáticas antes de carregar script.js
+        console.log('🛡️ Preparando proteção para script.js...');
         
-        // Iniciar carregamento
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarScriptJS().then(() => {
-                // Agora carregar teste.js
-                const testeScript = document.createElement('script');
-                testeScript.src = 'teste.js';
-                document.head.appendChild(testeScript);
-            });
+        // Salvar referências originais
+        window._originalFunctions = {};
+        
+        // Sobrescrever funções problemáticas
+        const problemFunctions = [
+            'atualizarListaTarefas',
+            'criarEstatisticasClicaveis',
+            'atualizarEstatisticas',
+            'atualizarInterface'
+        ];
+        
+        problemFunctions.forEach(funcName => {
+            window._originalFunctions[funcName] = window[funcName];
+            window[funcName] = function() {
+                console.log(`ℹ️ ${funcName}() - Ignorada na página teste`);
+                return null;
+            };
         });
+        
+        // Agora carregar script.js
+        console.log('📦 Carregando script.js...');
+        const script = document.createElement('script');
+        script.src = 'script.js';
+        
+        script.onload = function() {
+            console.log('✅ script.js carregado com sucesso');
+            
+            // Carregar teste.js após script.js
+            console.log('📦 Carregando teste.js...');
+            const testeScript = document.createElement('script');
+            testeScript.src = 'teste.js';
+            document.head.appendChild(testeScript);
+        };
+        
+        script.onerror = function() {
+            console.error('❌ Falha ao carregar script.js');
+            // Carregar teste.js mesmo sem script.js
+            const testeScript = document.createElement('script');
+            testeScript.src = 'teste.js';
+            document.head.appendChild(testeScript);
+        };
+        
+        document.head.appendChild(script);
     </script>
 </body>
 </html>
