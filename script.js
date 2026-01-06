@@ -246,45 +246,56 @@ function determinarStatusTarefaPorAtividades(atividades) {
     atividades.forEach(atividade => {
         const status = (atividade.status || 'nao_iniciado').toLowerCase().trim();
         
-        switch(status) {
-            case 'nao_iniciado':
-            case 'não iniciado':
-                countNaoIniciado++;
-                break;
-            case 'pendente':
-                countPendente++;
-                break;
-            case 'concluido':
-            case 'concluído':
-                countConcluido++;
-                break;
-            case 'andamento':
-            case 'em andamento':
-                countAndamento++;
-                break;
-            default:
-                countNaoIniciado++;
+        // CORREÇÃO: Verificar TODAS as variações possíveis de cada status
+        if (status === 'nao_iniciado' || status === 'não iniciado' || status === 'nao-iniciado') {
+            countNaoIniciado++;
+        } 
+        else if (status === 'pendente') {
+            countPendente++;
+        }
+        else if (status === 'concluido' || status === 'concluído' || status === 'concluido') {
+            countConcluido++;
+        }
+        else if (status === 'andamento' || status === 'em andamento' || status === 'em_andamento') {
+            countAndamento++;
+        }
+        else {
+            // Se não reconhecer, considera como não iniciado
+            countNaoIniciado++;
         }
     });
+    
+    // DEBUG: Mostrar contagens (descomente para testar)
+    // console.log('📊 Contagem de status:', {
+    //     total: countTotal,
+    //     naoIniciado: countNaoIniciado,
+    //     pendente: countPendente,
+    //     concluido: countConcluido,
+    //     andamento: countAndamento
+    // });
     
     // APLICAR AS REGRAS NA ORDEM CORRETA:
     
     // 1. Se ALGUMA atividade está PENDENTE → Tarefa = "PENDENTE"
     if (countPendente > 0) {
+        // console.log('✅ REGRA 1: Tem atividade pendente → Tarefa = PENDENTE');
         return 'pendente';
     }
     
     // 2. Se TODAS as atividades estão CONCLUÍDAS → Tarefa = "CONCLUÍDO"
     if (countConcluido === countTotal) {
+        // console.log('✅ REGRA 2: Todas concluídas → Tarefa = CONCLUÍDO');
         return 'concluido';
     }
     
     // 3. Se TODAS as atividades estão NÃO INICIADAS → Tarefa = "NÃO INICIADO"
     if (countNaoIniciado === countTotal) {
+        // console.log('✅ REGRA 3: Todas não iniciadas → Tarefa = NÃO INICIADO');
         return 'nao_iniciado';
     }
     
     // 4. Qualquer outra combinação → Tarefa = "EM ANDAMENTO"
+    // console.log('✅ REGRA 4: Mistura de status → Tarefa = EM ANDAMENTO');
     return 'andamento';
 }
 
