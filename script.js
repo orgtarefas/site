@@ -2053,9 +2053,7 @@ function atualizarListaTarefas() {
     
     // Remover destaque de todos os cards de estatística
     document.querySelectorAll('.stat-card').forEach(card => {
-        card.classList.remove('active-filter');
-        card.style.border = '';
-        card.style.boxShadow = '';
+        card.classList.remove('active-filter', 'other-filter');
     });
     
     // Destacar o card correspondente ao filtro ativo
@@ -2087,8 +2085,6 @@ function atualizarListaTarefas() {
             if (card) {
                 const cardElement = card.closest('.stat-card');
                 cardElement.classList.add('active-filter');
-                cardElement.style.border = '2px solid #0078d4';
-                cardElement.style.boxShadow = '0 4px 12px rgba(0, 120, 212, 0.2)';
             }
         }
     } else {
@@ -2097,8 +2093,6 @@ function atualizarListaTarefas() {
         if (card) {
             const cardElement = card.closest('.stat-card');
             cardElement.classList.add('active-filter');
-            cardElement.style.border = '2px solid #0078d4';
-            cardElement.style.boxShadow = '0 4px 12px rgba(0, 120, 212, 0.2)';
             filtroAtivoLabel = 'Total';
         }
     }
@@ -2112,14 +2106,12 @@ function atualizarListaTarefas() {
     const prioridadeAtiva = filterPrioridade && filterPrioridade.value !== '';
     const responsavelAtivo = filterResponsavel && filterResponsavel.value !== '';
     
-    // Se houver outros filtros além do status, mostrar info
+    // Se houver outros filtros além do status, adicionar classe especial
     if (buscaAtiva || prioridadeAtiva || responsavelAtivo) {
         const totalElement = document.getElementById('total-tarefas');
         if (totalElement) {
             const cardElement = totalElement.closest('.stat-card');
-            cardElement.classList.add('active-filter');
-            cardElement.style.border = '2px solid #ff9800';
-            cardElement.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.2)';
+            cardElement.classList.add('other-filter');
         }
     }
     
