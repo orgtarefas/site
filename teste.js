@@ -1,304 +1,505 @@
-// teste.js - Configuração específica da página teste
-// Todas as funções do cabeçalho já estão disponíveis via script.js
+// teste.js - Versão independente que não depende do script.js funcionar completamente
 
-// Inicialização
+console.log('🚀 teste.js - Inicializando sistema independente...');
+
+// Estado global
+let usuarioLogado = null;
+let alertasObservador = [];
+let alertasResponsavel = [];
+
+// Inicialização principal
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 teste.js - Iniciando página de teste...');
+    console.log('📋 DOM carregado, iniciando página teste...');
     
-    // 1. Verificar se script.js carregou corretamente
-    verificarScriptJS();
+    // 1. Inicializar página básica
+    inicializarPaginaBasica();
     
-    // 2. Inicializar página teste
-    inicializarPaginaTeste();
+    // 2. Verificar autenticação
+    verificarEConfigurarUsuario();
+    
+    // 3. Configurar eventos
+    configurarEventosPagina();
+    
+    // 4. Mostrar conteúdo
+    mostrarConteudo();
+    
+    console.log('✅ Página teste inicializada com sucesso');
 });
 
-// Verificar se script.js carregou corretamente
-function verificarScriptJS() {
-    console.log('🔍 Verificando funções do script.js...');
+// Inicialização básica da página
+function inicializarPaginaBasica() {
+    console.log('⚙️ Configurando página básica...');
     
-    // Lista de funções essenciais que devem estar disponíveis
-    const funcoesEssenciais = [
-        'abrirAlertasObservador',
-        'abrirAlertasResponsavel',
-        'logout',
-        'verificarAlertas',
-        'atualizarContadoresAlertas'
-    ];
+    // Configurar alertas básicos
+    inicializarAlertasBasicos();
     
-    let todasDisponiveis = true;
+    // Configurar fechamento de dropdowns
+    configurarFechamentoDropdowns();
     
-    funcoesEssenciais.forEach(funcao => {
-        if (typeof window[funcao] !== 'function') {
-            console.error(`❌ ${funcao} não está disponível`);
-            todasDisponiveis = false;
-        }
-    });
-    
-    if (todasDisponiveis) {
-        console.log('✅ Todas funções do script.js disponíveis');
-        return true;
-    } else {
-        console.error('❌ script.js não carregou corretamente');
-        mostrarErro('Erro ao carregar sistema. Recarregue a página.');
-        return false;
-    }
+    // Atualizar status inicial
+    atualizarStatusSistema('Sistema inicializado');
 }
 
-// Inicializar página teste
-function inicializarPaginaTeste() {
-    console.log('⚙️ Inicializando página teste...');
-    
-    // 1. Verificar autenticação
-    const usuarioLogado = verificarAutenticacao();
-    if (!usuarioLogado) return;
-    
-    // 2. Atualizar interface com dados do usuário
-    atualizarInterfaceUsuario(usuarioLogado);
-    
-    // 3. Configurar eventos específicos da página
-    configurarEventosTeste();
-    
-    // 4. Iniciar verificação de alertas
-    iniciarVerificacaoAlertas();
-    
-    // 5. Mostrar conteúdo da página
-    mostrarConteudoPagina();
-    
-    console.log('✅ Página teste inicializada');
-}
-
-// Verificar autenticação
-function verificarAutenticacao() {
-    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+// Verificar e configurar usuário
+function verificarEConfigurarUsuario() {
+    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     
     if (!usuarioLogado) {
-        console.log('❌ Usuário não logado, redirecionando...');
-        window.location.href = 'login.html';
-        return null;
+        console.log('❌ Usuário não logado');
+        mostrarErro('Usuário não autenticado. Redirecionando...');
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2000);
+        return;
     }
     
-    console.log('👤 Usuário logado:', usuarioLogado.nome);
-    return usuarioLogado;
+    console.log('✅ Usuário logado:', usuarioLogado.nome);
+    
+    // Atualizar interface
+    atualizarInterfaceUsuario();
+    
+    // Tentar usar funções do script.js se disponíveis
+    tentarUsarScriptJS();
 }
 
-// Atualizar interface com dados do usuário
-function atualizarInterfaceUsuario(usuarioLogado) {
-    // Atualizar nome no cabeçalho (o script.js já faz isso, mas garantimos)
+// Atualizar interface do usuário
+function atualizarInterfaceUsuario() {
+    if (!usuarioLogado) return;
+    
+    // Atualizar nome no cabeçalho
     const userNameElement = document.getElementById('userName');
     if (userNameElement) {
         userNameElement.textContent = usuarioLogado.nome;
     }
     
-    // Atualizar nome no conteúdo da página
+    // Atualizar nome no conteúdo
     const displayUserElement = document.getElementById('displayUserName');
     if (displayUserElement) {
         displayUserElement.textContent = usuarioLogado.nome || usuarioLogado.usuario;
     }
     
-    // Atualizar status do sistema
-    atualizarStatusSistema('Sistema carregado com sucesso');
+    // Atualizar status
+    atualizarStatusSistema(`Usuário: ${usuarioLogado.usuario}`);
 }
 
-// Configurar eventos específicos da página teste
-function configurarEventosTeste() {
-    console.log('🔧 Configurando eventos da página teste...');
+// Tentar usar funções do script.js se disponíveis
+function tentarUsarScriptJS() {
+    console.log('🔍 Verificando funções do script.js...');
     
-    // Configurar botão de informações do usuário
-    const btnInfoUsuario = document.querySelector('.btn-teste');
-    if (btnInfoUsuario && btnInfoUsuario.onclick) {
-        // Se já tem onclick no HTML, não sobrescrever
-        console.log('✅ Botão de informações já configurado no HTML');
+    // Lista de funções que gostaríamos de usar do script.js
+    const funcoesDesejadas = [
+        'abrirAlertasObservador',
+        'abrirAlertasResponsavel',
+        'verificarAlertas',
+        'atualizarContadoresAlertas',
+        'logout'
+    ];
+    
+    let funcoesDisponiveis = 0;
+    
+    funcoesDesejadas.forEach(funcao => {
+        if (typeof window[funcao] === 'function') {
+            console.log(`✅ ${funcao} disponível do script.js`);
+            funcoesDisponiveis++;
+        }
+    });
+    
+    if (funcoesDisponiveis > 0) {
+        console.log(`🎯 ${funcoesDisponiveis}/${funcoesDesejadas.length} funções disponíveis do script.js`);
+        
+        // Se verificarAlertas estiver disponível, usar
+        if (typeof window.verificarAlertas === 'function') {
+            setTimeout(() => {
+                console.log('🔔 Usando verificarAlertas do script.js...');
+                try {
+                    window.verificarAlertas();
+                } catch (error) {
+                    console.error('Erro ao chamar verificarAlertas:', error);
+                }
+            }, 1500);
+        }
+    } else {
+        console.log('ℹ️ Nenhuma função do script.js disponível, usando sistema local');
     }
+}
+
+// Configurar eventos da página
+function configurarEventosPagina() {
+    console.log('🔧 Configurando eventos da página...');
     
-    // Configurar botão de verificar status
-    const btnStatus = document.querySelectorAll('.btn-teste')[1];
-    if (btnStatus) {
-        btnStatus.addEventListener('click', verificarStatusCompleto);
-    }
+    // Configurar botões
+    const botoes = document.querySelectorAll('.btn-teste');
+    botoes.forEach((botao, index) => {
+        botao.addEventListener('click', function() {
+            console.log(`🔘 Botão ${index + 1} clicado: ${this.textContent.trim()}`);
+        });
+    });
+}
+
+// Mostrar conteúdo da página
+function mostrarConteudo() {
+    setTimeout(() => {
+        const loading = document.getElementById('loadingScreen');
+        const content = document.getElementById('mainContent');
+        
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = 'block';
+        
+        console.log('✅ Conteúdo exibido');
+        atualizarStatusSistema('Página carregada com sucesso');
+    }, 800);
+}
+
+// ===== SISTEMA DE ALERTAS (LOCAL) =====
+
+// Inicializar alertas básicos
+function inicializarAlertasBasicos() {
+    console.log('🔔 Inicializando sistema de alertas local...');
     
-    // Configurar fechamento de dropdowns ao clicar fora
+    // Inicializar contadores zerados
+    const contadores = [
+        { id: 'observadorAlertCount', valor: 0 },
+        { id: 'responsavelAlertCount', valor: 0 }
+    ];
+    
+    contadores.forEach(contador => {
+        const elemento = document.getElementById(contador.id);
+        if (elemento) {
+            elemento.textContent = contador.valor;
+            elemento.style.display = 'none';
+        }
+    });
+    
+    // Criar alguns alertas de exemplo
+    criarAlertasExemplo();
+}
+
+// Criar alertas de exemplo
+function criarAlertasExemplo() {
+    alertasObservador = [
+        {
+            id: 'exemplo_1',
+            titulo: 'Sistema de Teste Ativo',
+            descricao: 'Página teste carregada com sucesso',
+            data: new Date(),
+            tipo: 'info'
+        }
+    ];
+    
+    alertasResponsavel = [
+        {
+            id: 'exemplo_2',
+            titulo: 'Demonstração de Alertas',
+            descricao: 'Clique nos sinos para testar',
+            data: new Date(),
+            tipo: 'info'
+        }
+    ];
+}
+
+// Configurar fechamento de dropdowns
+function configurarFechamentoDropdowns() {
     document.addEventListener('click', function(event) {
         const containers = document.querySelectorAll('.alerts-container.show');
-        let cliqueDentroAlerta = false;
+        let cliqueDentro = false;
         
         containers.forEach(container => {
             if (container.contains(event.target)) {
-                cliqueDentroAlerta = true;
+                cliqueDentro = true;
             }
         });
         
-        if (!cliqueDentroAlerta) {
+        if (!cliqueDentro) {
             containers.forEach(container => {
                 container.classList.remove('show');
             });
         }
     });
-    
-    console.log('✅ Eventos configurados');
 }
 
-// Iniciar verificação de alertas
-function iniciarVerificacaoAlertas() {
-    console.log('🔔 Iniciando verificação de alertas...');
+// ===== FUNÇÕES DO CABEÇALHO =====
+
+// Função para abrir alertas de observador
+function abrirAlertasObservadorTeste() {
+    console.log('👁️ Abrindo alertas de observador...');
     
-    // Usar a função verificarAlertas do script.js
-    if (typeof window.verificarAlertas === 'function') {
-        // Aguardar 2 segundos para o Firebase inicializar completamente
-        setTimeout(() => {
-            console.log('📊 Verificando alertas...');
-            window.verificarAlertas();
+    const container = document.getElementById('observadorAlertsContainer');
+    if (!container) return;
+    
+    // Fechar outros dropdowns
+    document.querySelectorAll('.alerts-container.show').forEach(other => {
+        if (other !== container) other.classList.remove('show');
+    });
+    
+    // Alternar este dropdown
+    container.classList.toggle('show');
+    
+    // Verificar se podemos usar a função do script.js
+    if (typeof window.abrirAlertasObservador === 'function' && 
+        window.abrirAlertasObservador !== abrirAlertasObservadorTeste) {
+        console.log('🎯 Usando função real do script.js');
+        try {
+            window.abrirAlertasObservador();
+            return;
+        } catch (error) {
+            console.error('Erro ao usar função do script.js:', error);
+        }
+    }
+    
+    // Usar sistema local
+    mostrarAlertasLocais('observador');
+}
+
+// Função para abrir alertas de responsável
+function abrirAlertasResponsavelTeste() {
+    console.log('🔔 Abrindo alertas de responsável...');
+    
+    const container = document.getElementById('responsavelAlertsContainer');
+    if (!container) return;
+    
+    // Fechar outros dropdowns
+    document.querySelectorAll('.alerts-container.show').forEach(other => {
+        if (other !== container) other.classList.remove('show');
+    });
+    
+    // Alternar este dropdown
+    container.classList.toggle('show');
+    
+    // Verificar se podemos usar a função do script.js
+    if (typeof window.abrirAlertasResponsavel === 'function' && 
+        window.abrirAlertasResponsavel !== abrirAlertasResponsavelTeste) {
+        console.log('🎯 Usando função real do script.js');
+        try {
+            window.abrirAlertasResponsavel();
+            return;
+        } catch (error) {
+            console.error('Erro ao usar função do script.js:', error);
+        }
+    }
+    
+    // Usar sistema local
+    mostrarAlertasLocais('responsavel');
+}
+
+// Mostrar alertas locais
+function mostrarAlertasLocais(tipo) {
+    const alertas = tipo === 'observador' ? alertasObservador : alertasResponsavel;
+    const containerId = tipo === 'observador' ? 'observadorAlertsContainer' : 'responsavelAlertsContainer';
+    
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    // Criar dropdown se não existir
+    let dropdown = container.querySelector('.alert-dropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'alert-dropdown';
+        dropdown.innerHTML = `
+            <div class="alert-dropdown-header">
+                <h4><i class="fas fa-${tipo === 'observador' ? 'eye' : 'bell'}"></i> 
+                    ${tipo === 'observador' ? 'Alertas de Observador' : 'Alertas de Responsável'}
+                </h4>
+            </div>
+            <div class="alert-dropdown-content" id="${tipo}AlertListLocal">
+                <div class="no-alerts">Carregando...</div>
+            </div>
+        `;
+        container.appendChild(dropdown);
+    }
+    
+    // Mostrar alertas
+    const alertList = document.getElementById(`${tipo}AlertListLocal`);
+    if (alertList) {
+        if (alertas.length === 0) {
+            alertList.innerHTML = '<div class="no-alerts">Nenhum alerta</div>';
+        } else {
+            const alertasHTML = alertas.map(alerta => `
+                <div class="alert-item">
+                    <div class="alert-item-header">
+                        <div class="alert-item-title">
+                            <i class="fas fa-${alerta.tipo === 'info' ? 'info-circle' : 'exclamation-circle'}"></i>
+                            ${alerta.titulo}
+                        </div>
+                        <div class="alert-item-time">${formatarTempoAtras(alerta.data)}</div>
+                    </div>
+                    <div class="alert-item-body">${alerta.descricao}</div>
+                </div>
+            `).join('');
             
-            // Atualizar contadores
-            if (typeof window.atualizarContadoresAlertas === 'function') {
-                window.atualizarContadoresAlertas();
-            }
-        }, 2000);
+            alertList.innerHTML = alertasHTML;
+        }
     }
 }
 
-// Mostrar conteúdo da página
-function mostrarConteudoPagina() {
-    setTimeout(() => {
-        const loadingScreen = document.getElementById('loadingScreen');
-        const mainContent = document.getElementById('mainContent');
-        
-        if (loadingScreen) {
-            loadingScreen.style.display = 'none';
+// Função logout
+function logoutTeste() {
+    console.log('🚪 Executando logout...');
+    
+    if (confirm('Deseja realmente sair do sistema?')) {
+        // Tentar usar função do script.js se disponível
+        if (typeof window.logout === 'function' && window.logout !== logoutTeste) {
+            try {
+                window.logout();
+                return;
+            } catch (error) {
+                console.error('Erro ao usar logout do script.js:', error);
+            }
         }
         
-        if (mainContent) {
-            mainContent.style.display = 'block';
-        }
-        
-        console.log('✅ Conteúdo da página exibido');
-    }, 1000);
+        // Logout local
+        localStorage.removeItem('usuarioLogado');
+        window.location.href = 'login.html';
+    }
 }
 
-// ===== FUNÇÕES ESPECÍFICAS DA PÁGINA TESTE =====
+// ===== FUNÇÕES DA PÁGINA TESTE =====
 
-// Função para mostrar informações do usuário
+// Mostrar informações do usuário
 function mostrarInfoUsuario() {
-    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    
     if (!usuarioLogado) {
-        alert('Usuário não está logado!');
+        alert('Nenhum usuário logado!');
         return;
     }
     
-    const mensagem = `
-        📋 INFORMAÇÕES DO USUÁRIO:
+    const info = `
+        👤 NOME: ${usuarioLogado.nome || 'Não informado'}
+        🔑 USUÁRIO: ${usuarioLogado.usuario}
+        📧 EMAIL: ${usuarioLogado.email || 'Não informado'}
+        👥 GRUPOS: ${usuarioLogado.grupos ? usuarioLogado.grupos.length : 0}
+        🔐 PERFIL: ${usuarioLogado.perfil || 'Padrão'}
         
-        👤 Nome: ${usuarioLogado.nome || 'Não informado'}
-        🔑 Usuário: ${usuarioLogado.usuario}
-        📧 Email: ${usuarioLogado.email || 'Não informado'}
-        👥 Grupos: ${usuarioLogado.grupos ? usuarioLogado.grupos.length : 0}
-        🔐 Perfil: ${usuarioLogado.perfil || 'Padrão'}
-        
-        ✅ Página usando funções do script.js
+        📍 PÁGINA: Teste (sistema independente)
     `;
     
-    alert(mensagem);
-    
-    // Mostrar também na página
-    atualizarStatusSistema(`Informações carregadas: ${usuarioLogado.usuario}`);
+    alert(info);
+    atualizarStatusSistema('Informações exibidas');
 }
 
-// Função para verificar status completo
-function verificarStatusCompleto() {
-    console.log('🔍 Verificando status completo...');
+// Atualizar usuário
+function atualizarUsuario() {
+    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuarioLogado) {
+        atualizarInterfaceUsuario();
+        atualizarStatusSistema('Usuário atualizado');
+    } else {
+        alert('Usuário não encontrado!');
+    }
+}
+
+// Verificar status do sistema
+function verificarStatusSistema() {
+    console.log('🔍 Verificando status do sistema...');
     
-    // Verificar localStorage
-    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    const temUsuario = !!usuarioLogado;
-    
-    // Verificar funções do script.js
-    const funcoesDisponiveis = typeof window.abrirAlertasObservador === 'function' &&
-                               typeof window.abrirAlertasResponsavel === 'function' &&
-                               typeof window.logout === 'function';
-    
-    // Verificar elementos da página
-    const elementosExistentes = {
-        'Cabeçalho': !!document.querySelector('.home-header'),
-        'Sinos de Alerta': !!document.querySelector('.alert-bells-container'),
-        'Conteúdo': !!document.querySelector('.content-area')
+    // Coletar informações
+    const info = {
+        usuario: !!usuarioLogado,
+        localStorage: !!localStorage.getItem('usuarioLogado'),
+        scriptJS: typeof window.abrirAlertasObservador === 'function',
+        alertasObservador: alertasObservador.length,
+        alertasResponsavel: alertasResponsavel.length,
+        timestamp: new Date().toLocaleTimeString()
     };
-    
-    // Montar mensagem de status
-    let statusHTML = `
-        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin-top: 10px;">
-            <h4 style="margin: 0 0 10px 0; color: #27ae60;">
-                <i class="fas fa-check-circle"></i> Status do Sistema
-            </h4>
-            <div style="font-size: 14px; line-height: 1.6;">
-                <div><strong>Usuário:</strong> ${temUsuario ? '✅ Logado' : '❌ Não logado'}</div>
-                <div><strong>Funções script.js:</strong> ${funcoesDisponiveis ? '✅ Disponíveis' : '❌ Indisponíveis'}</div>
-                <div><strong>Elementos da página:</strong></div>
-    `;
-    
-    Object.keys(elementosExistentes).forEach(elemento => {
-        statusHTML += `<div style="margin-left: 20px;">${elemento}: ${elementosExistentes[elemento] ? '✅' : '❌'}</div>`;
-    });
-    
-    statusHTML += `
-                <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                    <i class="fas fa-clock"></i> Verificado em: ${new Date().toLocaleTimeString()}
-                </div>
-            </div>
-        </div>
-    `;
     
     // Atualizar na página
     const statusElement = document.getElementById('statusSistema');
     if (statusElement) {
-        statusElement.innerHTML = statusHTML;
+        statusElement.innerHTML = `
+            <div class="status-info">
+                <h4><i class="fas fa-check-circle text-success"></i> Status do Sistema</h4>
+                <ul>
+                    <li><strong>Usuário:</strong> ${info.usuario ? '✅ Logado' : '❌ Não logado'}</li>
+                    <li><strong>LocalStorage:</strong> ${info.localStorage ? '✅ OK' : '❌ Vazio'}</li>
+                    <li><strong>Script.js:</strong> ${info.scriptJS ? '✅ Disponível' : '❌ Indisponível'}</li>
+                    <li><strong>Alertas Observador:</strong> ${info.alertasObservador}</li>
+                    <li><strong>Alertas Responsável:</strong> ${info.alertasResponsavel}</li>
+                    <li><strong>Verificado em:</strong> ${info.timestamp}</li>
+                </ul>
+            </div>
+        `;
     }
     
-    // Mostrar alerta também
-    alert('Status verificado com sucesso!\nVerifique os detalhes na página.');
+    // Também mostrar alerta
+    alert(`Status verificado:\nUsuário: ${info.usuario ? 'OK' : 'FALHA'}\nScript.js: ${info.scriptJS ? 'OK' : 'FALHA'}`);
 }
 
-// Função auxiliar para atualizar status na página
+// Testar alertas
+function testarAlertas() {
+    console.log('🧪 Testando sistema de alertas...');
+    
+    // Adicionar alerta de teste
+    const novoAlerta = {
+        id: 'teste_' + Date.now(),
+        titulo: 'Teste de Sistema',
+        descricao: 'Este é um alerta de teste gerado manualmente',
+        data: new Date(),
+        tipo: 'info'
+    };
+    
+    alertasObservador.unshift(novoAlerta);
+    
+    // Atualizar contador
+    const contador = document.getElementById('observadorAlertCount');
+    if (contador) {
+        contador.textContent = alertasObservador.length;
+        contador.style.display = 'flex';
+    }
+    
+    atualizarStatusSistema('Alerta de teste adicionado');
+    alert('✅ Alerta de teste adicionado!\nClique no sino de observador para ver.');
+}
+
+// Atualizar status na página
 function atualizarStatusSistema(mensagem) {
+    const alertStatus = document.getElementById('alertStatus');
+    if (alertStatus) {
+        alertStatus.textContent = mensagem;
+        alertStatus.className = 'status-indicator active';
+        
+        // Resetar após 3 segundos
+        setTimeout(() => {
+            alertStatus.className = 'status-indicator';
+        }, 3000);
+    }
+}
+
+// Mostrar erro
+function mostrarErro(mensagem) {
+    console.error('❌ Erro:', mensagem);
     const statusElement = document.getElementById('statusSistema');
     if (statusElement) {
         statusElement.innerHTML = `
-            <div style="background: #e3f2fd; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #1976d2;">
-                <i class="fas fa-info-circle"></i> ${mensagem}
-            </div>
-        `;
-    }
-}
-
-// Função para mostrar erro
-function mostrarErro(mensagem) {
-    const loadingText = document.getElementById('loadingText');
-    if (loadingText) {
-        loadingText.innerHTML = `
-            <div style="color: #e74c3c;">
+            <div class="status-error">
                 <i class="fas fa-exclamation-triangle"></i> ${mensagem}
             </div>
-            <button onclick="window.location.reload()" style="
-                margin-top: 10px;
-                padding: 8px 16px;
-                background: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-            ">
-                <i class="fas fa-sync-alt"></i> Tentar Novamente
-            </button>
         `;
     }
 }
 
-// Função para verificar status (chamada pelo botão)
-function verificarStatus() {
-    verificarStatusCompleto();
+// ===== FUNÇÕES UTILITÁRIAS =====
+
+// Formatar tempo atrás
+function formatarTempoAtras(data) {
+    const agora = new Date();
+    const dataAlerta = new Date(data);
+    const diferencaMinutos = Math.floor((agora - dataAlerta) / (1000 * 60));
+    
+    if (diferencaMinutos < 1) return 'Agora mesmo';
+    if (diferencaMinutos < 60) return `${diferencaMinutos} min atrás`;
+    
+    const diferencaHoras = Math.floor(diferencaMinutos / 60);
+    if (diferencaHoras < 24) return `${diferencaHoras} h atrás`;
+    
+    const diferencaDias = Math.floor(diferencaHoras / 24);
+    return `${diferencaDias} d atrás`;
 }
 
-// As funções abrirAlertasObservador(), abrirAlertasResponsavel() e logout()
-// já estão disponíveis globalmente via script.js
-// NÃO precisamos recriá-las aqui!
+// Exportar funções para uso global
+window.abrirAlertasObservador = abrirAlertasObservadorTeste;
+window.abrirAlertasResponsavel = abrirAlertasResponsavelTeste;
+window.logout = logoutTeste;
+window.mostrarInfoUsuario = mostrarInfoUsuario;
+window.atualizarUsuario = atualizarUsuario;
+window.verificarStatusSistema = verificarStatusSistema;
+window.testarAlertas = testarAlertas;
 
-console.log('✅ teste.js carregado');
+console.log('✅ teste.js - Todas funções carregadas e prontas');
