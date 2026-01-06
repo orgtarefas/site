@@ -1,13 +1,11 @@
-/* teste.css - Estilos específicos para a página teste */
+/* teste.css - Estilos para a página teste */
 
-/* CONTEÚDO PRINCIPAL DA PÁGINA TESTE */
 .content-area {
     background: white;
     border-radius: 10px;
     padding: 30px;
     margin-top: 25px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    animation: fadeIn 0.5s ease;
 }
 
 .content-area h1 {
@@ -25,38 +23,25 @@
     font-size: 1rem;
 }
 
-/* CARDS DE TESTE */
 .teste-card {
     background: white;
     border-radius: 8px;
-    padding: 20px;
+    padding: 25px;
     margin: 20px 0;
     border: 1px solid #e9ecef;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     border-left: 4px solid #3498db;
-}
-
-.teste-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-left-color: #2980b9;
 }
 
 .teste-card h3 {
     color: #2c3e50;
-    margin-bottom: 10px;
-    font-size: 1.2rem;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.teste-card h3 i {
-    font-size: 1.1rem;
-}
-
-/* BOTÕES DE TESTE */
 .btn-teste {
     background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     color: white;
@@ -70,7 +55,6 @@
     align-items: center;
     gap: 8px;
     font-size: 0.9rem;
-    margin-top: 10px;
 }
 
 .btn-teste:hover {
@@ -79,45 +63,17 @@
     box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
 }
 
-.btn-teste:active {
-    transform: translateY(0);
-}
-
-/* UTILITÁRIOS DE CORES */
-.text-primary {
-    color: #3498db !important;
-    font-weight: 600;
+.mt-3 {
+    margin-top: 1rem;
 }
 
 .text-success {
     color: #27ae60 !important;
 }
 
-.text-warning {
-    color: #f39c12 !important;
-}
-
-.text-danger {
-    color: #e74c3c !important;
-}
-
-/* ANIMAÇÕES */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* RESPONSIVIDADE */
 @media (max-width: 768px) {
     .content-area {
         padding: 20px;
-        margin-top: 15px;
     }
     
     .content-area h1 {
@@ -125,83 +81,6 @@
     }
     
     .teste-card {
-        padding: 15px;
-        margin: 15px 0;
+        padding: 20px;
     }
-    
-    .btn-teste {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .content-area {
-        padding: 15px;
-    }
-    
-    .content-area h1 {
-        font-size: 1.3rem;
-    }
-    
-    .teste-card h3 {
-        font-size: 1.1rem;
-    }
-}
-
-/* MENSAGENS DE STATUS */
-.status-message {
-    padding: 10px 15px;
-    border-radius: 6px;
-    margin: 10px 0;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.status-message.info {
-    background-color: #e3f2fd;
-    color: #1976d2;
-    border-left: 4px solid #1976d2;
-}
-
-.status-message.success {
-    background-color: #e8f5e9;
-    color: #2e7d32;
-    border-left: 4px solid #2e7d32;
-}
-
-.status-message.warning {
-    background-color: #fff3e0;
-    color: #f57c00;
-    border-left: 4px solid #f57c00;
-}
-
-/* LISTAS */
-.info-list {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-}
-
-.info-list li {
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: space-between;
-}
-
-.info-list li:last-child {
-    border-bottom: none;
-}
-
-.info-list .label {
-    font-weight: 600;
-    color: #555;
-}
-
-.info-list .value {
-    color: #2c3e50;
-    font-weight: 500;
 }
