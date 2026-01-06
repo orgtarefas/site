@@ -199,6 +199,12 @@ async function inicializarSistema() {
         
         await carregarGrupos(); // Esta carrega todos os grupos do sistema
         configurarFirebase();
+
+        // Tornar estatísticas clicáveis (sem notificação)
+        setTimeout(() => {
+            criarEstatisticasClicaveis();
+            adicionarCSSEstatisticasSimples();
+        }, 1000);
         
         // VERIFICAR SE É A PÁGINA HOME (index.html) ANTES DE INICIAR ALERTAS
         const isHomePage = window.location.pathname.includes('index.html') || 
@@ -227,6 +233,70 @@ async function inicializarSistema() {
         document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline';
         mostrarErro('Erro ao conectar com o banco de dados');
     }
+}
+
+// Função para tornar estatísticas clicáveis 
+function criarEstatisticasClicaveis() {
+    const estatisticas = [
+        { id: 'total-tarefas', status: 'todos', label: 'Total de Tarefas' },
+        { id: 'tarefas-naoiniciadas', status: 'nao_iniciado', label: 'Não Iniciadas' },
+        { id: 'tarefas-pendentes', status: 'pendente', label: 'Pendentes' },
+        { id: 'tarefas-andamento', status: 'andamento', label: 'Em Andamento' },
+        { id: 'tarefas-concluidas', status: 'concluido', label: 'Concluídas' }
+    ];
+    
+    estatisticas.forEach(estatistica => {
+        const card = document.querySelector(`#${estatistica.id}`).closest('.stat-card');
+        if (card) {
+            // Adicionar cursor pointer
+            card.style.cursor = 'pointer';
+            
+            // Adicionar efeito hover simples
+            card.addEventListener('mouseenter', function() {
+                this.style.opacity = '0.9';
+                this.style.transform = 'translateY(-2px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.opacity = '1';
+                this.style.transform = 'translateY(0)';
+            });
+            
+            // Adicionar evento de clique DIRETO
+            card.addEventListener('click', function() {
+                aplicarFiltroStatus(estatistica.status);
+            });
+        }
+    });
+}
+
+// Função para aplicar filtro por status (SEM NOTIFICAÇÃO)
+function aplicarFiltroStatus(status) {
+    // Atualizar o filtro de status no select
+    const filterStatus = document.getElementById('filterStatus');
+    if (filterStatus) {
+        filterStatus.value = status === 'todos' ? '' : status;
+    }
+    
+    // Limpar outros filtros (opcional)
+    const searchInput = document.getElementById('searchInput');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    if (searchInput) searchInput.value = '';
+    if (filterPrioridade) filterPrioridade.value = '';
+    if (filterResponsavel) filterResponsavel.value = '';
+    
+    // Atualizar lista de tarefas
+    atualizarListaTarefas();
+    
+    // Apenas scroll suave para a lista
+    setTimeout(() => {
+        const listaTarefas = document.getElementById('lista-tarefas');
+        if (listaTarefas) {
+            listaTarefas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
 }
 
 // FUNÇÃO: Determinar status da tarefa com base nas atividades
@@ -1976,14 +2046,94 @@ function atualizarListaTarefas() {
     
     //console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
     
+    // ====== NOVO CÓDIGO: DESTACAR FILTRO ATIVO NAS ESTATÍSTICAS ======
+    // Obter status do filtro ativo
+    const filterStatus = document.getElementById('filterStatus');
+    const statusAtivo = filterStatus ? filterStatus.value : '';
+    
+    // Remover destaque de todos os cards de estatística
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.classList.remove('active-filter');
+        card.style.border = '';
+        card.style.boxShadow = '';
+    });
+    
+    // Destacar o card correspondente ao filtro ativo
+    let filtroAtivoLabel = '';
+    
+    if (statusAtivo) {
+        let cardId = '';
+        switch(statusAtivo) {
+            case 'nao_iniciado':
+                cardId = 'tarefas-naoiniciadas';
+                filtroAtivoLabel = 'Não Iniciadas';
+                break;
+            case 'pendente':
+                cardId = 'tarefas-pendentes';
+                filtroAtivoLabel = 'Pendentes';
+                break;
+            case 'andamento':
+                cardId = 'tarefas-andamento';
+                filtroAtivoLabel = 'Em Andamento';
+                break;
+            case 'concluido':
+                cardId = 'tarefas-concluidas';
+                filtroAtivoLabel = 'Concluídas';
+                break;
+        }
+        
+        if (cardId) {
+            const card = document.getElementById(cardId);
+            if (card) {
+                const cardElement = card.closest('.stat-card');
+                cardElement.classList.add('active-filter');
+                cardElement.style.border = '2px solid #0078d4';
+                cardElement.style.boxShadow = '0 4px 12px rgba(0, 120, 212, 0.2)';
+            }
+        }
+    } else {
+        // Se nenhum filtro ativo ou filtro "todos", destacar total
+        const card = document.getElementById('total-tarefas');
+        if (card) {
+            const cardElement = card.closest('.stat-card');
+            cardElement.classList.add('active-filter');
+            cardElement.style.border = '2px solid #0078d4';
+            cardElement.style.boxShadow = '0 4px 12px rgba(0, 120, 212, 0.2)';
+            filtroAtivoLabel = 'Total';
+        }
+    }
+    
+    // Verificar outros filtros ativos (busca, prioridade, responsável)
+    const searchInput = document.getElementById('searchInput');
+    const filterPrioridade = document.getElementById('filterPrioridade');
+    const filterResponsavel = document.getElementById('filterResponsavel');
+    
+    const buscaAtiva = searchInput && searchInput.value.trim() !== '';
+    const prioridadeAtiva = filterPrioridade && filterPrioridade.value !== '';
+    const responsavelAtivo = filterResponsavel && filterResponsavel.value !== '';
+    
+    // Se houver outros filtros além do status, mostrar info
+    if (buscaAtiva || prioridadeAtiva || responsavelAtivo) {
+        const totalElement = document.getElementById('total-tarefas');
+        if (totalElement) {
+            const cardElement = totalElement.closest('.stat-card');
+            cardElement.classList.add('active-filter');
+            cardElement.style.border = '2px solid #ff9800';
+            cardElement.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.2)';
+        }
+    }
+    
     // Se não houver tarefas, mostrar mensagem
     if (tarefasFiltradas.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-tasks"></i>
                 <h3>Nenhuma tarefa encontrada</h3>
-                <p>Clique em "Nova Tarefa" para começar</p>
+                <p>${filtroAtivoLabel ? `Com filtro: ${filtroAtivoLabel}` : 'Clique em "Nova Tarefa" para começar'}</p>
                 <small style="margin-top: 10px; color: #666;">
+                    ${buscaAtiva ? `Busca: "${searchInput.value}"<br>` : ''}
+                    ${prioridadeAtiva ? `Prioridade: ${filterPrioridade.options[filterPrioridade.selectedIndex].text}<br>` : ''}
+                    ${responsavelAtivo ? `Responsável: ${filterResponsavel.options[filterResponsavel.selectedIndex].text}<br>` : ''}
                     Usuário: ${usuarioLogado?.usuario}<br>
                     Grupos: ${usuarioGrupos.join(', ') || 'Nenhum grupo definido'}
                 </small>
@@ -2237,7 +2387,7 @@ function filtrarTarefas(tarefasLista = tarefas) {
             !(tarefa.descricao && tarefa.descricao.toLowerCase().includes(termo))) {
             return false;
         }
-        if (status && tarefa.status !== status) return false;
+        if (status && status !== 'todos' && tarefa.status !== status) return false;
         if (prioridade && tarefa.prioridade !== prioridade) return false;
         if (responsavel && tarefa.responsavel !== responsavel) return false;
         return true;
