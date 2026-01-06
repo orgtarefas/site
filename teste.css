@@ -1,0 +1,98 @@
+/* teste.css - Estilos específicos para a página teste */
+
+/* CONTEÚDO PRINCIPAL DA PÁGINA TESTE */
+.content-area {
+    background: white;
+    border-radius: var(--radius);
+    padding: 30px;
+    margin-top: 25px;
+    box-shadow: var(--shadow);
+}
+
+.content-area h1 {
+    color: var(--primary);
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border);
+}
+
+.content-area p {
+    color: var(--gray);
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+/* ESTILOS ESPECÍFICOS PARA ELEMENTOS DA PÁGINA TESTE */
+/* Adicione aqui os estilos específicos dos elementos da sua página teste */
+
+/* Exemplo de estilos para uma seção de teste */
+.sessao-teste {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+}
+
+.teste-card {
+    background: white;
+    border-radius: var(--radius-sm);
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.teste-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Botões específicos para teste */
+.btn-teste {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-teste:hover {
+    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+}
+
+/* Responsividade específica para teste */
+@media (max-width: 768px) {
+    .content-area {
+        padding: 20px;
+    }
+    
+    .content-area h1 {
+        font-size: 1.5rem;
+    }
+}
+
+/* ANIMAÇÕES ESPECÍFICAS (opcional) */
+@keyframes pulse-teste {
+    0% {
+        box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(155, 89, 182, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(155, 89, 182, 0);
+    }
+}
+
+.animacao-teste {
+    animation: pulse-teste 2s infinite;
+}
