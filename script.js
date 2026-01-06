@@ -275,6 +275,7 @@ function aplicarFiltroStatus(status) {
     // Atualizar o filtro de status no select
     const filterStatus = document.getElementById('filterStatus');
     if (filterStatus) {
+        // Para "todos" usamos valor vazio
         filterStatus.value = status === 'todos' ? '' : status;
     }
     
@@ -1968,14 +1969,45 @@ function atualizarEstatisticas() {
         );
     });
     
-    const total = tarefasVisiveis.length;
-    const naoiniciadas = tarefasVisiveis.filter(t => {
-        const status = t.status ? t.status.toLowerCase().trim() : '';
-        return status === 'nao_iniciado' || status === 'não iniciado';
-    }).length;
-    const pendentes = tarefasVisiveis.filter(t => t.status === 'pendente').length;
-    const andamento = tarefasVisiveis.filter(t => t.status === 'andamento').length;
-    const concluidas = tarefasVisiveis.filter(t => t.status === 'concluido').length;
+    // Contar por status (usando a mesma lógica de normalização da função determinarStatusTarefaPorAtividades)
+    let total = 0;
+    let naoiniciadas = 0;
+    let pendentes = 0;
+    let andamento = 0;
+    let concluidas = 0;
+    
+    tarefasVisiveis.forEach(tarefa => {
+        const status = (tarefa.status || 'nao_iniciado').toLowerCase().trim();
+        
+        // Usar a mesma lógica da função determinarStatusTarefaPorAtividades
+        if (status === 'nao_iniciado' || status === 'não iniciado' || status === 'nao-iniciado') {
+            naoiniciadas++;
+        } 
+        else if (status === 'pendente') {
+            pendentes++;
+        }
+        else if (status === 'andamento' || status === 'em andamento' || status === 'em_andamento') {
+            andamento++;
+        }
+        else if (status === 'concluido' || status === 'concluído' || status === 'concluido') {
+            concluidas++;
+        }
+        else {
+            // Se não reconhecer, considera como não iniciado
+            naoiniciadas++;
+        }
+        
+        total++;
+    });
+
+    // DEBUG: Mostrar contagem (descomente para testar)
+    // console.log('📊 Estatísticas:', {
+    //     total,
+    //     naoiniciadas,
+    //     pendentes,
+    //     andamento,
+    //     concluidas
+    // });
 
     // VERIFICAR SE OS ELEMENTOS EXISTEM ANTES DE ATUALIZAR
     const elementos = {
@@ -1990,6 +2022,9 @@ function atualizarEstatisticas() {
         const elemento = document.getElementById(id);
         if (elemento) {
             elemento.textContent = elementos[id];
+            
+            // Adicionar tooltip com a contagem
+            elemento.title = `${elementos[id]} ${id.replace('tarefas-', '').replace('-', ' ')}`;
         }
     });
 }
@@ -2046,7 +2081,7 @@ function atualizarListaTarefas() {
     
     //console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
     
-    // ====== NOVO CÓDIGO: DESTACAR FILTRO ATIVO NAS ESTATÍSTICAS ======
+    // ====== DESTACAR FILTRO ATIVO NAS ESTATÍSTICAS ======
     // Obter status do filtro ativo
     const filterStatus = document.getElementById('filterStatus');
     const statusAtivo = filterStatus ? filterStatus.value : '';
@@ -2163,9 +2198,10 @@ function atualizarListaTarefas() {
         let atividadesHTML = '';
         
         if (atividadesDaTarefa.length > 0) {
-            const atividadesConcluidas = atividadesDaTarefa.filter(a => 
-                a.status && (a.status.toLowerCase() === 'concluido' || a.status.toLowerCase() === 'concluído')
-            ).length;
+            const atividadesConcluidas = atividadesDaTarefa.filter(a => {
+                const status = (a.status || '').toLowerCase().trim();
+                return status === 'concluido' || status === 'concluído';
+            }).length;
             
             atividadesHTML = `
                 <div class="atividades-sistema">
@@ -2176,8 +2212,8 @@ function atualizarListaTarefas() {
                     <div class="atividades-lista">
                         ${atividadesDaTarefa.map((atividade, index) => {
                             const isConcluida = atividade.status && 
-                                               (atividade.status.toLowerCase() === 'concluido' || 
-                                                atividade.status.toLowerCase() === 'concluído');
+                                               ((atividade.status.toLowerCase() === 'concluido') || 
+                                                (atividade.status.toLowerCase() === 'concluído'));
                             
                             return `
                                 <div class="atividade-item ${isConcluida ? 'concluida' : ''} ${atividade.tipo ? `tipo-${atividade.tipo}` : ''}">
@@ -2375,13 +2411,21 @@ function filtrarTarefas(tarefasLista = tarefas) {
     const responsavel = filterResponsavel ? filterResponsavel.value : '';
 
     return tarefasLista.filter(tarefa => {
+        // Filtro por busca (título ou descrição)
         if (termo && !tarefa.titulo.toLowerCase().includes(termo) && 
             !(tarefa.descricao && tarefa.descricao.toLowerCase().includes(termo))) {
             return false;
         }
-        if (status && status !== 'todos' && tarefa.status !== status) return false;
+        
+        // Filtro por status (se status for vazio, mostra todos)
+        if (status && tarefa.status !== status) return false;
+        
+        // Filtro por prioridade (se prioridade for vazio, mostra todas)
         if (prioridade && tarefa.prioridade !== prioridade) return false;
+        
+        // Filtro por responsável (se responsavel for vazio, mostra todos)
         if (responsavel && tarefa.responsavel !== responsavel) return false;
+        
         return true;
     });
 }
