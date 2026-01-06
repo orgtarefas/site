@@ -2531,3 +2531,13 @@ window.fecharModalTarefa = fecharModalTarefa;
 window.salvarTarefa = salvarTarefa;
 window.excluirTarefa = excluirTarefa;
 window.logout = logout;
+
+//novas funções globais para headers
+window.abrirAlertasObservador = abrirAlertasObservador;
+window.abrirAlertasResponsavel = abrirAlertasResponsavel;
+window.verificarAlertas = verificarAlertas;
+window.verificarAlertasObservador = verificarAlertasObservador;
+window.verificarAlertasResponsavel = verificarAlertasResponsavel;
+window.atualizarContadoresAlertas = atualizarContadoresAlertas;
+window.marcarAlertaComoLido = marcarAlertaComoLido;
+window.irParaAtividade = irParaAtividade;
