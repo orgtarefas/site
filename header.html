@@ -1,26 +1,272 @@
-<!-- header.html -->
+<!-- Arquivo: header.html -->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workyz - Cabeçalho</title>
-    <link rel="stylesheet" href="header.css">
+    <title>Cabeçalho Workyz</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ESTILOS DO CABEÇALHO */
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --border: #dfe6e9;
+            --radius: 10px;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .workyz-header {
+            background: white;
+            border-radius: var(--radius);
+            padding: 0 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+            border-bottom: 3px solid var(--secondary);
+        }
+
+        .header-full {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 70px;
+            gap: 30px;
+        }
+
+        /* Logo */
+        .logo-container {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            height: 70px;
+        }
+
+        .site-logo {
+            height: 50px;
+            width: auto;
+            max-width: 220px;
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .site-logo:hover {
+            transform: scale(1.02);
+        }
+
+        /* Lado direito */
+        .header-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex: 1;
+            gap: 30px;
+        }
+
+        /* Botões de navegação */
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-header {
+            padding: 10px 18px;
+            background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-header:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #1c5d8f 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-header.active {
+            background: linear-gradient(135deg, #1c5d8f 0%, #2980b9 100%);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Status e usuário */
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-sync {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            color: var(--success);
+            font-weight: 600;
+            border: 2px solid #c8e6c9;
+        }
+
+        /* Alertas */
+        .alert-bells-container {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .alert-bell {
+            position: relative;
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .alert-bell:hover {
+            transform: scale(1.1);
+            background-color: rgba(0, 120, 212, 0.1);
+        }
+
+        .observador-bell {
+            color: #e74c3c;
+        }
+
+        .responsavel-bell {
+            color: #f39c12;
+        }
+
+        .alert-count {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background: #e74c3c;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Informações do usuário */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: var(--radius);
+            border: 2px solid var(--border);
+            min-width: 200px;
+        }
+
+        .user-avatar i {
+            font-size: 2.2rem;
+            color: var(--secondary);
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .username {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.95rem;
+        }
+
+        .btn-logout {
+            background: transparent;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 8px;
+            border-radius: 50%;
+        }
+
+        .btn-logout:hover {
+            background: rgba(231, 76, 60, 0.1);
+            transform: rotate(90deg);
+        }
+
+        /* Responsivo */
+        @media (max-width: 992px) {
+            .header-full {
+                flex-direction: column;
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .header-actions {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .workyz-header {
+                padding: 0 15px;
+            }
+            
+            .header-status {
+                flex-direction: column;
+                gap: 15px;
+                width: 100%;
+            }
+            
+            .user-info {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- CABEÇALHO PROFISSIONAL -->
-    <header class="home-header" id="globalHeader">
+    <!-- CABEÇALHO -->
+    <header class="workyz-header" id="workyzHeader">
         <div class="header-full">
             <!-- Logo à esquerda -->
             <div class="logo-container">
-                <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
+                <img src="images/logo workyz.png" alt="Work Manager" class="site-logo" onclick="window.location.href='index.html'">
             </div>
             
             <!-- Todos os itens organizados à direita -->
             <div class="header-right">
                 <!-- Botões de navegação -->
                 <div class="header-actions">
+                    <button class="btn-header" onclick="window.location.href='index.html'">
+                        <i class="fas fa-home"></i> Página Inicial
+                    </button>
                     <button class="btn-header" onclick="window.location.href='chat.html'">
                         <i class="fas fa-comment-dots"></i> Chat
                     </button>
@@ -30,51 +276,23 @@
                     <button class="btn-header" onclick="window.location.href='workmanager.html'">
                         <i class="fas fa-users"></i> Grupos de Trabalho
                     </button>
-                    <button class="btn-header" onclick="window.location.href='index.html'">
-                        <i class="fas fa-home"></i> Página Inicial
-                    </button>
                 </div>
                 
                 <!-- Status e informações do usuário -->
                 <div class="header-status">
-                    <!-- Container para os sinos lado a lado -->
+                    <!-- Alertas -->
                     <div class="alert-bells-container">
-                        <!-- SINO 1: ALERTAS DE OBSERVADOR (MUDANÇAS DE STATUS) -->
-                        <div class="alerts-container" id="observadorAlertsContainer">
-                            <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
-                                <i class="fas fa-eye"></i>
-                                <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
-                            </button>
-                            <div class="alert-dropdown" id="observadorAlertDropdown">
-                                <div class="alert-dropdown-header">
-                                    <h4><i class="fas fa-eye"></i> Alerta de Atividades Observadas</h4>
-                                    <button class="mark-all-read" onclick="marcarObservadorComoLido()">
-                                        <i class="fas fa-check-double"></i> Marcar todos como lidos
-                                    </button>
-                                </div>
-                                <div class="alert-dropdown-content" id="observadorAlertList">
-                                    <div class="no-alerts">Nenhum alerta</div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- SINO 2: ALERTAS DE PENDENTE PARA O RESPONSÁVEL -->
-                        <div class="alerts-container" id="responsavelAlertsContainer">
-                            <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
-                                <i class="fas fa-bell"></i>
-                                <span class="alert-count" id="responsavelAlertCount" style="display: none;">0</span>
-                            </button>
-                            <div class="alert-dropdown" id="responsavelAlertDropdown">
-                                <div class="alert-dropdown-header">
-                                    <h4><i class="fas fa-bell"></i> Alertas de Atividades Pendentes</h4>
-                                    <button class="mark-all-read" onclick="marcarResponsavelComoLido()">
-                                        <i class="fas fa-check-double"></i> Marcar todos como lidos
-                                    </button>
-                                </div>
-                                <div class="alert-dropdown-content" id="responsavelAlertList">
-                                    <div class="no-alerts">Nenhuma pendência</div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- SINO 1: ALERTAS DE OBSERVADOR -->
+                        <button class="alert-bell observador-bell" id="observadorBell" title="Alertas de Observador">
+                            <i class="fas fa-eye"></i>
+                            <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
+                        </button>
+                        
+                        <!-- SINO 2: ALERTAS DE PENDENTE -->
+                        <button class="alert-bell responsavel-bell" id="responsavelBell" title="Alertas Pendentes">
+                            <i class="fas fa-bell"></i>
+                            <span class="alert-count" id="responsavelAlertCount" style="display: none;">0</span>
+                        </button>
                     </div>
                     
                     <!-- Status de conexão -->
@@ -99,11 +317,72 @@
         </div>
     </header>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    <!-- Script do cabeçalho -->
-    <script src="header.js"></script>
+    <script>
+        // FUNÇÕES DO CABEÇALHO
+        
+        // Destacar botão ativo baseado na página atual
+        function destacarBotaoAtivo() {
+            const path = window.location.pathname;
+            const botoes = document.querySelectorAll('.btn-header');
+            
+            botoes.forEach(botao => {
+                botao.classList.remove('active');
+                
+                if (path.includes('index.html') && botao.textContent.includes('Página Inicial')) {
+                    botao.classList.add('active');
+                } else if (path.includes('chat.html') && botao.textContent.includes('Chat')) {
+                    botao.classList.add('active');
+                } else if (path.includes('dashboard.html') && botao.textContent.includes('Atividades')) {
+                    botao.classList.add('active');
+                } else if (path.includes('workmanager.html') && botao.textContent.includes('Grupos')) {
+                    botao.classList.add('active');
+                }
+            });
+        }
+        
+        // Função de logout
+        function logout() {
+            if (confirm('Deseja realmente sair do sistema?')) {
+                // Limpar dados de sessão
+                localStorage.removeItem('usuarioLogado');
+                sessionStorage.removeItem('usuarioLogado');
+                
+                // Redirecionar para login
+                window.location.href = 'login.html';
+            }
+        }
+        
+        // Simular alertas (em produção, buscar do Firebase)
+        function simularAlertas() {
+            // Alertas de observador
+            const obsCount = Math.floor(Math.random() * 5);
+            const obsElement = document.getElementById('observadorAlertCount');
+            if (obsCount > 0) {
+                obsElement.textContent = obsCount;
+                obsElement.style.display = 'flex';
+            } else {
+                obsElement.style.display = 'none';
+            }
+            
+            // Alertas de responsável
+            const respCount = Math.floor(Math.random() * 3);
+            const respElement = document.getElementById('responsavelAlertCount');
+            if (respCount > 0) {
+                respElement.textContent = respCount;
+                respElement.style.display = 'flex';
+            } else {
+                respElement.style.display = 'none';
+            }
+        }
+        
+        // Inicializar quando carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            destacarBotaoAtivo();
+            simularAlertas();
+            
+            // Atualizar alertas a cada 30 segundos
+            setInterval(simularAlertas, 30000);
+        });
+    </script>
 </body>
 </html>
