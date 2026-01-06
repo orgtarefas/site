@@ -3,96 +3,205 @@
 /* CONTEÚDO PRINCIPAL DA PÁGINA TESTE */
 .content-area {
     background: white;
-    border-radius: var(--radius);
+    border-radius: 10px;
     padding: 30px;
     margin-top: 25px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease;
 }
 
 .content-area h1 {
-    color: var(--primary);
+    color: #2c3e50;
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 2px solid #dfe6e9;
+    font-size: 1.8rem;
 }
 
 .content-area p {
-    color: var(--gray);
+    color: #7f8c8d;
     line-height: 1.6;
     margin-bottom: 15px;
+    font-size: 1rem;
 }
 
-/* ESTILOS ESPECÍFICOS PARA ELEMENTOS DA PÁGINA TESTE */
-/* Adicione aqui os estilos específicos dos elementos da sua página teste */
-
-/* Exemplo de estilos para uma seção de teste */
-.sessao-teste {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: var(--radius-sm);
-    padding: 20px;
-    margin: 20px 0;
-    border: 1px solid var(--border);
-}
-
+/* CARDS DE TESTE */
 .teste-card {
     background: white;
-    border-radius: var(--radius-sm);
-    padding: 15px;
-    margin: 10px 0;
-    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     transition: all 0.3s ease;
+    border-left: 4px solid #3498db;
 }
 
 .teste-card:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-left-color: #2980b9;
 }
 
-/* Botões específicos para teste */
+.teste-card h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.teste-card h3 i {
+    font-size: 1.1rem;
+}
+
+/* BOTÕES DE TESTE */
 .btn-teste {
-    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     color: white;
     border: none;
     padding: 12px 24px;
-    border-radius: var(--radius-sm);
+    border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    font-size: 0.9rem;
+    margin-top: 10px;
 }
 
 .btn-teste:hover {
-    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+    background: linear-gradient(135deg, #2980b9 0%, #1c5d8f 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.3);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
 }
 
-/* Responsividade específica para teste */
+.btn-teste:active {
+    transform: translateY(0);
+}
+
+/* UTILITÁRIOS DE CORES */
+.text-primary {
+    color: #3498db !important;
+    font-weight: 600;
+}
+
+.text-success {
+    color: #27ae60 !important;
+}
+
+.text-warning {
+    color: #f39c12 !important;
+}
+
+.text-danger {
+    color: #e74c3c !important;
+}
+
+/* ANIMAÇÕES */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* RESPONSIVIDADE */
 @media (max-width: 768px) {
     .content-area {
         padding: 20px;
+        margin-top: 15px;
     }
     
     .content-area h1 {
         font-size: 1.5rem;
     }
-}
-
-/* ANIMAÇÕES ESPECÍFICAS (opcional) */
-@keyframes pulse-teste {
-    0% {
-        box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.4);
+    
+    .teste-card {
+        padding: 15px;
+        margin: 15px 0;
     }
-    70% {
-        box-shadow: 0 0 0 10px rgba(155, 89, 182, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(155, 89, 182, 0);
+    
+    .btn-teste {
+        width: 100%;
+        justify-content: center;
     }
 }
 
-.animacao-teste {
-    animation: pulse-teste 2s infinite;
+@media (max-width: 480px) {
+    .content-area {
+        padding: 15px;
+    }
+    
+    .content-area h1 {
+        font-size: 1.3rem;
+    }
+    
+    .teste-card h3 {
+        font-size: 1.1rem;
+    }
+}
+
+/* MENSAGENS DE STATUS */
+.status-message {
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-message.info {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border-left: 4px solid #1976d2;
+}
+
+.status-message.success {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border-left: 4px solid #2e7d32;
+}
+
+.status-message.warning {
+    background-color: #fff3e0;
+    color: #f57c00;
+    border-left: 4px solid #f57c00;
+}
+
+/* LISTAS */
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+}
+
+.info-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.info-list li:last-child {
+    border-bottom: none;
+}
+
+.info-list .label {
+    font-weight: 600;
+    color: #555;
+}
+
+.info-list .value {
+    color: #2c3e50;
+    font-weight: 500;
 }
