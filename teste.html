@@ -9,35 +9,115 @@
     <link rel="stylesheet" href="teste.css">
 </head>
 <body>
-    <!-- Tela de Carregamento -->
-    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
-        <div style="text-align: center;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
-            <p id="loadingText">Carregando...</p>
-        </div>
-    </div>
-
-    <div class="container" id="mainContent" style="display: none;">
-        <!-- CABEÇALHO PROFISSIONAL (MESMO DO INDEX.HTML) -->
+    <div class="container">
+        <!-- CABEÇALHO PROFISSIONAL -->
         <header class="home-header">
-            <!-- ... (mantenha todo o cabeçalho igual ao index.html) ... -->
+            <div class="header-full">
+                <!-- Logo à esquerda -->
+                <div class="logo-container">
+                    <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
+                </div>
+                
+                <!-- Todos os itens organizados à direita -->
+                <div class="header-right">
+                    <!-- Botões de navegação -->
+                    <div class="header-actions">
+                        <button class="btn-header" onclick="window.location.href='index.html'">
+                            <i class="fas fa-home"></i> Home
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='chat.html'">
+                            <i class="fas fa-comment-dots"></i> Chat
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                            <i class="fas fa-chart-line"></i> Minhas Atividades
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Grupos de Trabalho
+                        </button>
+                    </div>
+                    
+                    <!-- Status e informações do usuário -->
+                    <div class="header-status">
+                        <!-- Container para os sinos lado a lado -->
+                        <div class="alert-bells-container">
+                            <!-- SINO 1: ALERTAS DE OBSERVADOR -->
+                            <div class="alerts-container" id="observadorAlertsContainer">
+                                <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
+                                    <i class="fas fa-eye"></i>
+                                    <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
+                                </button>
+                                <div class="alert-dropdown" id="observadorAlertDropdown">
+                                    <div class="alert-dropdown-header">
+                                        <h4><i class="fas fa-eye"></i> Alerta de Atividades Observadas</h4>
+                                    </div>
+                                    <div class="alert-dropdown-content" id="observadorAlertList">
+                                        <div class="no-alerts">Nenhum alerta</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- SINO 2: ALERTAS DE PENDENTE -->
+                            <div class="alerts-container" id="responsavelAlertsContainer">
+                                <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="alert-count" id="responsavelAlertCount" style="display: none;">0</span>
+                                </button>
+                                <div class="alert-dropdown" id="responsavelAlertDropdown">
+                                    <div class="alert-dropdown-header">
+                                        <h4><i class="fas fa-bell"></i> Alertas de Atividades Pendentes</h4>
+                                    </div>
+                                    <div class="alert-dropdown-content" id="responsavelAlertList">
+                                        <div class="no-alerts">Nenhuma pendência</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Status de conexão -->
+                        <span class="status-sync" id="status-sincronizacao">
+                            <i class="fas fa-bolt"></i> Conectado
+                        </span>
+                        
+                        <!-- Informações do usuário logado -->
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <span id="userName" class="username">Usuário</span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <!-- CONTEÚDO ESPECÍFICO DA PÁGINA TESTE -->
         <div class="content-area">
             <h1>Página de Teste</h1>
-            <p>Conteúdo específico da página teste aqui...</p>
+            <p>Esta página tem cabeçalho independente.</p>
+            
+            <div class="teste-card">
+                <h3><i class="fas fa-check-circle text-success"></i> Cabeçalho Funcionando</h3>
+                <p>O cabeçalho está funcionando sem depender do script.js principal.</p>
+                
+                <div class="mt-3">
+                    <button class="btn-teste" onclick="window.location.href='index.html'">
+                        <i class="fas fa-arrow-left"></i> Voltar para Home
+                    </button>
+                    
+                    <button class="btn-teste" onclick="mostrarUsuario()" style="margin-left: 10px;">
+                        <i class="fas fa-user"></i> Ver Usuário Logado
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    <!-- script.js PRIMEIRO (para ter acesso às funções) -->
-    <script src="script.js"></script>
-    
-    <!-- teste.js DEPOIS (usa funções do script.js) -->
+    <!-- script.js NÃO carregado aqui -->
+    <!-- teste.js carregado DEPOIS do HTML -->
     <script src="teste.js"></script>
 </body>
 </html>
