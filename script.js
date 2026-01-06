@@ -229,6 +229,65 @@ async function inicializarSistema() {
     }
 }
 
+// FUNÇÃO: Determinar status da tarefa com base nas atividades
+function determinarStatusTarefaPorAtividades(atividades) {
+    // Se não houver atividades, retorna não iniciado
+    if (!atividades || atividades.length === 0) {
+        return 'nao_iniciado';
+    }
+    
+    // Contar status das atividades
+    let countNaoIniciado = 0;
+    let countPendente = 0;
+    let countConcluido = 0;
+    let countAndamento = 0;
+    let countTotal = atividades.length;
+    
+    atividades.forEach(atividade => {
+        const status = (atividade.status || 'nao_iniciado').toLowerCase().trim();
+        
+        switch(status) {
+            case 'nao_iniciado':
+            case 'não iniciado':
+                countNaoIniciado++;
+                break;
+            case 'pendente':
+                countPendente++;
+                break;
+            case 'concluido':
+            case 'concluído':
+                countConcluido++;
+                break;
+            case 'andamento':
+            case 'em andamento':
+                countAndamento++;
+                break;
+            default:
+                countNaoIniciado++;
+        }
+    });
+    
+    // APLICAR AS REGRAS NA ORDEM CORRETA:
+    
+    // 1. Se ALGUMA atividade está PENDENTE → Tarefa = "PENDENTE"
+    if (countPendente > 0) {
+        return 'pendente';
+    }
+    
+    // 2. Se TODAS as atividades estão CONCLUÍDAS → Tarefa = "CONCLUÍDO"
+    if (countConcluido === countTotal) {
+        return 'concluido';
+    }
+    
+    // 3. Se TODAS as atividades estão NÃO INICIADAS → Tarefa = "NÃO INICIADO"
+    if (countNaoIniciado === countTotal) {
+        return 'nao_iniciado';
+    }
+    
+    // 4. Qualquer outra combinação → Tarefa = "EM ANDAMENTO"
+    return 'andamento';
+}
+
 function configurarDataMinima() {
     const hoje = new Date().toISOString().split('T')[0];
     const dataInicio = document.getElementById('tarefaDataInicio');
@@ -268,6 +327,42 @@ async function carregarGrupos() {
         
     } catch (error) {
         console.error('❌ Erro ao carregar grupos:', error);
+    }
+}
+
+// FUNÇÃO: Atualizar status de uma tarefa específica
+async function atualizarStatusTarefa(tarefaId) {
+    try {
+        // Buscar atividades desta tarefa
+        const atividadesDaTarefa = atividadesPorTarefa[tarefaId] || [];
+        
+        // Determinar novo status
+        const novoStatus = determinarStatusTarefaPorAtividades(atividadesDaTarefa);
+        
+        // Buscar tarefa atual
+        const tarefaIndex = tarefas.findIndex(t => t.id === tarefaId);
+        if (tarefaIndex === -1) return;
+        
+        const statusAtual = tarefas[tarefaIndex].status || 'nao_iniciado';
+        
+        // Se o status mudou, atualizar no Firestore
+        if (statusAtual !== novoStatus) {
+            //console.log(`🔄 Atualizando tarefa ${tarefaId}: ${statusAtual} -> ${novoStatus}`);
+            
+            await db.collection("tarefas").doc(tarefaId).update({
+                status: novoStatus,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Atualizar localmente
+            tarefas[tarefaIndex].status = novoStatus;
+            
+            // Atualizar interface
+            atualizarInterface();
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar status da tarefa:', error);
     }
 }
 
@@ -370,6 +465,33 @@ async function carregarGruposDoUsuarioLogado() {
     } catch (error) {
         console.error('❌ Erro ao carregar grupos do usuário:', error);
         return [];
+    }
+}
+
+// FUNÇÃO: Atualizar status de todas as tarefas (para uso na inicialização)
+async function atualizarStatusTodasTarefas() {
+    try {
+        //console.log('🔄 Atualizando status de todas as tarefas...');
+        
+        for (const tarefa of tarefas) {
+            const atividadesDaTarefa = atividadesPorTarefa[tarefa.id] || [];
+            const novoStatus = determinarStatusTarefaPorAtividades(atividadesDaTarefa);
+            const statusAtual = tarefa.status || 'nao_iniciado';
+            
+            if (statusAtual !== novoStatus) {
+                await db.collection("tarefas").doc(tarefa.id).update({
+                    status: novoStatus,
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                tarefa.status = novoStatus;
+            }
+        }
+        
+        //console.log('✅ Status de todas as tarefas atualizado!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar status das tarefas:', error);
     }
 }
 
@@ -513,7 +635,7 @@ function configurarFirebase() {
             }
         );
 
-    // Listener para detectar mudanças de status e gerar alertas automáticos
+    // Listener para atividades - QUANDO ATIVIDADES MUDAM, ATUALIZAR STATUS DAS TAREFAS
     db.collection("atividades")
         .onSnapshot((snapshot) => {
             //console.log('🔄 Atualização de atividades - Total de documentos:', snapshot.size);
@@ -521,13 +643,27 @@ function configurarFirebase() {
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             if (!usuarioLogado) return;
             
+            // Para CADA mudança em atividade, atualizar status da tarefa correspondente
             snapshot.docChanges().forEach(change => {
                 //console.log(`📝 Mudança tipo: ${change.type} - ID: ${change.doc.id}`);
                 
+                // Se for qualquer tipo de mudança (adicionada, modificada ou removida)
+                if (change.type === 'added' || change.type === 'modified' || change.type === 'removed') {
+                    const atividade = change.doc.data();
+                    const tarefaId = atividade.tarefaId;
+                    
+                    if (tarefaId) {
+                        // ✅ ATUALIZAR STATUS DA TAREFA quando atividade muda
+                        setTimeout(() => {
+                            atualizarStatusTarefa(tarefaId);
+                        }, 800);
+                    }
+                }
+                
+                // Código existente para alertas de observadores
                 if (change.type === 'modified') {
                     const novaAtividade = change.doc.data();
                     
-                    // Obter dados antigos da forma correta
                     if (change.doc._previousData) {
                         const atividadeAntiga = change.doc._previousData;
                         
@@ -536,22 +672,15 @@ function configurarFirebase() {
                         const statusNovo = novaAtividade.status || 'nao_iniciado';
                         
                         if (statusAntigo !== statusNovo) {
-                            //console.log(`🔥 STATUS ALTERADO: ${statusAntigo} → ${statusNovo}`);
-                            //console.log(`📋 Dados antigos:`, atividadeAntiga);
-                            //console.log(`📋 Dados novos:`, novaAtividade);
-                            
                             // Gerar alertas para os observadores
                             gerarAlertaParaObservadores(change.doc.id, novaAtividade, atividadeAntiga);
                         }
-                    } else {
-                        //console.log('ℹ️ Sem dados anteriores disponíveis');
                     }
                 }
             });
             
             // Verificar alertas após mudanças
             setTimeout(() => {
-                const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
                 if (usuarioLogado) {
                     verificarAlertas();
                 }
@@ -745,17 +874,12 @@ function configurarListenerObservadores() {
 }
 
 async function carregarAtividadesParaTodasTarefas() {
-    //console.log('📋 Carregando atividades para todas as tarefas...');
-    
     try {
-        // Buscar todas as atividades
         const snapshot = await db.collection("atividades").get();
         const todasAtividades = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
-
-        //console.log('✅ Atividades carregadas:', todasAtividades.length);
 
         // Organizar atividades por tarefaId
         atividadesPorTarefa = {};
@@ -769,12 +893,13 @@ async function carregarAtividadesParaTodasTarefas() {
             }
         });
 
-        //console.log('📊 Atividades organizadas por tarefa:', Object.keys(atividadesPorTarefa).length);
-        
-        // Ordenar atividades dentro de cada tarefa
+        // ORDENAR atividades dentro de cada tarefa (opcional)
         Object.keys(atividadesPorTarefa).forEach(tarefaId => {
             atividadesPorTarefa[tarefaId] = ordenarAtividadesPorTipo(atividadesPorTarefa[tarefaId]);
         });
+
+        // ✅ ATUALIZAR O STATUS DAS TAREFAS COM BASE NAS ATIVIDADES
+        await atualizarStatusTodasTarefas();
 
     } catch (error) {
         console.error('❌ Erro ao carregar atividades:', error);
@@ -1623,7 +1748,7 @@ async function salvarTarefa() {
         `${nomesTodosGrupos} - ${tituloDigitado}` : 
         tituloDigitado;
     
-    // Preparar objeto tarefa (sem Status e Responsável)
+    // Preparar objeto tarefa
     const tarefa = {
         titulo: tituloCompleto,
         descricao: document.getElementById('tarefaDescricao').value || '',
@@ -1634,31 +1759,24 @@ async function salvarTarefa() {
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
-    // Para NOVA TAREFA, podemos definir Status padrão e adicionar atividades
-    if (!modoEdicao) {
-        // Status padrão para nova tarefa
-        tarefa.status = 'nao_iniciado'; // Valor padrão
-        
-        // Adicionar atividades da nova tarefa
-        const atividades = obterAtividadesDoFormulario();
-        if (atividades.length > 0) {
-            tarefa.atividades = atividades;
-        }
-    }
-
     try {
         if (modoEdicao && editandoTarefaId) {
-            //console.log('✏️ Editando tarefa:', editandoTarefaId);
-            // Na edição, mantém o Status existente (não atualiza)
+            // ✏️ Editando tarefa - NÃO atualize o status
             await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
         } else {
-            //console.log('🆕 Criando nova tarefa');
+            // 🆕 Criando nova tarefa
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            await db.collection("tarefas").add({
+            
+            // Para nova tarefa, pode definir como "nao_iniciado" inicialmente
+            // Será atualizado quando tiver atividades
+            const novaTarefa = {
                 ...tarefa,
+                status: 'nao_iniciado', // Status inicial
                 dataCriacao: firebase.firestore.FieldValue.serverTimestamp(),
                 criadoPor: usuarioLogado.usuario
-            });
+            };
+            
+            await db.collection("tarefas").add(novaTarefa);
         }
         
         fecharModalTarefa();
