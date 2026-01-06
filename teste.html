@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workyz - Página de Teste</title>
+    <title>Workyz - Teste do Cabeçalho</title>
     <style>
-        /* ESTILOS DA PÁGINA TESTE APENAS - NADA DE HEADER AQUI */
+        /* ESTILOS APENAS DA PÁGINA TESTE */
         * {
             margin: 0;
             padding: 0;
@@ -27,8 +27,8 @@
         
         .content {
             background: white;
-            border-radius: 10px;
             padding: 30px;
+            border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         
@@ -39,10 +39,50 @@
             padding-bottom: 10px;
         }
         
-        p {
-            line-height: 1.6;
-            margin-bottom: 15px;
-            color: #555;
+        h2 {
+            color: #2c3e50;
+            margin: 25px 0 15px 0;
+        }
+        
+        .test-info {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .test-info h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
         }
         
         .features {
@@ -71,74 +111,38 @@
             color: #3498db;
         }
         
-        .test-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-        
-        .test-btn {
-            padding: 12px 24px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .test-btn:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-        
-        .test-btn.secondary {
-            background: #6c757d;
-        }
-        
-        .test-btn.secondary:hover {
-            background: #5a6268;
-        }
-        
-        .stats {
-            background: #e3f2fd;
+        .instructions {
+            background: #f8fff8;
             padding: 20px;
             border-radius: 8px;
-            margin: 30px 0;
+            border-left: 4px solid #27ae60;
+            margin-top: 30px;
         }
         
-        .stats h3 {
-            color: #2c3e50;
+        .instructions h3 {
+            color: #27ae60;
             margin-bottom: 15px;
         }
         
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-        }
-        
-        .stat-item {
-            text-align: center;
+        code {
+            background: #2c3e50;
+            color: white;
             padding: 15px;
-            background: white;
             border-radius: 6px;
+            display: block;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
         }
         
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #3498db;
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
         }
         
-        .stat-label {
-            font-size: 0.9rem;
-            color: #6c757d;
+        li {
+            margin-bottom: 8px;
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -148,141 +152,202 @@
     
     <div class="container">
         <div class="content">
-            <h1>📋 Página de Teste Workyz</h1>
+            <h1>🧪 Teste do Sistema de Cabeçalho Workyz</h1>
             
-            <p>Esta é uma página de demonstração que utiliza o cabeçalho modular do sistema Workyz.</p>
-            
-            <div class="stats">
-                <h3>📊 Estatísticas de Teste</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-value">42</div>
-                        <div class="stat-label">Tarefas Criadas</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">18</div>
-                        <div class="stat-label">Em Andamento</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">24</div>
-                        <div class="stat-label">Concluídas</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">7</div>
-                        <div class="stat-label">Pendentes</div>
-                    </div>
-                </div>
+            <div class="test-info">
+                <h3>📊 Status do Teste:</h3>
+                <p id="status">Carregando cabeçalho...</p>
+                <p><strong>Firebase:</strong> <span id="firebase-status">Verificando...</span></p>
+                <p><strong>Usuário:</strong> <span id="user-status">Verificando...</span></p>
             </div>
             
+            <h2>🎯 Funcionalidades Testadas:</h2>
             <div class="features">
                 <div class="feature-card">
-                    <h3><i class="fas fa-check-circle"></i> Funcionalidades</h3>
-                    <p>Todas as funcionalidades do cabeçalho estão disponíveis: navegação, alertas, status do usuário e logout.</p>
+                    <h3><i class="fas fa-check-circle"></i> Cabeçalho Modular</h3>
+                    <p>Carregamento dinâmico do arquivo header.html com todos os estilos e funcionalidades.</p>
                 </div>
                 
                 <div class="feature-card">
-                    <h3><i class="fas fa-sync-alt"></i> Sincronização</h3>
-                    <p>O status de conexão é exibido em tempo real, mostrando se o sistema está conectado ao servidor.</p>
+                    <h3><i class="fas fa-bell"></i> Sistema de Alertas</h3>
+                    <p>Alertas em tempo real do Firebase (observador e responsável).</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-user"></i> Autenticação</h3>
+                    <p>Login/Logout com Firebase Authentication.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync"></i> Sincronização</h3>
+                    <p>Status de conexão em tempo real.</p>
                 </div>
                 
                 <div class="feature-card">
                     <h3><i class="fas fa-mobile-alt"></i> Responsivo</h3>
-                    <p>O cabeçalho se adapta automaticamente a diferentes tamanhos de tela, de desktop a mobile.</p>
+                    <p>Design adaptável para desktop e mobile.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-exchange-alt"></i> Navegação</h3>
+                    <p>Botões funcionais para todas as páginas do sistema.</p>
                 </div>
             </div>
             
-            <h2>🎯 Teste as Funcionalidades</h2>
-            <p>Clique nos botões abaixo para testar diferentes aspectos do sistema:</p>
+            <h2>🔧 Teste as Funcionalidades:</h2>
+            <button class="btn" onclick="testarNavegacao()">
+                <i class="fas fa-directions"></i> Testar Navegação
+            </button>
+            <button class="btn" onclick="testarAlertas()">
+                <i class="fas fa-bell"></i> Testar Alertas
+            </button>
+            <button class="btn" onclick="testarLogout()">
+                <i class="fas fa-sign-out-alt"></i> Testar Logout
+            </button>
+            <button class="btn btn-secondary" onclick="recarregarPagina()">
+                <i class="fas fa-redo"></i> Recarregar Página
+            </button>
             
-            <div class="test-actions">
-                <button class="test-btn" onclick="window.location.href='index.html'">
-                    <i class="fas fa-home"></i> Ir para Página Inicial
-                </button>
+            <h2>✅ Resultado Esperado:</h2>
+            <p>Você deve ver acima um cabeçalho idêntico ao da página inicial (index.html) com:</p>
+            <ul>
+                <li>Logo do Workyz (clicável)</li>
+                <li>4 botões de navegação (Página Inicial, Chat, Minhas Atividades, Grupos de Trabalho)</li>
+                <li>2 sinos de alerta (vermelho para observador, laranja para responsável)</li>
+                <li>Status de conexão "Conectado"</li>
+                <li>Nome do usuário logado</li>
+                <li>Ícone de logout</li>
+            </ul>
+            
+            <div class="instructions">
+                <h3>📚 Como Usar em Outras Páginas:</h3>
+                <p>Para usar este cabeçalho em QUALQUER página do seu sistema:</p>
                 
-                <button class="test-btn" onclick="testarAlertas()">
-                    <i class="fas fa-bell"></i> Simular Novos Alertas
-                </button>
+                <ol>
+                    <li>Adicione este código onde quiser o cabeçalho:</li>
+                        <code>&lt;div id="header-container"&gt;&lt;/div&gt;</code>
+                    
+                    <li>Adicione este script (ou inclua no seu script.js principal):</li>
+                        <code>
+// Função para carregar o cabeçalho
+function carregarCabecalho() {
+    fetch('header.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('header-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro ao carregar cabeçalho:', error);
+        });
+}
+
+// Executar quando a página carregar
+document.addEventListener('DOMContentLoaded', carregarCabecalho);
+                        </code>
+                    
+                    <li>Pronto! O cabeçalho aparecerá em todas as páginas.</li>
+                </ol>
                 
-                <button class="test-btn" onclick="window.location.href='chat.html'">
-                    <i class="fas fa-comments"></i> Testar Chat
-                </button>
-                
-                <button class="test-btn secondary" onclick="location.reload()">
-                    <i class="fas fa-redo"></i> Recarregar Página
-                </button>
+                <p><strong>Observação:</strong> Todas as funcionalidades do cabeçalho já estão configuradas no arquivo header.html.</p>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT PARA CARREGAR O CABEÇALHO -->
     <script>
         // FUNÇÃO PARA CARREGAR O CABEÇALHO
         function carregarCabecalho() {
+            console.log('🔍 Tentando carregar header.html...');
+            
             fetch('header.html')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Erro ao carregar o cabeçalho');
+                        throw new Error(`Erro HTTP: ${response.status}`);
                     }
                     return response.text();
                 })
                 .then(html => {
-                    // Insere o cabeçalho no container
+                    // Insere o cabeçalho
                     document.getElementById('header-container').innerHTML = html;
-                    
-                    // Log de sucesso
-                    console.log('✅ Cabeçalho carregado com sucesso!');
+                    document.getElementById('status').innerHTML = '✅ Cabeçalho carregado com sucesso!';
+                    console.log('✅ Cabeçalho carregado!');
                 })
                 .catch(error => {
-                    console.error('❌ Erro ao carregar cabeçalho:', error);
-                    
-                    // Fallback em caso de erro
-                    document.getElementById('header-container').innerHTML = `
-                        <div style="background: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 10px; margin: 20px;">
-                            <h3>⚠️ Erro ao carregar cabeçalho</h3>
-                            <p>O arquivo header.html não foi encontrado.</p>
-                            <button onclick="location.reload()" style="
-                                background: white; 
-                                color: #dc3545; 
-                                border: none; 
-                                padding: 10px 20px; 
-                                border-radius: 5px; 
-                                cursor: pointer; 
-                                margin-top: 10px;
-                                font-weight: bold;
-                            ">
-                                Tentar Novamente
-                            </button>
-                        </div>
-                    `;
+                    console.error('❌ Erro:', error);
+                    document.getElementById('status').innerHTML = 
+                        '❌ Erro ao carregar cabeçalho: ' + error.message;
                 });
         }
         
-        // FUNÇÃO DA PÁGINA DE TESTE
-        function testarAlertas() {
-            alert('✅ Sistema de alertas funcionando!\n\nEm produção, os alertas seriam buscados do Firebase em tempo real.');
+        // FUNÇÕES DE TESTE
+        function testarNavegacao() {
+            alert('Clique nos botões do cabeçalho para testar a navegação:\n\n' +
+                  '• Página Inicial → index.html\n' +
+                  '• Chat → chat.html\n' +
+                  '• Minhas Atividades → dashboard.html\n' +
+                  '• Grupos de Trabalho → workmanager.html');
         }
         
-        // CARREGAR O CABEÇALHO QUANDO A PÁGINA CARREGAR
+        function testarAlertas() {
+            alert('Clique nos sinos de alerta para ver:\n\n' +
+                  '• 🔴 Sino vermelho: Alertas de observador (mudanças de status)\n' +
+                  '• 🟠 Sino laranja: Alertas de responsável (tarefas pendentes)\n\n' +
+                  'Os alertas são buscados em tempo real do Firebase Firestore.');
+        }
+        
+        function testarLogout() {
+            alert('Clique no ícone de logout (⏻) no cabeçalho para testar o logout.\n\n' +
+                  'Isso irá desconectar o usuário do Firebase Auth.');
+        }
+        
+        function recarregarPagina() {
+            location.reload();
+        }
+        
+        // MONITORAR STATUS DO FIREBASE
+        function monitorarFirebase() {
+            const firebaseStatus = document.getElementById('firebase-status');
+            const userStatus = document.getElementById('user-status');
+            
+            // Verificar periodicamente
+            setInterval(() => {
+                if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+                    firebaseStatus.innerHTML = '✅ Conectado';
+                    firebaseStatus.style.color = '#27ae60';
+                    
+                    const user = firebase.auth().currentUser;
+                    if (user) {
+                        userStatus.innerHTML = `✅ Logado como: ${user.email}`;
+                        userStatus.style.color = '#27ae60';
+                    } else {
+                        userStatus.innerHTML = '❌ Não logado';
+                        userStatus.style.color = '#e74c3c';
+                    }
+                } else {
+                    firebaseStatus.innerHTML = '❌ Não inicializado';
+                    firebaseStatus.style.color = '#e74c3c';
+                    userStatus.innerHTML = '❌ Não disponível';
+                    userStatus.style.color = '#e74c3c';
+                }
+            }, 2000);
+        }
+        
+        // CARREGAR QUANDO A PÁGINA ABRIR
         document.addEventListener('DOMContentLoaded', function() {
             carregarCabecalho();
-            
-            // Adicionar Font Awesome se necessário
-            if (!document.querySelector('link[href*="font-awesome"]')) {
-                const faLink = document.createElement('link');
-                faLink.rel = 'stylesheet';
-                faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-                document.head.appendChild(faLink);
-            }
+            setTimeout(monitorarFirebase, 3000); // Aguardar cabeçalho carregar
         });
         
-        // Adicionar listener para quando o cabeçalho for clicado (navegação SPA)
-        document.addEventListener('click', function(e) {
-            // Se clicar em um link do cabeçalho, carrega normalmente
-            if (e.target.closest('.btn-header')) {
-                // A navegação já está configurada no header.html
-                console.log('Navegando para outra página...');
-            }
-        });
+        // Verificar se o arquivo header.html existe
+        fetch('header.html', { method: 'HEAD' })
+            .then(response => {
+                if (response.ok) {
+                    console.log('📁 header.html encontrado');
+                } else {
+                    console.error('📁 header.html NÃO encontrado');
+                    document.getElementById('status').innerHTML = 
+                        '❌ Arquivo header.html não encontrado na pasta atual';
+                }
+            });
     </script>
 </body>
 </html>
