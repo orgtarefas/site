@@ -1,11 +1,9 @@
-// teste.js - Versão independente que não depende do script.js funcionar completamente
+// teste.js - Versão corrigida (sem declarações duplicadas)
 
 console.log('🚀 teste.js - Inicializando sistema independente...');
 
-// Estado global
-let usuarioLogado = null;
-let alertasObservador = [];
-let alertasResponsavel = [];
+// NÃO declare estas variáveis novamente - use as que já existem do script.js
+// Se não existirem, criaremos apenas para esta página
 
 // Inicialização principal
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,9 +40,10 @@ function inicializarPaginaBasica() {
 
 // Verificar e configurar usuário
 function verificarEConfigurarUsuario() {
-    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    // Usar a variável do localStorage diretamente
+    const usuarioData = JSON.parse(localStorage.getItem('usuarioLogado'));
     
-    if (!usuarioLogado) {
+    if (!usuarioData) {
         console.log('❌ Usuário não logado');
         mostrarErro('Usuário não autenticado. Redirecionando...');
         setTimeout(() => {
@@ -53,33 +52,33 @@ function verificarEConfigurarUsuario() {
         return;
     }
     
-    console.log('✅ Usuário logado:', usuarioLogado.nome);
+    console.log('✅ Usuário logado:', usuarioData.nome);
     
     // Atualizar interface
-    atualizarInterfaceUsuario();
+    atualizarInterfaceUsuario(usuarioData);
     
     // Tentar usar funções do script.js se disponíveis
     tentarUsarScriptJS();
 }
 
 // Atualizar interface do usuário
-function atualizarInterfaceUsuario() {
-    if (!usuarioLogado) return;
+function atualizarInterfaceUsuario(usuario) {
+    if (!usuario) return;
     
     // Atualizar nome no cabeçalho
     const userNameElement = document.getElementById('userName');
     if (userNameElement) {
-        userNameElement.textContent = usuarioLogado.nome;
+        userNameElement.textContent = usuario.nome;
     }
     
     // Atualizar nome no conteúdo
     const displayUserElement = document.getElementById('displayUserName');
     if (displayUserElement) {
-        displayUserElement.textContent = usuarioLogado.nome || usuarioLogado.usuario;
+        displayUserElement.textContent = usuario.nome || usuario.usuario;
     }
     
     // Atualizar status
-    atualizarStatusSistema(`Usuário: ${usuarioLogado.usuario}`);
+    atualizarStatusSistema(`Usuário: ${usuario.usuario}`);
 }
 
 // Tentar usar funções do script.js se disponíveis
@@ -176,25 +175,30 @@ function inicializarAlertasBasicos() {
 
 // Criar alertas de exemplo
 function criarAlertasExemplo() {
-    alertasObservador = [
-        {
-            id: 'exemplo_1',
-            titulo: 'Sistema de Teste Ativo',
-            descricao: 'Página teste carregada com sucesso',
-            data: new Date(),
-            tipo: 'info'
-        }
-    ];
+    // Usar arrays locais apenas para esta página
+    if (!window.alertasTesteObservador) {
+        window.alertasTesteObservador = [
+            {
+                id: 'exemplo_1',
+                titulo: 'Sistema de Teste Ativo',
+                descricao: 'Página teste carregada com sucesso',
+                data: new Date(),
+                tipo: 'info'
+            }
+        ];
+    }
     
-    alertasResponsavel = [
-        {
-            id: 'exemplo_2',
-            titulo: 'Demonstração de Alertas',
-            descricao: 'Clique nos sinos para testar',
-            data: new Date(),
-            tipo: 'info'
-        }
-    ];
+    if (!window.alertasTesteResponsavel) {
+        window.alertasTesteResponsavel = [
+            {
+                id: 'exemplo_2',
+                titulo: 'Demonstração de Alertas',
+                descricao: 'Clique nos sinos para testar',
+                data: new Date(),
+                tipo: 'info'
+            }
+        ];
+    }
 }
 
 // Configurar fechamento de dropdowns
@@ -283,7 +287,11 @@ function abrirAlertasResponsavelTeste() {
 
 // Mostrar alertas locais
 function mostrarAlertasLocais(tipo) {
-    const alertas = tipo === 'observador' ? alertasObservador : alertasResponsavel;
+    // Usar arrays locais específicos para teste
+    const alertas = tipo === 'observador' 
+        ? (window.alertasTesteObservador || [])
+        : (window.alertasTesteResponsavel || []);
+    
     const containerId = tipo === 'observador' ? 'observadorAlertsContainer' : 'responsavelAlertsContainer';
     
     const container = document.getElementById(containerId);
@@ -356,17 +364,19 @@ function logoutTeste() {
 
 // Mostrar informações do usuário
 function mostrarInfoUsuario() {
-    if (!usuarioLogado) {
+    const usuarioData = JSON.parse(localStorage.getItem('usuarioLogado'));
+    
+    if (!usuarioData) {
         alert('Nenhum usuário logado!');
         return;
     }
     
     const info = `
-        👤 NOME: ${usuarioLogado.nome || 'Não informado'}
-        🔑 USUÁRIO: ${usuarioLogado.usuario}
-        📧 EMAIL: ${usuarioLogado.email || 'Não informado'}
-        👥 GRUPOS: ${usuarioLogado.grupos ? usuarioLogado.grupos.length : 0}
-        🔐 PERFIL: ${usuarioLogado.perfil || 'Padrão'}
+        👤 NOME: ${usuarioData.nome || 'Não informado'}
+        🔑 USUÁRIO: ${usuarioData.usuario}
+        📧 EMAIL: ${usuarioData.email || 'Não informado'}
+        👥 GRUPOS: ${usuarioData.grupos ? usuarioData.grupos.length : 0}
+        🔐 PERFIL: ${usuarioData.perfil || 'Padrão'}
         
         📍 PÁGINA: Teste (sistema independente)
     `;
@@ -377,9 +387,9 @@ function mostrarInfoUsuario() {
 
 // Atualizar usuário
 function atualizarUsuario() {
-    usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-    if (usuarioLogado) {
-        atualizarInterfaceUsuario();
+    const usuarioData = JSON.parse(localStorage.getItem('usuarioLogado'));
+    if (usuarioData) {
+        atualizarInterfaceUsuario(usuarioData);
         atualizarStatusSistema('Usuário atualizado');
     } else {
         alert('Usuário não encontrado!');
@@ -391,12 +401,13 @@ function verificarStatusSistema() {
     console.log('🔍 Verificando status do sistema...');
     
     // Coletar informações
+    const usuarioData = JSON.parse(localStorage.getItem('usuarioLogado'));
     const info = {
-        usuario: !!usuarioLogado,
+        usuario: !!usuarioData,
         localStorage: !!localStorage.getItem('usuarioLogado'),
         scriptJS: typeof window.abrirAlertasObservador === 'function',
-        alertasObservador: alertasObservador.length,
-        alertasResponsavel: alertasResponsavel.length,
+        alertasObservador: window.alertasTesteObservador ? window.alertasTesteObservador.length : 0,
+        alertasResponsavel: window.alertasTesteResponsavel ? window.alertasTesteResponsavel.length : 0,
         timestamp: new Date().toLocaleTimeString()
     };
     
@@ -426,6 +437,11 @@ function verificarStatusSistema() {
 function testarAlertas() {
     console.log('🧪 Testando sistema de alertas...');
     
+    // Inicializar arrays se não existirem
+    if (!window.alertasTesteObservador) {
+        window.alertasTesteObservador = [];
+    }
+    
     // Adicionar alerta de teste
     const novoAlerta = {
         id: 'teste_' + Date.now(),
@@ -435,12 +451,12 @@ function testarAlertas() {
         tipo: 'info'
     };
     
-    alertasObservador.unshift(novoAlerta);
+    window.alertasTesteObservador.unshift(novoAlerta);
     
     // Atualizar contador
     const contador = document.getElementById('observadorAlertCount');
     if (contador) {
-        contador.textContent = alertasObservador.length;
+        contador.textContent = window.alertasTesteObservador.length;
         contador.style.display = 'flex';
     }
     
@@ -494,9 +510,10 @@ function formatarTempoAtras(data) {
 }
 
 // Exportar funções para uso global
-window.abrirAlertasObservador = abrirAlertasObservadorTeste;
-window.abrirAlertasResponsavel = abrirAlertasResponsavelTeste;
-window.logout = logoutTeste;
+// Usar nomes diferentes para não conflitar com script.js
+window.abrirAlertasObservadorTeste = abrirAlertasObservadorTeste;
+window.abrirAlertasResponsavelTeste = abrirAlertasResponsavelTeste;
+window.logoutTeste = logoutTeste;
 window.mostrarInfoUsuario = mostrarInfoUsuario;
 window.atualizarUsuario = atualizarUsuario;
 window.verificarStatusSistema = verificarStatusSistema;
