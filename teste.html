@@ -6,26 +6,21 @@
     <title>Teste - Workyz</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="teste.css">
 </head>
 <body>
-    <!-- Tela de Carregamento SEM elementos problemáticos -->
-    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
-        <div style="text-align: center;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
-            <p>Carregando página teste...</p>
-        </div>
-    </div>
-
-    <div class="container" id="mainContent" style="display: none;">
-        <!-- CABEÇALHO SIMPLIFICADO -->
+    <!-- Conteúdo IDÊNTICO ao index.html -->
+    <div class="container">
+        <!-- CABEÇALHO PROFISSIONAL (CÓPIA EXATA DO INDEX.HTML) -->
         <header class="home-header">
             <div class="header-full">
+                <!-- Logo à esquerda -->
                 <div class="logo-container">
                     <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
                 </div>
                 
+                <!-- Todos os itens organizados à direita -->
                 <div class="header-right">
+                    <!-- Botões de navegação -->
                     <div class="header-actions">
                         <button class="btn-header" onclick="window.location.href='index.html'">
                             <i class="fas fa-home"></i> Home
@@ -33,65 +28,106 @@
                         <button class="btn-header" onclick="window.location.href='chat.html'">
                             <i class="fas fa-comment-dots"></i> Chat
                         </button>
+                        <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                            <i class="fas fa-chart-line"></i> Minhas Atividades
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Grupos de Trabalho
+                        </button>
                     </div>
                     
+                    <!-- Status e informações do usuário -->
                     <div class="header-status">
+                        <!-- Container para os sinos lado a lado -->
                         <div class="alert-bells-container">
+                            <!-- SINO 1: ALERTAS DE OBSERVADOR (MUDANÇAS DE STATUS) -->
                             <div class="alerts-container" id="observadorAlertsContainer">
-                                <button class="alert-bell observador-bell" onclick="abrirAlertasObservadorTeste()">
+                                <button class="alert-bell observador-bell" id="observadorBell" onclick="abrirAlertasObservador()">
                                     <i class="fas fa-eye"></i>
                                     <span class="alert-count" id="observadorAlertCount" style="display: none;">0</span>
                                 </button>
+                                <div class="alert-dropdown" id="observadorAlertDropdown">
+                                    <div class="alert-dropdown-header">
+                                        <h4><i class="fas fa-eye"></i> Alerta de Atividades Observadas</h4>
+                                    </div>
+                                    <div class="alert-dropdown-content" id="observadorAlertList">
+                                        <div class="no-alerts">Nenhum alerta</div>
+                                    </div>
+                                </div>
                             </div>
+                            <!-- SINO 2: ALERTAS DE PENDENTE PARA O RESPONSÁVEL -->
                             <div class="alerts-container" id="responsavelAlertsContainer">
-                                <button class="alert-bell responsavel-bell" onclick="abrirAlertasResponsavelTeste()">
+                                <button class="alert-bell responsavel-bell" id="responsavelBell" onclick="abrirAlertasResponsavel()">
                                     <i class="fas fa-bell"></i>
                                     <span class="alert-count" id="responsavelAlertCount" style="display: none;">0</span>
                                 </button>
+                                <div class="alert-dropdown" id="responsavelAlertDropdown">
+                                    <div class="alert-dropdown-header">
+                                        <h4><i class="fas fa-bell"></i> Alertas de Atividades Pendentes</h4>
+                                    </div>
+                                    <div class="alert-dropdown-content" id="responsavelAlertList">
+                                        <div class="no-alerts">Nenhuma pendência</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <span class="status-sync">
+                        <!-- Status de conexão -->
+                        <span class="status-sync" id="status-sincronizacao">
                             <i class="fas fa-bolt"></i> Conectado
                         </span>
                         
+                        <!-- Informações do usuário logado -->
                         <div class="user-info">
                             <div class="user-avatar">
                                 <i class="fas fa-user-circle"></i>
                             </div>
                             <div class="user-details">
-                                <span id="userName" class="username">Carregando...</span>
-                                <button class="btn-logout" onclick="logoutTeste()" title="Sair">
+                                <span id="userName" class="username">thiago.barbosa</span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
                                     <i class="fas fa-sign-out-alt"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
+                    
                 </div>
             </div>
         </header>
 
-        <!-- CONTEÚDO DA PÁGINA -->
-        <div class="content-area">
-            <h1>Página de Teste</h1>
-            <p>Esta página funciona independentemente do script.js.</p>
+        <!-- CONTEÚDO ESPECÍFICO DA PÁGINA TESTE (APENAS ISTO É DIFERENTE) -->
+        <div style="background: white; padding: 30px; border-radius: 10px; margin-top: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h1 style="color: #2c3e50; margin-bottom: 20px;">Página de Teste</h1>
+            <p style="color: #7f8c8d;">Esta página usa o mesmo cabeçalho e as mesmas funções do index.html</p>
+            <p style="color: #7f8c8d; margin-top: 10px;">O cabeçalho acima é IDÊNTICO ao da página principal.</p>
             
-            <div class="teste-card">
-                <h3><i class="fas fa-check-circle text-success"></i> Sistema Funcionando</h3>
-                <p>Status: <span id="alertStatus" class="status-indicator">Pronto</span></p>
-                <p>Usuário: <span id="displayUserName" class="text-primary">-</span></p>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3498db;">
+                <h3 style="color: #2c3e50; margin-bottom: 10px;">
+                    <i class="fas fa-check-circle" style="color: #27ae60;"></i> Funcionalidades do Cabeçalho
+                </h3>
+                <ul style="color: #7f8c8d; line-height: 1.6;">
+                    <li>✅ Sistema de alertas funcionando (mesmas funções do index.html)</li>
+                    <li>✅ Logout funcionando</li>
+                    <li>✅ Navegação entre páginas</li>
+                    <li>✅ Status de conexão</li>
+                    <li>✅ Informações do usuário</li>
+                </ul>
             </div>
             
-            <div class="teste-card">
-                <h3><i class="fas fa-cogs"></i> Ações</h3>
-                <button class="btn-teste" onclick="mostrarInfoUsuario()">
-                    <i class="fas fa-info-circle"></i> Mostrar Informações
-                </button>
-                <button class="btn-teste" onclick="verificarStatusSistema()" style="margin-left: 10px;">
-                    <i class="fas fa-search"></i> Verificar Status
-                </button>
-                <button class="btn-teste" onclick="testarAlertas()" style="margin-left: 10px;">
-                    <i class="fas fa-bell"></i> Testar Alertas
+            <div style="margin-top: 20px;">
+                <button onclick="window.location.href='index.html'" style="
+                    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <i class="fas fa-arrow-left"></i> Voltar para Home
                 </button>
             </div>
         </div>
@@ -101,84 +137,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
-    <!-- CARREGAMENTO SEGURO DOS SCRIPTS -->
-    <script>
-        // 1. Primeiro, garantir que elementos existam
-        (function() {
-            console.log('🔧 Preparando ambiente para script.js...');
-            
-            // Criar elementos que o script.js procura
-            const elementosNecessarios = ['loadingText', 'status-sincronizacao'];
-            
-            elementosNecessarios.forEach(id => {
-                if (!document.getElementById(id)) {
-                    const elemento = document.createElement('div');
-                    elemento.id = id;
-                    elemento.style.display = 'none';
-                    document.body.appendChild(elemento);
-                    console.log(`✅ Elemento ${id} criado`);
-                }
-            });
-            
-            // Sobrescrever console.error para ignorar erros do script.js
-            const originalError = console.error;
-            console.error = function(...args) {
-                if (args[0] && typeof args[0] === 'string' && 
-                    (args[0].includes('textContent') || args[0].includes('null'))) {
-                    console.log('ℹ️ Erro do script.js ignorado:', args[0]);
-                    return;
-                }
-                originalError.apply(console, args);
-            };
-            
-            // 2. Carregar script.js
-            console.log('📦 Carregando script.js...');
-            const script = document.createElement('script');
-            script.src = 'script.js';
-            
-            script.onload = function() {
-                console.log('✅ script.js carregado');
-                
-                // 3. Carregar teste.js APÓS script.js
-                setTimeout(() => {
-                    console.log('📦 Carregando teste.js...');
-                    const testeScript = document.createElement('script');
-                    testeScript.src = 'teste.js';
-                    document.head.appendChild(testeScript);
-                }, 500);
-            };
-            
-            script.onerror = function() {
-                console.log('⚠️ script.js falhou, carregando apenas teste.js');
-                const testeScript = document.createElement('script');
-                testeScript.src = 'teste.js';
-                document.head.appendChild(testeScript);
-            };
-            
-            document.head.appendChild(script);
-        })();
-        
-        // Função de fallback para garantir que a página carregue
-        setTimeout(function() {
-            const loading = document.getElementById('loadingScreen');
-            const content = document.getElementById('mainContent');
-            
-            if (loading && loading.style.display !== 'none') {
-                console.log('⚠️ Forçando carregamento após timeout...');
-                loading.style.display = 'none';
-                if (content) content.style.display = 'block';
-                
-                // Atualizar usuário
-                const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
-                if (usuario) {
-                    const userNameElement = document.getElementById('userName');
-                    if (userNameElement) userNameElement.textContent = usuario.nome;
-                    
-                    const displayUserElement = document.getElementById('displayUserName');
-                    if (displayUserElement) displayUserElement.textContent = usuario.nome || usuario.usuario;
-                }
-            }
-        }, 5000); // Forçar após 5 segundos
-    </script>
+    <!-- APENAS O script.js (que já tem todas as funções) -->
+    <script src="script.js"></script>
+    
+    <!-- NÃO PRECISA DE teste.js -->
 </body>
 </html>
