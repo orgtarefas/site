@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workyz - Página de Teste</title>
+    <style>
+        /* ESTILOS DA PÁGINA TESTE APENAS - NADA DE HEADER AQUI */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .feature-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-card i {
+            color: #3498db;
+        }
+        
+        .test-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .test-btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .test-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .test-btn.secondary {
+            background: #6c757d;
+        }
+        
+        .test-btn.secondary:hover {
+            background: #5a6268;
+        }
+        
+        .stats {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        
+        .stats h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <!-- CONTAINER ONDE O CABEÇALHO SERÁ INSERIDO -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <div class="content">
+            <h1>📋 Página de Teste Workyz</h1>
+            
+            <p>Esta é uma página de demonstração que utiliza o cabeçalho modular do sistema Workyz.</p>
+            
+            <div class="stats">
+                <h3>📊 Estatísticas de Teste</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">42</div>
+                        <div class="stat-label">Tarefas Criadas</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">Em Andamento</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">Concluídas</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">7</div>
+                        <div class="stat-label">Pendentes</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <h3><i class="fas fa-check-circle"></i> Funcionalidades</h3>
+                    <p>Todas as funcionalidades do cabeçalho estão disponíveis: navegação, alertas, status do usuário e logout.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> Sincronização</h3>
+                    <p>O status de conexão é exibido em tempo real, mostrando se o sistema está conectado ao servidor.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3><i class="fas fa-mobile-alt"></i> Responsivo</h3>
+                    <p>O cabeçalho se adapta automaticamente a diferentes tamanhos de tela, de desktop a mobile.</p>
+                </div>
+            </div>
+            
+            <h2>🎯 Teste as Funcionalidades</h2>
+            <p>Clique nos botões abaixo para testar diferentes aspectos do sistema:</p>
+            
+            <div class="test-actions">
+                <button class="test-btn" onclick="window.location.href='index.html'">
+                    <i class="fas fa-home"></i> Ir para Página Inicial
+                </button>
+                
+                <button class="test-btn" onclick="testarAlertas()">
+                    <i class="fas fa-bell"></i> Simular Novos Alertas
+                </button>
+                
+                <button class="test-btn" onclick="window.location.href='chat.html'">
+                    <i class="fas fa-comments"></i> Testar Chat
+                </button>
+                
+                <button class="test-btn secondary" onclick="location.reload()">
+                    <i class="fas fa-redo"></i> Recarregar Página
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT PARA CARREGAR O CABEÇALHO -->
+    <script>
+        // FUNÇÃO PARA CARREGAR O CABEÇALHO
+        function carregarCabecalho() {
+            fetch('header.html')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao carregar o cabeçalho');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    // Insere o cabeçalho no container
+                    document.getElementById('header-container').innerHTML = html;
+                    
+                    // Log de sucesso
+                    console.log('✅ Cabeçalho carregado com sucesso!');
+                })
+                .catch(error => {
+                    console.error('❌ Erro ao carregar cabeçalho:', error);
+                    
+                    // Fallback em caso de erro
+                    document.getElementById('header-container').innerHTML = `
+                        <div style="background: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 10px; margin: 20px;">
+                            <h3>⚠️ Erro ao carregar cabeçalho</h3>
+                            <p>O arquivo header.html não foi encontrado.</p>
+                            <button onclick="location.reload()" style="
+                                background: white; 
+                                color: #dc3545; 
+                                border: none; 
+                                padding: 10px 20px; 
+                                border-radius: 5px; 
+                                cursor: pointer; 
+                                margin-top: 10px;
+                                font-weight: bold;
+                            ">
+                                Tentar Novamente
+                            </button>
+                        </div>
+                    `;
+                });
+        }
+        
+        // FUNÇÃO DA PÁGINA DE TESTE
+        function testarAlertas() {
+            alert('✅ Sistema de alertas funcionando!\n\nEm produção, os alertas seriam buscados do Firebase em tempo real.');
+        }
+        
+        // CARREGAR O CABEÇALHO QUANDO A PÁGINA CARREGAR
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarCabecalho();
+            
+            // Adicionar Font Awesome se necessário
+            if (!document.querySelector('link[href*="font-awesome"]')) {
+                const faLink = document.createElement('link');
+                faLink.rel = 'stylesheet';
+                faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
+                document.head.appendChild(faLink);
+            }
+        });
+        
+        // Adicionar listener para quando o cabeçalho for clicado (navegação SPA)
+        document.addEventListener('click', function(e) {
+            // Se clicar em um link do cabeçalho, carrega normalmente
+            if (e.target.closest('.btn-header')) {
+                // A navegação já está configurada no header.html
+                console.log('Navegando para outra página...');
+            }
+        });
+    </script>
+</body>
+</html>
