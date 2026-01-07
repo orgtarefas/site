@@ -7,10 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Estilos específicos para a página de teste - ALINHAMENTO CORRIGIDO */
-        
-        /* REMOVI o .container com max-width específico */
-        
+        /* Estilos específicos para a página de teste */
         .teste-corpo {
             background: white;
             border-radius: 10px;
@@ -135,581 +132,112 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
-    <!-- Script de teste com alertas REAIS -->
+    <!-- Script principal (O MESMO DO INDEX.HTML) -->
+    <script src="script.js"></script>
+    
+    <!-- Script MINIMALISTA apenas para ajustes do teste.html -->
     <script>
-        // ====== FUNÇÕES ESPECÍFICAS PARA TESTE.HTML ======
-        // Estado global dos alertas
-        let alertasObservador = [];
-        let alertasResponsavel = [];
+        // ====== APENAS AS MODIFICAÇÕES NECESSÁRIAS ======
         
-        // Inicialização da página de teste
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 Inicializando página de teste com dados REAIS...');
-            document.getElementById('loadingText').textContent = 'Verificando autenticação...';
-            
-            // Verificar se usuário está logado
-            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            
-            if (!usuarioLogado) {
-                console.log('❌ Usuário não logado, redirecionando...');
-                window.location.href = 'login.html';
-                return;
-            }
-
-            console.log('👤 Usuário logado:', usuarioLogado.nome);
-            document.getElementById('userName').textContent = usuarioLogado.nome;
-
-            // Inicializar bancos Firebase
-            await inicializarBancosFirebase();
-            
-            // Inicializar o sistema
-            await inicializarSistemaTeste(usuarioLogado);
-        });
+        // Sobrescrever a função de inicialização para não carregar tarefas
+        const originalInicializarSistema = window.inicializarSistema;
         
-        // Função para inicializar bancos Firebase (igual ao script.js)
-        async function inicializarBancosFirebase() {
-            try {
-                console.log('⚡ Inicializando DOIS bancos Firebase...');
-                
-                // Banco 1: ORGTAREFAS
-                const firebaseConfigOrgtarefas = {
-                    apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
-                    authDomain: "orgtarefas-85358.firebaseapp.com",
-                    projectId: "orgtarefas-85358",
-                    storageBucket: "orgtarefas-85358.firebasestorage.app",
-                    messagingSenderId: "1023569488575",
-                    appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
-                };
-                
-                // Inicializar primeiro app
-                const appOrgtarefas = firebase.initializeApp(firebaseConfigOrgtarefas);
-                window.db = appOrgtarefas.firestore();
-                console.log('✅ Banco ORGTAREFAS inicializado!');
-                
-                // Banco 2: LOGINS
-                const firebaseConfigLogins = {
-                    apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
-                    authDomain: "logins-c3407.firebaseapp.com",
-                    projectId: "logins-c3407",
-                    storageBucket: "logins-c3407.firebasestorage.app",
-                    messagingSenderId: "809861558230",
-                    appId: "1:809861558230:web:e6e41bf1db9b3cfd887e77"
-                };
-                
-                try {
-                    const appLogins = firebase.initializeApp(firebaseConfigLogins, "LoginsApp");
-                    window.dbLogins = appLogins.firestore();
-                    console.log('✅ Banco LOGINS inicializado!');
-                } catch (error) {
-                    if (error.code === 'app/duplicate-app') {
-                        window.dbLogins = firebase.app("LoginsApp").firestore();
-                    } else {
-                        throw error;
-                    }
-                }
-                
-                console.log('🎯 Ambos os bancos configurados!');
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Erro ao configurar bancos:', error);
-                return false;
-            }
-        }
-        
-        // Função para inicializar sistema de teste
-        async function inicializarSistemaTeste(usuarioLogado) {
-            console.log('📋 Inicializando sistema de teste...');
+        window.inicializarSistema = async function() {
+            console.log('🔧 Inicialização personalizada para teste.html');
             document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
             
             if (!window.db) {
                 console.error('❌ Banco ORGTAREFAS não foi inicializado!');
-                mostrarErroTeste('Erro ao conectar com o banco de dados');
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
                 return;
             }
             
-            // Mostrar conteúdo
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-            document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Conectado';
+            // Configurar event listeners dos dropdowns (já existe no script.js)
             
-            // Configurar listener para mudanças em tempo real
-            configurarListenerFirebaseTeste(usuarioLogado.usuario);
-            
-            // Fazer verificação inicial de alertas
-            setTimeout(() => {
-                console.log('🚀 Iniciando verificação de alertas REAIS');
-                verificarAlertasReais(usuarioLogado.usuario);
-            }, 1000);
-        }
-        
-        // Função para configurar listener do Firebase
-        function configurarListenerFirebaseTeste(usuarioAtual) {
-            console.log('📡 Configurando listener do Firestore para alertas...');
-            
-            // Listener em tempo real para atividades (apenas para alertas)
-            window.db.collection("atividades").onSnapshot(
-                async (snapshot) => {
-                    console.log('🔄 Dados de atividades atualizados:', snapshot.size, 'documentos');
-                    
-                    // Verificar alertas quando atividades mudam
-                    await verificarAlertasReais(usuarioAtual);
-                },
-                (error) => {
-                    console.error('❌ Erro no Firestore:', error);
-                    document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro Conexão';
-                }
-            );
-        }
-        
-        // ====== FUNÇÕES DE ALERTAS COM DADOS REAIS ======
-        
-        // Função principal para verificar alertas REAIS
-        async function verificarAlertasReais(usuarioAtual) {
             try {
-                console.log('🔔 Verificando alertas REAIS para:', usuarioAtual);
+                // Carregar usuários (função já existe no script.js)
+                if (window.carregarUsuarios) {
+                    await window.carregarUsuarios();
+                }
                 
-                // Verificar alertas de observador (DADOS REAIS)
-                await verificarAlertasObservadorReais(usuarioAtual);
+                // Carregar grupos (função já existe no script.js)
+                if (window.carregarGrupos) {
+                    await window.carregarGrupos();
+                }
                 
-                // Verificar alertas de responsável (DADOS REAIS)
-                await verificarAlertasResponsavelReais(usuarioAtual);
+                // Configurar Firebase apenas para alertas
+                configurarFirebaseTeste();
                 
-                // Atualizar contadores
-                atualizarContadoresAlertas();
-                
-                console.log(`📊 Alertas estado: ${alertasObservador.length} observador, ${alertasResponsavel.length} responsável`);
+                // Tornar estatísticas clicáveis (SEM ERRO - não temos estatísticas aqui)
                 
             } catch (error) {
-                console.error('❌ Erro ao verificar alertas REAIS:', error);
+                console.error('❌ Erro na inicialização:', error);
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline';
             }
-        }
+        };
         
-        // Função para verificar alertas de observador (DADOS REAIS)
-        async function verificarAlertasObservadorReais(usuarioAtual) {
-            try {
-                console.log(`🔍 Buscando alertas REAIS de observador para: ${usuarioAtual}`);
-                
-                // Buscar atividades onde o usuário é observador COM asterisco
-                const snapshot = await window.db.collection('atividades')
-                    .where('observadores', 'array-contains', usuarioAtual + '*')
-                    .get();
-                
-                console.log(`📊 Atividades com asterisco: ${snapshot.docs.length}`);
-                
-                const atividades = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Filtrar atividades onde status é diferente de statusAnterior
-                const atividadesComAlerta = atividades.filter(atividade => {
-                    const status = atividade.status || 'nao_iniciado';
-                    const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
-                    
-                    return status !== statusAnterior;
-                });
-                
-                console.log(`⚠️ ${atividadesComAlerta.length} atividades com alertas não vistos`);
-                
-                // Limpar alertas anteriores
-                alertasObservador = [];
-                
-                // Criar alertas REAIS para cada atividade
-                for (const atividade of atividadesComAlerta) {
-                    // Buscar nome da tarefa no Firestore
-                    let tarefaNome = 'Tarefa desconhecida';
-                    try {
-                        const tarefaDoc = await window.db.collection('tarefas').doc(atividade.tarefaId).get();
-                        if (tarefaDoc.exists) {
-                            tarefaNome = tarefaDoc.data().titulo || 'Tarefa desconhecida';
-                        }
-                    } catch (error) {
-                        console.error('Erro ao buscar tarefa:', error);
-                    }
-                    
-                    const statusAnterior = atividade.statusAnterior || 'nao_iniciado';
-                    const statusAtual = atividade.status || 'nao_iniciado';
-                    
-                    const alertaId = `obs_${atividade.id}_${statusAtual}_${Date.now()}`;
-                    
-                    const alerta = {
-                        id: alertaId,
-                        atividadeId: atividade.id,
-                        titulo: atividade.titulo || 'Atividade sem título',
-                        statusAntigo: statusAnterior,
-                        statusNovo: statusAtual,
-                        dataAlteracao: atividade.dataAtualizacao ? 
-                            atividade.dataAtualizacao.toDate() : new Date(),
-                        tarefaNome: tarefaNome,
-                        tipo: 'observador',
-                        descricao: atividade.descricao || '',
-                        responsavel: atividade.responsavel || '',
-                        observador: usuarioAtual
-                    };
-                    
-                    alertasObservador.push(alerta);
-                    console.log(`✅ Alerta REAL criado: ${alerta.titulo} (${statusAnterior} → ${statusAtual})`);
-                }
-                
-                // Atualizar interface
-                atualizarContadoresAlertas();
-
-            } catch (error) {
-                console.error('❌ Erro em alertas de observador REAIS:', error);
-            }
-        }
-        
-        // Função para verificar alertas de responsável (DADOS REAIS)
-        async function verificarAlertasResponsavelReais(usuarioAtual) {
-            try {
-                console.log(`🔍 Buscando alertas REAIS de responsável para: ${usuarioAtual}`);
-                
-                // Buscar atividades onde o usuário é responsável E status é pendente
-                const snapshot = await window.db.collection('atividades')
-                    .where('responsavel', '==', usuarioAtual)
-                    .where('status', '==', 'pendente')
-                    .get();
-                
-                console.log(`⏰ Atividades pendentes REAIS: ${snapshot.docs.length}`);
-                
-                // Atualizar array de alertas
-                alertasResponsavel = snapshot.docs.map(doc => {
-                    const atividade = doc.data();
-                    const alertaId = `resp_${doc.id}`;
-                    
-                    // Buscar nome da tarefa
-                    let tarefaNome = 'Tarefa desconhecida';
-                    
-                    return {
-                        id: alertaId,
-                        atividadeId: doc.id,
-                        titulo: atividade.titulo || 'Atividade sem título',
-                        status: 'pendente',
-                        dataCriacao: new Date(),
-                        tarefaNome: tarefaNome,
-                        tipo: 'responsavel',
-                        dataPrevista: atividade.dataPrevista,
-                        descricao: atividade.descricao || '',
-                        responsavel: atividade.responsavel || 'Não definido'
-                    };
-                });
-                
-            } catch (error) {
-                console.error('❌ Erro ao verificar alertas de responsável REAIS:', error);
-            }
-        }
-        
-        // ====== FUNÇÕES DE INTERFACE ======
-        
-        // Função para atualizar contadores de alertas
-        function atualizarContadoresAlertas() {
-            // Para observador: todos os alertas na lista são não lidos
-            const naoLidosObservador = alertasObservador.length;
+        // Configuração simplificada do Firebase apenas para alertas
+        function configurarFirebaseTeste() {
+            console.log('📡 Configurando listener do Firestore para teste.html...');
             
-            // Para responsável: todos os alertas na lista são não lidos
-            const naoLidosResponsavel = alertasResponsavel.length;
-            
-            // Obter elementos DOM
-            const observadorCountEl = document.getElementById('observadorAlertCount');
-            const responsavelCountEl = document.getElementById('responsavelAlertCount');
-            
-            // Verificar se elementos existem antes de atualizar
-            if (observadorCountEl) {
-                observadorCountEl.textContent = naoLidosObservador;
-                observadorCountEl.style.display = naoLidosObservador > 0 ? 'flex' : 'none';
-            }
-            
-            if (responsavelCountEl) {
-                responsavelCountEl.textContent = naoLidosResponsavel;
-                responsavelCountEl.style.display = naoLidosResponsavel > 0 ? 'flex' : 'none';
-            }
-            
-            console.log('✅ Contadores atualizados:', { observador: naoLidosObservador, responsavel: naoLidosResponsavel });
-        }
-        
-        // Função para abrir dropdown de alertas de observador
-        function abrirAlertasObservador() {
-            const container = document.getElementById('observadorAlertsContainer');
-            const otherContainers = document.querySelectorAll('.alerts-container.show');
-            
-            // Fechar outros dropdowns
-            otherContainers.forEach(other => {
-                if (other !== container) {
-                    other.classList.remove('show');
-                }
-            });
-            
-            // Alternar este dropdown
-            container.classList.toggle('show');
-            
-            // Renderizar alertas REAIS
-            renderizarAlertasObservador();
-        }
-        
-        // Função para renderizar alertas de observador
-        function renderizarAlertasObservador() {
-            const container = document.getElementById('observadorAlertList');
-            
-            if (alertasObservador.length === 0) {
-                container.innerHTML = '<div class="no-alerts">Nenhum alerta não visualizado</div>';
-                return;
-            }
-            
-            // Ordenar do mais recente para o mais antigo
-            const alertasOrdenados = [...alertasObservador].sort((a, b) => 
-                new Date(b.dataAlteracao) - new Date(a.dataAlteracao)
-            );
-            
-            const alertasHTML = alertasOrdenados.map(alerta => {
-                const tempoAtras = formatarTempoAtras(alerta.dataAlteracao);
-                
-                return `
-                    <div class="alert-item unread" data-alerta-id="${alerta.id}">
-                        <div class="alert-item-header">
-                            <div class="alert-item-title">
-                                <i class="fas fa-bell"></i>
-                                ${alerta.titulo}
-                            </div>
-                            <div class="alert-item-time">${tempoAtras}</div>
-                        </div>
-                        <div class="alert-item-body">
-                            <div class="alert-mudanca-status">
-                                <i class="fas fa-sync-alt"></i>
-                                Status alterado em <strong>${alerta.tarefaNome}</strong>
-                            </div>
-                            ${alerta.responsavel ? `<div class="alert-responsavel"><i class="fas fa-user"></i> ${alerta.responsavel}</div>` : ''}
-                        </div>
-                        <div class="alert-item-details">
-                            <div class="alert-status-change">
-                                <div class="status-change-label">De:</div>
-                                <span class="alert-status-badge badge-de ${normalizarStatusParaClasse(alerta.statusAntigo)}">
-                                    ${getLabelStatus(alerta.statusAntigo)}
-                                </span>
-                                <div class="status-change-label">Para:</div>
-                                <span class="alert-status-badge badge-para ${normalizarStatusParaClasse(alerta.statusNovo)}">
-                                    ${getLabelStatus(alerta.statusNovo)}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="alert-actions">
-                            <button class="btn-mark-read" onclick="marcarAlertaComoLido('${alerta.id}', 'observador')">
-                                <i class="fas fa-check-circle"></i> Marcar como Lido
-                            </button>
-                            <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
-                                <i class="fas fa-external-link-alt"></i> Ver Atividade
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.innerHTML = alertasHTML;
-        }
-        
-        // Função para abrir dropdown de alertas de responsável
-        function abrirAlertasResponsavel() {
-            const container = document.getElementById('responsavelAlertsContainer');
-            const otherContainers = document.querySelectorAll('.alerts-container.show');
-            
-            // Fechar outros dropdowns
-            otherContainers.forEach(other => {
-                if (other !== container) {
-                    other.classList.remove('show');
-                }
-            });
-            
-            // Alternar este dropdown
-            container.classList.toggle('show');
-            
-            // Renderizar alertas REAIS
-            renderizarAlertasResponsavel();
-        }
-        
-        // Função para renderizar alertas de responsável
-        function renderizarAlertasResponsavel() {
-            const container = document.getElementById('responsavelAlertList');
-            
-            if (alertasResponsavel.length === 0) {
-                container.innerHTML = '<div class="no-alerts">Nenhuma atividade pendente</div>';
-                return;
-            }
-            
-            const alertasHTML = alertasResponsavel.map(alerta => {
-                const tempoAtras = formatarTempoAtras(alerta.dataCriacao);
-                const dataPrevista = alerta.dataPrevista ? 
-                    `<div class="alert-data-prevista">
-                        <i class="fas fa-calendar"></i>
-                        ${formatarData(alerta.dataPrevista)}
-                    </div>` : 
-                    '';
-                
-                return `
-                    <div class="alert-item unread" data-alerta-id="${alerta.id}">
-                        <div class="alert-item-header">
-                            <div class="alert-item-title">
-                                <i class="fas fa-user-check"></i>
-                                ${alerta.titulo}
-                            </div>
-                            <div class="alert-item-time">${tempoAtras}</div>
-                        </div>
-                        <div class="alert-item-body">
-                            <strong>${alerta.tarefaNome}</strong>
-                            ${alerta.descricao ? `<p class="alert-descricao">${alerta.descricao}</p>` : ''}
-                        </div>
-                        <div class="alert-item-details">
-                            <span class="badge alert-status-badge status-pendente">PENDENTE</span>
-                            ${dataPrevista}
-                        </div>
-                        <div class="alert-actions">
-                            <button class="btn-go-to-activity" onclick="irParaAtividade('${alerta.atividadeId}')">
-                                <i class="fas fa-external-link-alt"></i> Ver Atividade
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.innerHTML = alertasHTML;
-        }
-        
-        // Função para marcar alerta como lido
-        async function marcarAlertaComoLido(alertaId, tipo) {
-            try {
-                if (tipo === 'observador') {
-                    // Encontrar o alerta
-                    const alerta = alertasObservador.find(a => a.id === alertaId);
-                    
-                    if (alerta) {
-                        // Buscar a atividade no Firestore
-                        const atividadeDoc = await window.db.collection('atividades').doc(alerta.atividadeId).get();
+            // Listener em tempo real apenas para alertas (sem tarefas)
+            window.db.collection("atividades")
+                .onSnapshot(
+                    async (snapshot) => {
+                        console.log('📊 Dados de atividades recebidos:', snapshot.size);
                         
-                        if (atividadeDoc.exists) {
-                            const atividade = atividadeDoc.data();
-                            const observadores = atividade.observadores || [];
-                            
-                            // Remover asterisco do observador específico
-                            const observadoresAtualizados = observadores.map(obs => {
-                                if (obs === alerta.observador + '*') {
-                                    return alerta.observador; // Remove o asterisco
-                                }
-                                return obs;
-                            });
-                            
-                            // Atualizar no Firestore
-                            await window.db.collection('atividades').doc(alerta.atividadeId).update({
-                                observadores: observadoresAtualizados,
-                                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            
-                            console.log(`✅ Asterisco removido para ${alerta.observador} na atividade ${alerta.atividadeId}`);
-                            
-                            // Remover da lista local
-                            alertasObservador = alertasObservador.filter(a => a.id !== alertaId);
-                            
-                            // Atualizar contadores
-                            atualizarContadoresAlertas();
+                        // Esconder tela de carregamento
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        document.getElementById('mainContent').style.display = 'block';
+                        document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Conectado';
+                        
+                        // Se a função verificarAlertas existir, chame-a
+                        if (window.verificarAlertas) {
+                            setTimeout(window.verificarAlertas, 1000);
                         }
+                    },
+                    (error) => {
+                        console.error('❌ Erro no Firestore:', error);
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        document.getElementById('mainContent').style.display = 'block';
+                        document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro Conexão';
                     }
-                } else {
-                    // Para alertas de responsável
-                    alertasResponsavel = alertasResponsavel.filter(a => a.id !== alertaId);
-                    atualizarContadoresAlertas();
-                }
-                
-                // Re-renderizar lista
-                if (tipo === 'observador') {
-                    renderizarAlertasObservador();
-                } else {
-                    renderizarAlertasResponsavel();
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro ao marcar alerta como lido:', error);
+                );
+        }
+        
+        // Sobrescrever função que causa erro (estatísticas clicáveis)
+        window.criarEstatisticasClicaveis = function() {
+            console.log('ℹ️ Página de teste - sem estatísticas para tornar clicáveis');
+            // Não faz nada - evita o erro
+        };
+        
+        // Sobrescrever função que causa erro (atualizar lista de tarefas)
+        window.atualizarListaTarefas = function() {
+            console.log('ℹ️ Página de teste - sem lista de tarefas para atualizar');
+            // Não faz nada - evita o erro
+        };
+        
+        // Sobrescrever função que causa erro (atualizar estatísticas)
+        window.atualizarEstatisticas = function() {
+            console.log('ℹ️ Página de teste - sem estatísticas para atualizar');
+            // Não faz nada - evita o erro
+        };
+        
+        // Sobrescrever função que causa erro (atualizar interface)
+        window.atualizarInterface = function() {
+            console.log('ℹ️ Página de teste - interface simplificada');
+            // Apenas atualiza contadores de alertas se a função existir
+            if (window.atualizarContadoresAlertas) {
+                window.atualizarContadoresAlertas();
             }
-        }
+        };
         
-        // Função para ir para a atividade
-        function irParaAtividade(atividadeId) {
-            // Marcar como lido primeiro
-            marcarAlertaComoLido(atividadeId, 'responsavel');
-            
-            // Abrir dashboard
-            window.open(`dashboard.html?atividade=${atividadeId}`, '_blank');
-        }
-        
-        // ====== FUNÇÕES AUXILIARES ======
-        
-        // Função para formatar tempo atrás
-        function formatarTempoAtras(data) {
-            const agora = new Date();
-            const dataAlerta = new Date(data);
-            const diferencaMinutos = Math.floor((agora - dataAlerta) / (1000 * 60));
-            
-            if (diferencaMinutos < 1) return 'Agora mesmo';
-            if (diferencaMinutos < 60) return `${diferencaMinutos} min atrás`;
-            
-            const diferencaHoras = Math.floor(diferencaMinutos / 60);
-            if (diferencaHoras < 24) return `${diferencaHoras} h atrás`;
-            
-            const diferencaDias = Math.floor(diferencaHoras / 24);
-            return `${diferencaDias} d atrás`;
-        }
-        
-        // Função para formatar data
-        function formatarData(dataString) {
-            if (!dataString) return 'Não definida';
-            return new Date(dataString + 'T00:00:00').toLocaleDateString('pt-BR');
-        }
-        
-        // Função para normalizar status para classe CSS
-        function normalizarStatusParaClasse(status) {
-            if (!status) return 'pendente';
-            
-            const statusNorm = status.toLowerCase().trim();
-            
-            switch(statusNorm) {
-                case 'nao_iniciado':
-                case 'não iniciado':
-                    return 'nao_iniciado';
-                case 'pendente':
-                    return 'pendente';
-                case 'andamento':
-                case 'em andamento':
-                    return 'andamento';
-                case 'concluido':
-                case 'concluído':
-                    return 'concluido';
-                default:
-                    return statusNorm.replace(/[^a-z0-9]/g, '_');
-            }
-        }
-        
-        // Função para obter label do status
-        function getLabelStatus(status) {
-            if (!status) return 'Não Iniciado';
-            
-            const statusNorm = status.toLowerCase().trim();
-            
-            switch(statusNorm) {
-                case 'nao_iniciado':
-                case 'não iniciado':
-                    return 'Não Iniciado';
-                case 'pendente':
-                    return 'Pendente';
-                case 'andamento':
-                case 'em andamento':
-                    return 'Em Andamento';
-                case 'concluido':
-                case 'concluído':
-                    return 'Concluído';
-                default:
-                    return status.charAt(0).toUpperCase() + status.slice(1);
-            }
-        }
-        
-        // Função para mostrar erro
-        function mostrarErroTeste(mensagem) {
+        // Função para mostrar erro personalizada
+        window.mostrarErro = function(mensagem) {
+            console.error('❌ Erro na página de teste:', mensagem);
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed;
@@ -730,40 +258,15 @@
             setTimeout(() => {
                 document.body.removeChild(notification);
             }, 5000);
-        }
+        };
         
-        // Função de logout
-        function logout() {
-            console.log('🚪 Fazendo logout...');
-            localStorage.removeItem('usuarioLogado');
-            window.location.href = 'login.html';
-        }
-        
-        // Fechar dropdowns de alerta ao clicar fora
-        document.addEventListener('click', function(event) {
-            const containers = document.querySelectorAll('.alerts-container');
-            let clickDentroDeAlerta = false;
+        // Inicializar quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando teste.html...');
             
-            containers.forEach(container => {
-                if (container.contains(event.target)) {
-                    clickDentroDeAlerta = true;
-                }
-            });
-            
-            if (!clickDentroDeAlerta) {
-                containers.forEach(container => {
-                    container.classList.remove('show');
-                });
-            }
+            // O script.js já fará a verificação de login e chamará inicializarSistema
+            // Nossa versão sobrescrita será chamada
         });
-        
-        // Torna funções globais
-        window.abrirAlertasObservador = abrirAlertasObservador;
-        window.abrirAlertasResponsavel = abrirAlertasResponsavel;
-        window.marcarAlertaComoLido = marcarAlertaComoLido;
-        window.irParaAtividade = irParaAtividade;
-        window.logout = logout;
-        
     </script>
 </body>
 </html>
