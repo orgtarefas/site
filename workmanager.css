@@ -124,8 +124,6 @@ body {
     align-items: center;
 }
 
-/* Na seção dos botões de navegação - linha 105-150 aproximadamente */
-
 .btn-header {
     padding: 10px 18px;
     background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
@@ -142,6 +140,13 @@ body {
     text-decoration: none;
     white-space: nowrap;
 }
+
+.btn-header:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #1c5d8f 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
 
 .btn-header.active {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
