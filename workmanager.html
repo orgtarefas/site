@@ -8,11 +8,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Tela de Carregamento -->
+    <!-- Tela de Carregamento APENAS COM ÍCONE -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <i class="fas fa-users fa-spin"></i>
-            <p id="loadingText">Conectando ao banco de dados...</p>
         </div>
     </div>
 
@@ -66,12 +65,6 @@
                 </div>
             </div>
         </header>
-
-        <!-- Status -->
-        <div class="sync-status" id="syncStatus">
-            <i class="fas fa-sync-alt fa-spin"></i>
-            <span>Estabelecendo conexão...</span>
-        </div>
 
         <!-- Filtros e Tabs -->
         <div class="workmanager-tabs" style="display: flex; justify-content: space-between; align-items: center;">
@@ -213,8 +206,6 @@
 
     <!-- Firebase v12 -->
     <script type="module">
-        //console.log('=== INICIANDO FIREBASE v12 PARA LOGINS ===');
-        
         // Configuração do banco ORGTAREFAS
         const firebaseConfigOrg = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
@@ -224,7 +215,7 @@
             messagingSenderId: "1023569488575",
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
-    
+
         // Configuração do banco LOGINS
         const firebaseConfigLogins = {
             apiKey: "AIzaSyCJpyAouZtwoWC0QDmTtpJxn0_j_w8DlvU",
@@ -259,14 +250,14 @@
             const appOrg = initializeApp(firebaseConfigOrg, 'orgTarefas');
             const appLogins = initializeApp(firebaseConfigLogins, 'logins');
             
-            // Obter instâncias do Firestore para cada app
+            // Obter instâncias do Firestore
             const dbOrg = getFirestore(appOrg);
             const dbLogins = getFirestore(appLogins);
             
             window.firebaseModules = {
-                db: dbOrg, // Para manter compatibilidade com código existente
-                dbOrg: dbOrg, // Banco ORGTAREFAS
-                dbLogins: dbLogins, // Banco LOGINS
+                db: dbOrg,
+                dbOrg: dbOrg,
+                dbLogins: dbLogins,
                 collection, getDocs, getDoc, serverTimestamp,
                 query, where, onSnapshot,
                 addDoc, updateDoc, deleteDoc, doc, setDoc,
@@ -275,25 +266,12 @@
                 appLogins
             };
             
-            //console.log('✅ Firebase v12 inicializado com sucesso para ambos bancos!');
-            
-            const loadingText = document.getElementById('loadingText');
-            if (loadingText) {
-                loadingText.textContent = 'Firebase conectado! Carregando dados...';
-            }
-            
             if (window.onFirebaseReady) {
                 window.onFirebaseReady();
             }
             
         } catch (error) {
-            //console.error('❌ ERRO CRÍTICO ao inicializar Firebase:', error);
-            
-            const loadingText = document.getElementById('loadingText');
-            if (loadingText) {
-                loadingText.innerHTML = '<span style="color: #e74c3c;">❌ Erro ao conectar com Firebase</span>';
-            }
-            
+            console.error('Erro ao inicializar Firebase:', error);
             window.firebaseModules = null;
         }
     </script>
