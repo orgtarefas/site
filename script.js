@@ -700,7 +700,7 @@ function configurarFirebase() {
                 
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
-                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-bolt"></i> Conectado';
+                document.getElementById('status-sincronizacao').innerHTML = '<i class="fas fa-check-circle"></i> Conectado';
                 
                 atualizarInterface();
                 
