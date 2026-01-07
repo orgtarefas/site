@@ -91,26 +91,27 @@ async function init() {
 
 // ========== AUTO-LOGIN AUTOMÁTICO ==========
 async function autoLogin() {
-    //console.log('🔐 Tentando auto-login...');
+    console.log('🔐 Tentando auto-login...');
     
     const usuarioLogadoStr = localStorage.getItem('usuarioLogado');
     if (!usuarioLogadoStr) {
-        //console.log('⚠️ Nenhum usuário logado');
+        console.log('⚠️ Nenhum usuário logado, redirecionando para index...');
         window.location.href = 'index.html';
-        return;
+        return null;
     }
     
     try {
         const usuarioLogado = JSON.parse(usuarioLogadoStr);
-        //console.log('👤 Usuário:', usuarioLogado.usuario);
+        console.log('👤 Usuário do localStorage:', usuarioLogado.usuario);
         
         // Buscar no Firestore
         const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
         const docSnap = await getDoc(loginsRef);
         
         if (!docSnap.exists()) {
-            //console.log('❌ Documento não encontrado');
-            return;
+            console.log('❌ Documento de logins não encontrado no Firestore');
+            showNotification('❌ Erro de conexão com o banco de dados', 'error');
+            return null;
         }
         
         const loginsData = docSnap.data();
@@ -118,69 +119,310 @@ async function autoLogin() {
         let userUid = null;
         
         // Encontrar usuário pelo login
+        console.log('🔍 Procurando usuário nos logins...');
         for (const [uid, userData] of Object.entries(loginsData)) {
             if (userData && userData.login === usuarioLogado.usuario) {
                 userFound = userData;
                 userUid = uid;
+                console.log(`✅ Usuário encontrado: ${userData.nome || userData.login} (UID: ${uid})`);
                 break;
             }
         }
         
         if (!userFound) {
-            //console.log('❌ Usuário não encontrado');
-            return;
+            console.log('❌ Usuário não encontrado no Firestore');
+            showNotification('❌ Usuário não encontrado no sistema', 'error');
+            localStorage.removeItem('usuarioLogado');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+            return null;
         }
         
         // Criar objeto do usuário
         currentUser = {
             uid: userUid,
             login: userFound.login,
-            nome: userFound.displayName || userFound.login,
-            perfil: userFound.perfil || 'usuario'
+            nome: userFound.nome || userFound.displayName || userFound.login,
+            perfil: userFound.perfil || 'usuario',
+            email: userFound.email || ''
         };
         
-        //console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
+        console.log('✅ Auto-login bem-sucedido:', currentUser.nome);
         
         // Inicializar cache de usuários
         allUsers = loginsData;
-        //console.log(`📊 ${Object.keys(allUsers).length} usuários carregados`);
+        console.log(`📊 ${Object.keys(allUsers).length} usuários carregados no cache`);
         
         // Configurar cache em tempo real
         setupUsersCache();
         
-        // Atualizar interface
-        document.getElementById('current-user-name').textContent = currentUser.nome;
-        document.getElementById('current-user-status').classList.add('online');
+        // Atualizar interface do usuário - com verificações de segurança
+        try {
+            const userNameElement = document.getElementById('current-user-name');
+            const userStatusElement = document.getElementById('current-user-status');
+            
+            if (userNameElement) {
+                userNameElement.textContent = currentUser.nome;
+                console.log('✅ Nome do usuário atualizado na interface');
+            } else {
+                console.warn('⚠️ Elemento current-user-name não encontrado');
+            }
+            
+            if (userStatusElement) {
+                userStatusElement.classList.add('online');
+                userStatusElement.classList.remove('offline');
+                console.log('✅ Status online atualizado');
+            }
+            
+            // Destacar botão do Chat como ativo
+            const chatBtn = document.querySelector('.btn-header[href="chat.html"], .btn-header[onclick*="chat.html"]');
+            if (chatBtn) {
+                chatBtn.classList.add('active');
+                console.log('✅ Botão do chat marcado como ativo');
+            } else {
+                // Tentar encontrar por conteúdo
+                const allButtons = document.querySelectorAll('.btn-header');
+                allButtons.forEach(btn => {
+                    if (btn.textContent.includes('Chat') || btn.innerHTML.includes('fa-comment-dots')) {
+                        btn.classList.add('active');
+                        console.log('✅ Botão do chat encontrado por conteúdo');
+                    }
+                });
+            }
+            
+        } catch (uiError) {
+            console.error('❌ Erro ao atualizar interface:', uiError);
+        }
         
-        // Atualizar status online
-        await updateDoc(loginsRef, {
-            [`${currentUser.uid}.isOnline`]: true
-        });
+        // Atualizar status online no Firestore
+        try {
+            await updateDoc(loginsRef, {
+                [`${currentUser.uid}.isOnline`]: true,
+                [`${currentUser.uid}.lastSeen`]: new Date().toISOString()
+            });
+            console.log('✅ Status online atualizado no Firestore');
+        } catch (firestoreError) {
+            console.error('❌ Erro ao atualizar status no Firestore:', firestoreError);
+        }
         
         // Configurar no Realtime Database
-        const userRef = ref(chatDb, `users/${currentUser.uid}`);
-        await set(userRef, {
-            uid: currentUser.uid,
-            login: currentUser.login,
-            nome: currentUser.nome,
-            perfil: currentUser.perfil,
-            isOnline: true,
-            lastSeen: Date.now()
-        });
+        try {
+            const userRef = ref(chatDb, `users/${currentUser.uid}`);
+            await set(userRef, {
+                uid: currentUser.uid,
+                login: currentUser.login,
+                nome: currentUser.nome,
+                perfil: currentUser.perfil,
+                email: currentUser.email,
+                isOnline: true,
+                lastSeen: Date.now(),
+                updatedAt: new Date().toISOString()
+            });
+            console.log('✅ Dados do usuário salvos no Realtime Database');
+            
+            // Configurar desconexão automática
+            onDisconnect(ref(chatDb, `users/${currentUser.uid}/isOnline`)).set(false);
+            onDisconnect(ref(chatDb, `users/${currentUser.uid}/lastSeen`)).set(Date.now());
+            console.log('✅ Configuração de desconexão automática ativada');
+            
+        } catch (rtdbError) {
+            console.error('❌ Erro ao salvar no Realtime Database:', rtdbError);
+        }
         
-        // Desconexão automática
-        onDisconnect(ref(chatDb, `users/${currentUser.uid}/isOnline`)).set(false);
-        onDisconnect(ref(chatDb, `users/${currentUser.uid}/lastSeen`)).set(Date.now());
+        // Carregar dados do chat
+        try {
+            await loadOnlineUsers();
+            await loadConversations();
+            console.log('✅ Dados do chat carregados');
+        } catch (loadError) {
+            console.error('❌ Erro ao carregar dados do chat:', loadError);
+        }
         
-        // Carregar dados
-        loadOnlineUsers();
-        loadConversations();
+        // Mostrar notificação de boas-vindas
+        showNotification(`✅ Olá, ${currentUser.nome}! Bem-vindo ao chat.`, 'success');
         
-        // Mostrar notificação
-        showNotification(`✅ Olá, ${currentUser.nome}!`, 'success');
+        return currentUser;
         
     } catch (error) {
-        console.error('❌ Erro no auto-login:', error);
+        console.error('❌ Erro crítico no auto-login:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Notificação de erro amigável
+        showNotification('❌ Erro ao conectar ao chat. Tentando novamente...', 'error');
+        
+        // Tentar reconexão após 3 segundos
+        setTimeout(() => {
+            console.log('🔄 Tentando reconexão...');
+            autoLogin();
+        }, 3000);
+        
+        return null;
+    }
+}
+
+// ========== CONFIGURAR CACHE DE USUÁRIOS ==========
+function setupUsersCache() {
+    try {
+        if (!loginsDb) {
+            console.warn('⚠️ Banco de logins não disponível para cache');
+            return;
+        }
+        
+        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+        
+        // Listener em tempo real para atualizações
+        onSnapshot(loginsRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const newData = snapshot.data();
+                allUsers = newData;
+                console.log(`🔄 Cache de usuários atualizado: ${Object.keys(newData).length} usuários`);
+                
+                // Atualizar lista de usuários se estiver visível
+                if (document.getElementById('all-users') && !isLoadingUsers) {
+                    loadAllUsers();
+                }
+            }
+        }, (error) => {
+            console.error('❌ Erro no listener do cache:', error);
+        });
+        
+        console.log('✅ Cache de usuários configurado');
+        
+    } catch (error) {
+        console.error('❌ Erro ao configurar cache:', error);
+    }
+}
+
+// ========== FUNÇÃO DE LOGOUT ==========
+async function logout() {
+    if (!currentUser) return;
+    
+    console.log('🚪 Realizando logout do chat...');
+    
+    try {
+        // Atualizar status offline no Firestore
+        const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+        await updateDoc(loginsRef, {
+            [`${currentUser.uid}.isOnline`]: false,
+            [`${currentUser.uid}.lastSeen`]: new Date().toISOString()
+        });
+        
+        // Atualizar status offline no Realtime Database
+        const userRef = ref(chatDb, `users/${currentUser.uid}`);
+        await update(userRef, {
+            isOnline: false,
+            lastSeen: Date.now(),
+            updatedAt: new Date().toISOString()
+        });
+        
+        console.log('✅ Status offline atualizado');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar status offline:', error);
+    }
+    
+    // Limpar dados locais
+    currentUser = null;
+    allUsers = {};
+    
+    // Redirecionar para página principal
+    window.location.href = 'index.html';
+}
+
+// ========== INICIALIZAÇÃO ==========
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Iniciando aplicação de chat...');
+    
+    try {
+        // Verificar se Firebase está carregado
+        if (!window.firebaseModules) {
+            console.error('❌ Firebase não carregado');
+            showNotification('❌ Erro de inicialização. Recarregue a página.', 'error');
+            return;
+        }
+        
+        // Inicializar variáveis globais
+        currentUser = null;
+        allUsers = {};
+        conversations = {};
+        isLoadingUsers = false;
+        
+        // Verificar conexão com internet
+        if (!navigator.onLine) {
+            showNotification('⚠️ Sem conexão com a internet', 'warning');
+        }
+        
+        // Configurar listener de conexão
+        window.addEventListener('online', () => {
+            showNotification('✅ Conexão restaurada', 'success');
+            autoLogin();
+        });
+        
+        window.addEventListener('offline', () => {
+            showNotification('⚠️ Conexão perdida', 'warning');
+        });
+        
+        // Executar auto-login
+        const user = await autoLogin();
+        
+        if (user) {
+            console.log('🎉 Chat iniciado com sucesso para:', user.nome);
+            
+            // Configurar evento de saída da página
+            window.addEventListener('beforeunload', () => {
+                if (currentUser) {
+                    // Atualizar status offline de forma síncrona se possível
+                    try {
+                        const userRef = ref(chatDb, `users/${currentUser.uid}`);
+                        set(userRef, {
+                            isOnline: false,
+                            lastSeen: Date.now()
+                        });
+                    } catch (e) {
+                        console.log('ℹ️ Não foi possível atualizar status offline antes de sair');
+                    }
+                }
+            });
+            
+        } else {
+            console.log('❌ Auto-login falhou, aguardando redirecionamento...');
+        }
+        
+    } catch (initError) {
+        console.error('❌ Erro na inicialização:', initError);
+        showNotification('❌ Erro ao iniciar o chat. Recarregue a página.', 'error');
+    }
+});
+
+// ========== FUNÇÃO AUXILIAR: MOSTRAR NOTIFICAÇÃO ==========
+function showNotification(message, type = 'info') {
+    try {
+        const notification = document.getElementById('notification');
+        if (!notification) {
+            console.warn('⚠️ Elemento de notificação não encontrado');
+            return;
+        }
+        
+        // Limpar classes anteriores
+        notification.className = 'notification';
+        
+        // Adicionar classe de tipo
+        notification.classList.add(type);
+        
+        // Definir mensagem
+        notification.textContent = message;
+        
+        // Mostrar
+        notification.classList.remove('hidden');
+        
+        // Auto-esconder após 5 segundos
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 5000);
+        
+    } catch (error) {
+        console.error('❌ Erro ao mostrar notificação:', error);
     }
 }
 
