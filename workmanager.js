@@ -99,6 +99,7 @@ class WorkManagerV12 {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         
+        // Atualizar status no header
         this.atualizarStatusSincronizacao('🔶 Modo Demonstração');
         
         // Mostrar dados de exemplo
@@ -195,11 +196,12 @@ class WorkManagerV12 {
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             
-            this.atualizarStatusSincronizacao('✅ Conectado');
+            // 3. Atualizar status no header
+            this.atualizarStatusSincronizacao('Conectado');
             
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
-            this.atualizarStatusSincronizacao('❌ Erro de conexão');
+            this.atualizarStatusSincronizacao('Erro de conexão');
             throw error;
         }
     }
@@ -339,7 +341,6 @@ class WorkManagerV12 {
     configurarListeners() {
         //console.log('📡 Configurando listeners v12...');
         
-        // 1. Listener para TODOS os grupos (não apenas os que o usuário é membro)
         try {
             const gruposRef = this.modules.collection(this.db, 'grupos');
             
@@ -353,6 +354,7 @@ class WorkManagerV12 {
                 },
                 (error) => {
                     console.error('❌ Erro no listener de grupos:', error);
+                    // Atualizar status no header em caso de erro
                     this.atualizarStatusSincronizacao('⚠️ Sincronização interrompida');
                 }
             );
@@ -361,6 +363,8 @@ class WorkManagerV12 {
             
         } catch (error) {
             console.error('❌ Erro ao configurar listener:', error);
+            // Atualizar status no header em caso de erro
+            this.atualizarStatusSincronizacao('⚠️ Erro de conexão');
         }
     }
 
@@ -1255,12 +1259,27 @@ class WorkManagerV12 {
     // ========== FUNÇÕES AUXILIARES ==========
     
     atualizarStatusSincronizacao(status) {
-        const syncElement = document.getElementById('syncStatus');
-        if (syncElement) {
-            syncElement.innerHTML = `
-                <i class="fas fa-${status.includes('✅') ? 'check-circle' : status.includes('❌') ? 'exclamation-triangle' : 'info-circle'}"></i>
-                <span>${status}</span>
-            `;
+        const statusElement = document.getElementById('status-sincronizacao');
+        if (statusElement) {
+            // Mapear o status para ícones apropriados
+            let icon = 'bolt'; // padrão
+            
+            if (status.includes('✅') || status.includes('Conectado')) {
+                icon = 'check-circle';
+            } else if (status.includes('❌') || status.includes('Erro')) {
+                icon = 'exclamation-triangle';
+            } else if (status.includes('🔶') || status.includes('Demonstração')) {
+                icon = 'info-circle';
+            }
+            
+            // Atualizar o ícone
+            const iconElement = statusElement.querySelector('i');
+            if (iconElement) {
+                iconElement.className = `fas fa-${icon}`;
+            }
+            
+            // Se quiser também atualizar o texto, pode adicionar:
+            // statusElement.innerHTML = `<i class="fas fa-${icon}"></i> ${status}`;
         }
     }
 
