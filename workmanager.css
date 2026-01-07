@@ -131,7 +131,7 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
-    font-weight: 600; /* MESMO PESTO DO DASHBOARD */
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex;
