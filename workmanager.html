@@ -274,11 +274,6 @@
             
             //console.log('✅ Firebase v12 inicializado com sucesso para ambos bancos!');
             
-            const loadingText = document.getElementById('loadingText');
-            if (loadingText) {
-                loadingText.textContent = 'Firebase conectado! Carregando dados...';
-            }
-            
             if (window.onFirebaseReady) {
                 window.onFirebaseReady();
             }
