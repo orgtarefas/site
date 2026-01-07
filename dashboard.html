@@ -18,33 +18,54 @@
     </div>
 
     <div class="dashboard-container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho -->
+        <!-- CABEÇALHO PROFISSIONAL (IGUAL AO INDEX.HTML, SEM ALERTAS) -->
         <header class="dashboard-header">
-            <div class="header-left">
-                <i class="fas fa-tasks"></i>
-                <h1>Work Manager - Atividades</h1>
-            </div>
-            <div class="header-right">
-                <button class="btn btn-outline btn-sm" onclick="window.location.href='index.html'">
-                    <i class="fas fa-home"></i> Home
-                </button>
-                <button class="btn btn-outline btn-sm" onclick="window.location.href='workmanager.html'">
-                    <i class="fas fa-users"></i> Grupos de Trabalho
-                </button>
-                <span class="data-atual" id="data-atual"></span>
-                <span class="status-sync" id="status-sincronizacao">
-                    <i class="fas fa-sync-alt"></i> Conectando...
-                </span>
-                <div class="user-info">
-                    <i class="fas fa-user-circle"></i>
-                    <span id="userName">Usuário</span>
-                    <button class="btn-logout" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+            <div class="header-full">
+                <!-- Logo à esquerda -->
+                <div class="logo-container">
+                    <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
+                </div>
+                
+                <!-- Todos os itens organizados à direita -->
+                <div class="header-right">
+                    <!-- Botões de navegação -->
+                    <div class="header-actions">
+                        <button class="btn-header" onclick="window.location.href='chat.html'">
+                            <i class="fas fa-comment-dots"></i> Chat
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='index.html'">
+                            <i class="fas fa-home"></i> Home
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Grupos de Trabalho
+                        </button>
+                    </div>
+                    
+                    <!-- Status e informações do usuário -->
+                    <div class="header-status">
+                        <!-- Status de conexão -->
+                        <span class="status-sync" id="status-sincronizacao">
+                            <i class="fas fa-bolt"></i> Conectado
+                        </span>
+                        
+                        <!-- Informações do usuário logado -->
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <span id="userName" class="username">thiago.barbosa</span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
 
+        <!-- Resto do conteúdo permanece igual -->
         <!-- Painel de Estatísticas -->
         <div class="stats-panel">
             <div class="stat-card">
@@ -283,9 +304,6 @@
                 setTimeout(() => {
                     if (document.getElementById('userName')) {
                         document.getElementById('userName').textContent = usuario.nome || usuario.usuario;
-                    }
-                    if (document.getElementById('data-atual')) {
-                        document.getElementById('data-atual').textContent = new Date().toLocaleDateString('pt-BR');
                     }
                     
                     // Mostrar conteúdo após 1 segundo
