@@ -68,11 +68,10 @@ body {
 }
 
 .site-logo {
-    height: 50px;
+    height: 60px;
     width: auto;
-    max-width: 220px;
+    max-width: 280px;
     object-fit: contain;
-    transition: transform 0.3s ease;
 }
 
 .site-logo:hover {
@@ -964,21 +963,6 @@ body {
     padding-bottom: 15px;
     border-bottom: 2px solid var(--border);
     gap: 25px;
-}
-
-/* Logo */
-.logo-container {
-    display: flex;
-    align-items: center;
-    height: 70px;
-    padding: 8px 0;
-}
-
-.site-logo {
-    height: 60px;
-    width: auto;
-    max-width: 280px;
-    object-fit: contain;
 }
 
 .header-buttons {
