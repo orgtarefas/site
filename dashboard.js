@@ -985,7 +985,7 @@ class GestorAtividades {
                             dados.atrasadas
                         ],
                         backgroundColor: [
-                            '#7b8a8b',
+                            '#6c757d',
                             '#f39c12',
                             '#3498db',
                             '#27ae60',
