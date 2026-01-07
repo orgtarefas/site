@@ -81,10 +81,15 @@
                 <!-- Usuários Online -->
                 <div class="sidebar-section">
                     <div class="section-header">
-                        <h3><i class="fas fa-user-check"></i> Online</h3>
-                        <span id="online-count" class="badge">0</span>
+                        <div class="section-title">
+                            <h3><i class="fas fa-user-check"></i> Online</h3>
+                            <span id="online-count" class="badge">0</span>
+                        </div>
+                        <button class="section-toggle" onclick="toggleSection('online-users')">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
                     </div>
-                    <div id="online-users" class="users-list">
+                    <div id="online-users" class="users-list expanded">
                         <div class="loading-state">
                             <i class="fas fa-spinner fa-spin"></i>
                             <p>Carregando usuários...</p>
@@ -95,10 +100,15 @@
                 <!-- Todos os Usuários -->
                 <div class="sidebar-section">
                     <div class="section-header">
-                        <h3><i class="fas fa-users"></i> Todos os Usuários</h3>
-                        <span id="all-users-count" class="badge">0</span>
+                        <div class="section-title">
+                            <h3><i class="fas fa-users"></i> Todos os Usuários</h3>
+                            <span id="all-users-count" class="badge">0</span>
+                        </div>
+                        <button class="section-toggle" onclick="toggleSection('all-users')">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
                     </div>
-                    <div id="all-users" class="users-list">
+                    <div id="all-users" class="users-list expanded">
                         <div class="loading-state">
                             <i class="fas fa-spinner fa-spin"></i>
                             <p>Carregando usuários...</p>
@@ -109,9 +119,14 @@
                 <!-- Conversas -->
                 <div class="sidebar-section">
                     <div class="section-header">
-                        <h3><i class="fas fa-inbox"></i> Conversas</h3>
+                        <div class="section-title">
+                            <h3><i class="fas fa-inbox"></i> Conversas</h3>
+                        </div>
+                        <button class="section-toggle" onclick="toggleSection('conversations')">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
                     </div>
-                    <div id="conversations" class="conversations-list">
+                    <div id="conversations" class="conversations-list expanded">
                         <div class="loading-state">
                             <i class="fas fa-spinner fa-spin"></i>
                             <p>Carregando conversas...</p>
