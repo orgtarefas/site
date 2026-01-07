@@ -12,17 +12,19 @@
     <div id="app">
         <!-- Cabeçalho -->
         <header class="chat-header">
+            <!-- Logo à esquerda -->
             <div class="header-left">
-                <button id="menu-toggle" class="btn-icon">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div class="app-info">
-                    <h1><i class="fas fa-comments"></i> Chat</h1>
-                    <span class="app-subtitle">Workyz</span>
+                <div class="logo-container">
+                    <img src="images/logo workyz.png" alt="Workyz Chat" class="site-logo">
                 </div>
             </div>
             
+            <!-- Título no centro -->
             <div class="header-center" id="chat-header-info">
+                <div class="chat-title">
+                    <h1><i class="fas fa-comments"></i> Chat</h1>
+                </div>
+                
                 <div id="no-conversation" class="active">
                     <i class="fas fa-comment-dots"></i>
                     <span>Selecione uma conversa</span>
@@ -35,14 +37,40 @@
                 </div>
             </div>
             
+            <!-- Usuário e botões à direita -->
             <div class="header-right">
-                <div class="current-user">
-                    <span id="current-user-name">Carregando...</span>
-                    <div class="user-status" id="current-user-status"></div>
+                <div class="header-actions">
+                    <button class="btn-header" onclick="window.location.href='index.html'">
+                        <i class="fas fa-tasks"></i> Minhas Tarefas
+                    </button>
+                    <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                        <i class="fas fa-chart-line"></i> Minhas Atividades
+                    </button>
+                    <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                        <i class="fas fa-users"></i> Grupos de Trabalho
+                    </button>
+                    <button class="btn-header active" onclick="window.location.href='chat.html'">
+                        <i class="fas fa-comment-dots"></i> Chat
+                    </button>
                 </div>
-                <button id="logout-btn" class="btn-icon" title="Voltar">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
+                
+                <div class="header-status">
+                    <span class="status-sync" id="status-sincronizacao">
+                        <i class="fas fa-bolt"></i> Conectado
+                    </span>
+                    
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="user-details">
+                            <span id="current-user-name" class="username">Carregando...</span>
+                            <button class="btn-logout" onclick="logout()" title="Sair">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -126,5 +154,30 @@
 
     <!-- Firebase SDK -->
     <script type="module" src="chat.js"></script>
+    
+    <script>
+        // Função de logout
+        function logout() {
+            console.log('🚪 Logout realizado');
+            localStorage.removeItem('usuarioLogado');
+            window.location.href = 'login.html';
+        }
+        
+        // Inicializar o nome do usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            const usuarioLogado = localStorage.getItem('usuarioLogado');
+            if (usuarioLogado) {
+                try {
+                    const usuario = JSON.parse(usuarioLogado);
+                    const userNameElement = document.getElementById('current-user-name');
+                    if (userNameElement) {
+                        userNameElement.textContent = usuario.nome || usuario.usuario || 'Usuário';
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar usuário:', error);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
