@@ -949,7 +949,7 @@ class GestorAtividades {
     
             // 9. Atualizar status
             document.getElementById('status-sincronizacao').innerHTML = 
-                '<i class="fas fa-check-circle"></i> Sincronizado';
+                '<i class="fas fa-check-circle"></i> Conectado';
     
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
