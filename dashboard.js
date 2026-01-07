@@ -2451,3 +2451,33 @@ window.onclick = function(event) {
         fecharModalAtividade();
     }
 };
+
+// ========== FUNÇÕES GLOBAIS ==========
+
+// Tornar funções globais
+window.logout = logout;
+window.fecharModalAtividade = fecharModalAtividade;
+window.alterarStatusAtividade = alterarStatusAtividade;
+window.toggleTarefa = toggleTarefa;
+window.abrirModalAtividade = abrirModalAtividade;
+window.mostrarTodosObservadores = mostrarTodosObservadores;
+window.editarAtividade = editarAtividade;
+window.visualizarAtividade = visualizarAtividade;
+window.excluirAtividade = excluirAtividade;
+window.verificarConclusaoVinculos = verificarConclusaoVinculos;
+window.fecharModalObservadores = fecharModalObservadores;
+window.toggleMultiSelect = toggleMultiSelect;
+window.getLabelStatus = getLabelStatus;
+window.salvarAtividade = salvarAtividade;
+window.fecharModalAtividade = fecharModalAtividade;
+window.manterEstadoExpansaoTarefas = manterEstadoExpansaoTarefas;
+window.restaurarEstadoExpansaoTarefas = restaurarEstadoExpansaoTarefas;
+
+// Funções da classe GestorAtividades que são chamadas externamente
+if (typeof GestorAtividades !== 'undefined') {
+    window.GestorAtividades = GestorAtividades;
+}
+
+// Exportar instância do gestor para debugging
+window.gestorAtividades = gestorAtividades;
+
