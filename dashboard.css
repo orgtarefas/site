@@ -1388,11 +1388,10 @@ select.form-control[multiple] {
 }
 
 .site-logo {
-    height: 50px;
+    height: 60px;
     width: auto;
-    max-width: 220px;
+    max-width: 280px;
     object-fit: contain;
-    transition: transform 0.3s ease;
 }
 
 .site-logo:hover {
