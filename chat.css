@@ -20,6 +20,118 @@ body {
     flex-direction: column;
 }
 
+/* ===== BOTÕES DE EXPANDIR/RECOLHER ===== */
+.sidebar-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.sidebar-section .section-header:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sidebar-section .section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.sidebar-section .section-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-section .section-header i {
+    color: var(--secondary);
+    font-size: 0.9rem;
+    width: 16px;
+    text-align: center;
+}
+
+.section-toggle {
+    background: transparent;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.section-toggle:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary);
+}
+
+.section-toggle i {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+/* Estados recolhido/expandido */
+.users-list, .conversations-list {
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease;
+}
+
+.users-list.expanded, .conversations-list.expanded {
+    max-height: 400px;
+    opacity: 1;
+}
+
+.users-list.collapsed, .conversations-list.collapsed {
+    max-height: 0 !important;
+    opacity: 0.5;
+    overflow: hidden;
+}
+
+/* Rotação do ícone quando recolhido */
+.section-toggle .fa-chevron-up {
+    transform: rotate(0deg);
+}
+
+.sidebar-section.collapsed .section-toggle .fa-chevron-up {
+    transform: rotate(180deg);
+}
+
+/* Estilo para badge */
+.sidebar-section .badge {
+    background: var(--secondary);
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Adicionar classe collapsed à section também */
+.sidebar-section.collapsed .users-list,
+.sidebar-section.collapsed .conversations-list {
+    max-height: 0 !important;
+    opacity: 0.5;
+    overflow: hidden;
+}
+
 /* chat.css - HEADER IGUAL AO DASHBOARD */
 
 /* ===== CABEÇALHO PROFISSIONAL - EXATAMENTE IGUAL AO DASHBOARD ===== */
