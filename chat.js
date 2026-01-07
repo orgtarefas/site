@@ -45,7 +45,7 @@ let allUsers = {}; // Cache de todos os usuários
 
 // ========== INICIALIZAÇÃO ==========
 async function init() {
-    //console.log('🚀 Inicializando Chat...');
+    console.log('🚀 Inicializando Chat...');
     
     try {
         // ========== 1. INICIALIZAR FIREBASE ==========
@@ -55,7 +55,7 @@ async function init() {
         loginsDb = getFirestore(loginsApp);
         chatDb = getDatabase(chatApp);
         
-        //console.log('✅ Firebase inicializado');
+        console.log('✅ Firebase inicializado');
         
         // ========== 2. LOGIN DO USUÁRIO ==========
         await autoLogin();
@@ -66,16 +66,17 @@ async function init() {
         // ========== 4. CONFIGURAR CACHE EM TEMPO REAL ==========
         setupUsersCache();
         
-        // ========== 5. CARREGAR DADOS INICIAIS ==========
+        // ========== 5. INICIALIZAR BOTÕES DE EXPANDIR/RECOLHER ==========
+        initSectionToggles();
+        
+        // ========== 6. CARREGAR DADOS INICIAIS ==========
         loadOnlineUsers();       // Lista de usuários online
-        loadAllUsers();          // Cache completo + lista todos usuários
+        loadAllUsers();          // Cache completo
+        loadAllUsersList();      // Lista todos usuários
         loadConversations();     // Conversas anteriores
         setupUsersStatusUpdates(); // ATUALIZAR STATUS EM TEMPO REAL
         
-        // ========== 6. CONFIGURAR ATUALIZAÇÕES ==========
-        setupUsersStatusUpdates(); // Status online/offline em tempo real
-        
-        //console.log('✅ Chat inicializado com sucesso');
+        console.log('✅ Chat inicializado com sucesso');
         
     } catch (error) {
         console.error('❌ Erro ao inicializar:', error);
@@ -83,7 +84,7 @@ async function init() {
         
         // Tentar recarregar após 5 segundos se houver erro
         setTimeout(() => {
-            //console.log('🔄 Tentando reconectar...');
+            console.log('🔄 Tentando reconectar...');
             init();
         }, 5000);
     }
@@ -252,6 +253,137 @@ async function loadAllUsers() {
     }
 }
 
+// ========== FUNÇÃO PARA EXPANDIR/RECOLHER SEÇÕES ==========
+window.toggleSection = function(sectionId) {
+    const section = document.getElementById(sectionId);
+    const toggleButton = event.currentTarget;
+    const sectionParent = toggleButton.closest('.sidebar-section');
+    
+    if (!section) return;
+    
+    // Alternar classes
+    section.classList.toggle('collapsed');
+    section.classList.toggle('expanded');
+    if (sectionParent) {
+        sectionParent.classList.toggle('collapsed');
+    }
+    
+    // Rotacionar ícone
+    const icon = toggleButton.querySelector('i');
+    if (icon) {
+        if (section.classList.contains('collapsed')) {
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+    
+    // Se for a lista de usuários e estiver expandindo, recarregar se vazia
+    if (section.id === 'all-users' && section.classList.contains('expanded')) {
+        const hasContent = section.querySelector('.user-item, .empty-state') !== null;
+        const isLoading = section.querySelector('.loading-state') !== null;
+        if (!hasContent && !isLoading) {
+            console.log('🔄 Expandindo "Todos os Usuários" - recarregando...');
+            loadAllUsersList();
+        }
+    }
+    
+    // Se for online users e estiver expandindo, recarregar
+    if (section.id === 'online-users' && section.classList.contains('expanded')) {
+        const hasContent = section.querySelector('.user-item, .empty-state') !== null;
+        const isLoading = section.querySelector('.loading-state') !== null;
+        if (!hasContent && !isLoading) {
+            console.log('🔄 Expandindo "Online" - recarregando...');
+            loadOnlineUsers();
+        }
+    }
+    
+    // Se for conversas e estiver expandindo, recarregar
+    if (section.id === 'conversations' && section.classList.contains('expanded')) {
+        const hasContent = section.querySelector('.conversation-item, .empty-state') !== null;
+        const isLoading = section.querySelector('.loading-state') !== null;
+        if (!hasContent && !isLoading && currentUser) {
+            console.log('🔄 Expandindo "Conversas" - recarregando...');
+            loadConversations();
+        }
+    }
+    
+    console.log(`📂 Seção ${sectionId} ${section.classList.contains('collapsed') ? 'recolhida' : 'expandida'}`);
+};
+
+
+// ========== EXPANDIR/RECOLHER TODAS AS SEÇÕES ==========
+window.toggleAllSections = function(action) {
+    const sections = ['online-users', 'all-users', 'conversations'];
+    
+    sections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        const toggleButton = document.querySelector(`.section-toggle[onclick*="${sectionId}"]`);
+        const sectionParent = toggleButton ? toggleButton.closest('.sidebar-section') : null;
+        
+        if (section && toggleButton && sectionParent) {
+            if (action === 'expand') {
+                section.classList.remove('collapsed');
+                section.classList.add('expanded');
+                sectionParent.classList.remove('collapsed');
+                const icon = toggleButton.querySelector('i');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                console.log(`↕️ Expandindo seção: ${sectionId}`);
+            } else if (action === 'collapse') {
+                section.classList.remove('expanded');
+                section.classList.add('collapsed');
+                sectionParent.classList.add('collapsed');
+                const icon = toggleButton.querySelector('i');
+                if (icon) icon.style.transform = 'rotate(180deg)';
+                console.log(`↕️ Recolhendo seção: ${sectionId}`);
+            } else {
+                // toggle
+                section.classList.toggle('collapsed');
+                section.classList.toggle('expanded');
+                sectionParent.classList.toggle('collapsed');
+                const icon = toggleButton.querySelector('i');
+                if (icon) {
+                    if (section.classList.contains('collapsed')) {
+                        icon.style.transform = 'rotate(180deg)';
+                    } else {
+                        icon.style.transform = 'rotate(0deg)';
+                    }
+                }
+                console.log(`↕️ Alternando seção: ${sectionId}`);
+            }
+        }
+    });
+};
+
+// ========== INICIALIZAR ESTADO DAS SEÇÕES ==========
+function initSectionToggles() {
+    // Por padrão, todas as seções começam expandidas
+    const sections = ['online-users', 'all-users', 'conversations'];
+    
+    sections.forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        const toggleButton = document.querySelector(`.section-toggle[onclick*="${sectionId}"]`);
+        
+        if (section && toggleButton) {
+            section.classList.add('expanded');
+            
+            // Configurar clique no header também
+            const header = toggleButton.closest('.section-header');
+            if (header) {
+                header.addEventListener('click', (e) => {
+                    if (!e.target.closest('.section-toggle') && 
+                        !e.target.closest('.badge') &&
+                        !e.target.closest('i.fa-chevron-up')) {
+                        toggleSection(sectionId);
+                    }
+                });
+            }
+        }
+    });
+    
+    console.log('✅ Seções configuradas para expandir/recolher');
+}
+
 // ========== OBTER INFORMAÇÕES DO USUÁRIO ==========
 function getUserInfo(userId) {
     // Se for o usuário atual
@@ -364,8 +496,12 @@ function renderAllUsers(users) {
     const container = document.getElementById('all-users');
     const count = document.getElementById('all-users-count');
     
+    if (!container || !count) {
+        console.warn('⚠️ Elementos de all-users não encontrados');
+        return;
+    }
+    
     count.textContent = users.length;
-    count.style.display = 'flex';
     
     if (users.length === 0) {
         container.innerHTML = '<div class="empty-state">Nenhum usuário encontrado</div>';
@@ -401,6 +537,22 @@ function renderAllUsers(users) {
     });
     
     container.innerHTML = html;
+    
+    // Garantir que a seção esteja visível se há usuários
+    if (users.length > 0 && container.classList.contains('collapsed')) {
+        console.log('📈 Carregando todos os usuários - expandindo seção automaticamente');
+        container.classList.remove('collapsed');
+        container.classList.add('expanded');
+        const sectionHeader = container.closest('.sidebar-section')?.querySelector('.section-header');
+        if (sectionHeader) {
+            const toggleBtn = sectionHeader.querySelector('.section-toggle');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').style.transform = 'rotate(0deg)';
+            }
+        }
+    }
+    
+    console.log(`✅ ${users.length} usuários renderizados na lista completa`);
 }
 
 // ========== FORMATAR "ÚLTIMA VEZ VISTO" ==========
@@ -430,11 +582,20 @@ function renderOnlineUsers(users) {
     const container = document.getElementById('online-users');
     const count = document.getElementById('online-count');
     
+    if (!container || !count) {
+        console.warn('⚠️ Elementos de online-users não encontrados');
+        return;
+    }
+    
     count.textContent = users.length;
-    count.style.display = 'flex';
     
     if (users.length === 0) {
         container.innerHTML = '<div class="empty-state">Nenhum colega online</div>';
+        
+        // Se não há usuários online e a seção está expandida, manter expandida
+        if (container.classList.contains('expanded')) {
+            console.log('ℹ️ Nenhum usuário online, mantendo seção expandida');
+        }
         return;
     }
     
@@ -455,7 +616,24 @@ function renderOnlineUsers(users) {
     });
     
     container.innerHTML = html;
+    
+    // Garantir que a seção esteja visível se há usuários
+    if (users.length > 0 && container.classList.contains('collapsed')) {
+        console.log('📈 Há usuários online - expandindo seção automaticamente');
+        container.classList.remove('collapsed');
+        container.classList.add('expanded');
+        const sectionHeader = container.closest('.sidebar-section')?.querySelector('.section-header');
+        if (sectionHeader) {
+            const toggleBtn = sectionHeader.querySelector('.section-toggle');
+            if (toggleBtn) {
+                toggleBtn.querySelector('i').style.transform = 'rotate(0deg)';
+            }
+        }
+    }
+    
+    console.log(`✅ ${users.length} usuários online renderizados`);
 }
+
 
 // ========== CARREGAR CONVERSAS ==========
 function loadConversations() {
@@ -496,8 +674,18 @@ function setupUsersStatusUpdates() {
 function renderConversations(conversations) {
     const container = document.getElementById('conversations');
     
-    if (!conversations) {
+    if (!container) {
+        console.warn('⚠️ Elemento de conversas não encontrado');
+        return;
+    }
+    
+    if (!conversations || Object.keys(conversations).length === 0) {
         container.innerHTML = '<div class="empty-state">Nenhuma conversa</div>';
+        
+        // Se não há conversas e a seção está expandida, manter expandida
+        if (container.classList.contains('expanded')) {
+            console.log('ℹ️ Nenhuma conversa, mantendo seção expandida');
+        }
         return;
     }
     
@@ -541,8 +729,24 @@ function renderConversations(conversations) {
     // Se não houver conversas, mostrar mensagem
     if (container.children.length === 0) {
         container.innerHTML = '<div class="empty-state">Nenhuma conversa</div>';
+    } else {
+        // Garantir que a seção esteja visível se há conversas
+        if (container.classList.contains('collapsed')) {
+            console.log('📈 Há conversas - expandindo seção automaticamente');
+            container.classList.remove('collapsed');
+            container.classList.add('expanded');
+            const sectionHeader = container.closest('.sidebar-section')?.querySelector('.section-header');
+            if (sectionHeader) {
+                const toggleBtn = sectionHeader.querySelector('.section-toggle');
+                if (toggleBtn) {
+                    toggleBtn.querySelector('i').style.transform = 'rotate(0deg)';
+                }
+            }
+        }
     }
-}    
+    
+    console.log(`✅ ${container.children.length} conversas renderizadas`);
+}
     
 
 // ========== INICIAR CONVERSA ==========
@@ -758,13 +962,13 @@ function scrollToBottom() {
 
 // ========== EVENT LISTENERS ==========
 function setupEventListeners() {
-    //console.log('🔧 Configurando listeners...');
+    console.log('🔧 Configurando listeners...');
     
     // Botão enviar
     const sendBtn = document.getElementById('send-btn');
     if (sendBtn) {
         sendBtn.addEventListener('click', sendMessage);
-        //console.log('✅ Botão enviar configurado');
+        console.log('✅ Botão enviar configurado');
     }
     
     // Input Enter
@@ -776,7 +980,7 @@ function setupEventListeners() {
                 sendMessage();
             }
         });
-        //console.log('✅ Input configurado');
+        console.log('✅ Input configurado');
     }
     
     // Menu toggle
@@ -801,8 +1005,7 @@ function setupEventListeners() {
         });
     }
     
-    // Log ao configurar
-    //console.log('📝 Listeners configurados');
+    console.log('📝 Listeners configurados');
 }
 
 // ========== NOTIFICAÇÃO ==========
