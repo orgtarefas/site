@@ -148,9 +148,22 @@ async function autoLogin() {
         // Configurar cache em tempo real
         setupUsersCache();
         
-        // Atualizar interface
-        document.getElementById('current-user-name').textContent = currentUser.nome;
-        document.getElementById('current-user-status').classList.add('online');
+        // Atualizar interface - COM VERIFICAÇÃO DE SEGURANÇA
+        const currentUserNameElement = document.getElementById('current-user-name');
+        const currentUserStatusElement = document.getElementById('current-user-status');
+        
+        if (currentUserNameElement) {
+            currentUserNameElement.textContent = currentUser.nome;
+        } else {
+            console.warn('⚠️ Elemento current-user-name não encontrado');
+        }
+        
+        if (currentUserStatusElement) {
+            currentUserStatusElement.classList.add('online');
+        } else {
+            console.warn('⚠️ Elemento current-user-status não encontrado - verifique se o elemento existe no HTML');
+            // O elemento pode ter sido removido no novo layout do header
+        }
         
         // Atualizar status online
         await updateDoc(loginsRef, {
