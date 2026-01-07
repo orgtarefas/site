@@ -26,9 +26,9 @@
 }
 
 body {
-    background-color: #f5f7fa;
-    color: #333;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
+    color: var(--dark);
 }
 
 /* ===== CABEÇALHO PROFISSIONAL (IGUAL AO DASHBOARD) ===== */
@@ -79,7 +79,7 @@ body {
     gap: 30px;
 }
 
-/* Botões de navegação */
+/* Botões de navegação - EXATAMENTE IGUAL AO DASHBOARD */
 .header-actions {
     display: flex;
     gap: 12px;
@@ -223,188 +223,153 @@ body {
 
 /* ===== FIM DO CABEÇALHO ===== */
 
-/* Tela de Carregamento */
-.loading-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
+/* ===== BOTÕES PRINCIPAIS (IGUAL AO DASHBOARD) ===== */
 
-.loading-content {
-    text-align: center;
-    color: white;
-}
-
-.loading-content i {
-    font-size: 4rem;
-    margin-bottom: 20px;
-}
-
-.loading-content p {
-    font-size: 1.2rem;
-    font-weight: 300;
-}
-
-/* Container Principal */
-.workmanager-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-/* Status de Sincronização */
-.sync-status {
-    background: #e3f2fd;
-    border: 1px solid #bbdefb;
-    border-radius: 8px;
-    padding: 12px 20px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    color: #1976d2;
-}
-
-.sync-status i {
-    animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Botões (mantendo compatibilidade) */
+/* Botões principais (usados nos modais e tabs) */
 .btn {
     padding: 10px 20px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem; /* MESMO TAMANHO DO DASHBOARD */
+    font-weight: 600;  /* MESMA ESPESSURA DO DASHBOARD */
     cursor: pointer;
-    font-weight: 500;
     transition: all 0.3s ease;
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
+/* Botão primário (azul) */
 .btn-primary {
-    background: linear-gradient(135deg, #4a6fa5 0%, #3a5980 100%);
+    background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #3a5980 0%, #2c3e50 100%);
+    background: linear-gradient(135deg, #2980b9 0%, #1c5d8f 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(58, 89, 128, 0.3);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
 }
 
+/* Botão outline */
 .btn-outline {
     background: transparent;
-    color: #4a6fa5;
-    border: 2px solid #4a6fa5;
+    color: var(--secondary);
+    border: 2px solid var(--secondary);
 }
 
 .btn-outline:hover {
-    background: #4a6fa5;
+    background: var(--secondary);
     color: white;
 }
 
+/* Botão success */
 .btn-success {
-    background: #27ae60;
+    background: linear-gradient(135deg, var(--success) 0%, #219653 100%);
     color: white;
 }
 
 .btn-success:hover {
-    background: #219653;
+    background: linear-gradient(135deg, #219653 0%, #1e7e34 100%);
 }
 
+/* Botão danger */
 .btn-danger {
-    background: #e74c3c;
+    background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
     color: white;
 }
 
 .btn-danger:hover {
-    background: #c0392b;
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
 }
 
+/* Botão warning */
 .btn-warning {
-    background: #f39c12;
+    background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
     color: white;
 }
 
 .btn-warning:hover {
-    background: #e67e22;
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
 }
 
+/* Botões pequenos */
 .btn-sm {
     padding: 6px 12px;
-    font-size: 0.85rem;
+    font-size: 0.85rem; /* MESMO TAMANHO DO DASHBOARD */
 }
 
+/* Botões de ícone */
 .btn-icon {
-    background: transparent;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    color: #7f8c8d;
-    transition: color 0.3s ease;
-    padding: 5px;
-    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.3s;
 }
 
 .btn-icon:hover {
-    background: #f8f9fa;
+    transform: scale(1.1);
 }
 
-.btn-icon.btn-danger {
-    color: #e74c3c;
+.btn-edit {
+    background: var(--info);
+    color: white;
 }
 
-.btn-icon.btn-danger:hover {
-    background: #fee;
+.btn-delete {
+    background: var(--danger);
+    color: white;
 }
 
-/* Tabs */
+.btn-view {
+    background: var(--secondary);
+    color: white;
+}
+
+/* ===== TABS (IGUAL AO DASHBOARD) ===== */
+
 .workmanager-tabs {
     background: white;
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
 }
 
 .tabs {
     display: flex;
-    gap: 10px;
+    gap: 12px; /* MESMA DISTÂNCIA DO DASHBOARD */
 }
 
 .tab {
     padding: 10px 20px;
     background: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    font-weight: 500;
-    color: #7f8c8d;
+    font-weight: 600; /* MESMA ESPESSURA DO DASHBOARD */
+    color: var(--gray);
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 8px;
     position: relative;
+    font-size: 0.9rem; /* MESMO TAMANHO DO DASHBOARD */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .tab.active {
-    background: #4a6fa5;
+    background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
     color: white;
 }
 
@@ -412,8 +377,9 @@ body {
     background: #f8f9fa;
 }
 
+/* Badge para notificações */
 .badge {
-    background: #e74c3c;
+    background: var(--danger);
     color: white;
     font-size: 0.7rem;
     padding: 2px 6px;
@@ -423,7 +389,8 @@ body {
     right: -5px;
 }
 
-/* Busca */
+/* ===== BARRA DE BUSCA ===== */
+
 .search-box {
     position: relative;
     width: 300px;
@@ -434,56 +401,62 @@ body {
     left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #7f8c8d;
+    color: var(--gray);
 }
 
 .search-box input {
     width: 100%;
     padding: 12px 20px 12px 45px;
     border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     font-size: 0.95rem;
     transition: border-color 0.3s ease;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .search-box input:focus {
     outline: none;
-    border-color: #4a6fa5;
-    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.1);
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
 }
 
-/* Container de Grupos */
+/* ===== CONTAINER DE GRUPOS ===== */
+
 .groups-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 20px;
+    gap: 25px; /* MESMA DISTÂNCIA DO DASHBOARD */
     margin-bottom: 30px;
 }
 
 .group-card {
     background: white;
-    border-radius: 12px;
+    border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border-top: 4px solid #4a6fa5;
+    border-top: 4px solid var(--secondary);
 }
 
 .group-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-lg);
 }
 
 .group-card.permissao-admin {
-    border-top-color: #27ae60;
+    border-top-color: var(--success);
 }
 
 .group-card.permissao-atuador {
-    border-top-color: #f39c12;
+    border-top-color: var(--warning);
 }
 
-.group-card.convite-pendente {
-    border-top-color: #3498db;
+.group-card.permissao-membro {
+    border-top-color: var(--info);
+}
+
+.group-card.permissao-externo {
+    border-top-color: var(--gray);
 }
 
 .group-header {
@@ -499,8 +472,9 @@ body {
 
 .group-title h3 {
     font-size: 1.2rem;
-    color: #2c3e50;
+    color: var(--primary);
     flex: 1;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .permissao-badge {
@@ -514,36 +488,37 @@ body {
 
 .permissao-badge.admin {
     background: #d5f4e6;
-    color: #27ae60;
+    color: var(--success);
 }
 
 .permissao-badge.atuador {
     background: #fef5e7;
-    color: #f39c12;
-}
-
-.permissao-badge.pendente {
-    background: #ebf5fb;
-    color: #3498db;
+    color: var(--warning);
 }
 
 .permissao-badge.membro {
     background: #e8f4fd;
-    color: #4a6fa5;
+    color: var(--secondary);
+}
+
+.permissao-badge.externo {
+    background: #e9ecef;
+    color: var(--gray);
 }
 
 .group-desc {
-    color: #7f8c8d;
+    color: var(--gray);
     font-size: 0.9rem;
     margin-bottom: 15px;
     line-height: 1.5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .group-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #95a5a6;
+    color: var(--light-gray);
     font-size: 0.85rem;
 }
 
@@ -561,17 +536,18 @@ body {
 .group-actions {
     padding: 15px 20px;
     background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border);
     display: flex;
-    gap: 10px;
+    gap: 8px; /* MESMA DISTÂNCIA DO DASHBOARD */
 }
 
-/* Estado Vazio */
+/* ===== ESTADO VAZIO ===== */
+
 .empty-state {
     grid-column: 1 / -1;
     text-align: center;
     padding: 40px 20px;
-    color: #95a5a6;
+    color: var(--gray);
 }
 
 .empty-state i {
@@ -582,10 +558,17 @@ body {
 
 .empty-state h3 {
     margin-bottom: 10px;
-    color: #7f8c8d;
+    color: var(--primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
-/* Modais */
+.empty-state p {
+    color: var(--gray);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
+}
+
+/* ===== MODAIS (IGUAL AO DASHBOARD) ===== */
+
 .modal {
     display: none;
     position: fixed;
@@ -601,7 +584,7 @@ body {
 
 .modal-content {
     background: white;
-    border-radius: 12px;
+    border-radius: var(--radius);
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
@@ -622,7 +605,7 @@ body {
 
 .modal-header {
     padding: 20px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -630,14 +613,15 @@ body {
 
 .modal-header h2 {
     font-size: 1.5rem;
-    color: #2c3e50;
+    color: var(--primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .close {
     background: none;
     border: none;
     font-size: 1.8rem;
-    color: #95a5a6;
+    color: var(--gray);
     cursor: pointer;
     padding: 0;
     width: 30px;
@@ -651,7 +635,7 @@ body {
 
 .close:hover {
     background: #f8f9fa;
-    color: #e74c3c;
+    color: var(--danger);
 }
 
 .modal-body {
@@ -660,13 +644,14 @@ body {
 
 .modal-footer {
     padding: 20px;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
 }
 
-/* Formulários */
+/* ===== FORMULÁRIOS (IGUAL AO DASHBOARD) ===== */
+
 .form-group {
     margin-bottom: 20px;
 }
@@ -674,26 +659,28 @@ body {
 .form-group label {
     display: block;
     margin-bottom: 8px;
-    color: #2c3e50;
-    font-weight: 500;
+    color: var(--primary);
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 8px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .form-control {
     width: 100%;
     padding: 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 0.95rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
     transition: border-color 0.3s ease;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .form-control:focus {
     outline: none;
-    border-color: #4a6fa5;
-    box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.1);
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
 }
 
 textarea.form-control {
@@ -713,23 +700,25 @@ input[type="color"].form-control {
 }
 
 .text-muted {
-    color: #95a5a6;
+    color: var(--gray);
     font-size: 0.85rem;
     margin-top: 5px;
     display: block;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
-/* Lista de Usuários */
+/* ===== LISTA DE USUÁRIOS ===== */
+
 .usuarios-lista {
     border: 1px solid #e0e0e0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 10px;
     background: #fafafa;
 }
 
 .usuario-item {
     padding: 10px 15px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     margin-bottom: 8px;
     cursor: pointer;
     transition: background-color 0.3s ease;
@@ -747,7 +736,7 @@ input[type="color"].form-control {
 
 .usuario-item.selecionado {
     background: #e8f4fd;
-    border-color: #4a6fa5;
+    border-color: var(--secondary);
 }
 
 .usuario-info {
@@ -756,19 +745,21 @@ input[type="color"].form-control {
 
 .usuario-info strong {
     display: block;
-    color: #2c3e50;
+    color: var(--primary);
     font-size: 0.95rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .usuario-info small {
-    color: #7f8c8d;
+    color: var(--gray);
     font-size: 0.85rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .empty-membros {
     text-align: center;
     padding: 20px;
-    color: #95a5a6;
+    color: var(--gray);
 }
 
 .empty-membros i {
@@ -779,12 +770,14 @@ input[type="color"].form-control {
 
 .empty-membros span {
     display: block;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
-/* Membros Selecionados */
+/* ===== MEMBROS SELECIONADOS ===== */
+
 .membros-selecionados {
     border: 1px dashed #bdc3c7;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 15px;
     background: #fdfdfd;
 }
@@ -795,24 +788,25 @@ input[type="color"].form-control {
     gap: 10px;
     padding: 8px 12px;
     background: white;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     margin-bottom: 8px;
 }
 
 .membro-selecionado-item i {
-    color: #4a6fa5;
+    color: var(--secondary);
 }
 
 .membro-selecionado-item span {
     flex: 1;
-    color: #2c3e50;
+    color: var(--primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .btn-remover {
     background: none;
     border: none;
-    color: #e74c3c;
+    color: var(--danger);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -823,16 +817,8 @@ input[type="color"].form-control {
     background: #fee;
 }
 
-.permissao-badge.externo {
-    background-color: #95a5a6;
-    color: white;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-}
+/* ===== LISTA DE MEMBROS ===== */
 
-/* Lista de Membros */
 .lista-membros {
     margin-top: 15px;
 }
@@ -842,15 +828,15 @@ input[type="color"].form-control {
     align-items: center;
     gap: 15px;
     padding: 15px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     margin-bottom: 10px;
     background: white;
 }
 
 .membro-item.membro-atual {
     background: #f8f9fa;
-    border-color: #4a6fa5;
+    border-color: var(--secondary);
 }
 
 .membro-info {
@@ -859,13 +845,15 @@ input[type="color"].form-control {
 
 .membro-info strong {
     display: block;
-    color: #2c3e50;
+    color: var(--primary);
     font-size: 1rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .membro-info small {
-    color: #7f8c8d;
+    color: var(--gray);
     font-size: 0.85rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
 }
 
 .membro-acoes {
@@ -873,7 +861,38 @@ input[type="color"].form-control {
     gap: 8px;
 }
 
-/* Responsividade */
+/* ===== NOTIFICAÇÕES ===== */
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: var(--shadow);
+}
+
+.notification.success {
+    background: linear-gradient(135deg, var(--success) 0%, #219653 100%);
+}
+
+.notification.error {
+    background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
+}
+
+.notification.info {
+    background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
 @media (max-width: 1200px) {
     .header-full {
         gap: 20px;
@@ -890,6 +909,10 @@ input[type="color"].form-control {
     
     .user-info {
         min-width: 180px;
+    }
+    
+    .groups-container {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     }
 }
 
@@ -993,6 +1016,11 @@ input[type="color"].form-control {
         width: 95%;
         margin: 10px;
     }
+    
+    .btn, .tab {
+        padding: 8px 15px;
+        font-size: 0.85rem;
+    }
 }
 
 @media (max-width: 576px) {
@@ -1026,13 +1054,46 @@ input[type="color"].form-control {
         padding: 15px;
     }
     
-    .btn {
-        padding: 8px 15px;
-        font-size: 0.9rem;
-    }
-    
     .tab {
         padding: 8px 12px;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
+    
+    .group-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .group-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ===== UTILITÁRIOS ===== */
+
+.mt-3 { margin-top: 1rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+/* ===== ANIMAÇÕES ===== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.group-card {
+    animation: fadeIn 0.3s ease-out;
 }
