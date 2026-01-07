@@ -141,6 +141,8 @@ body {
     gap: 8px;
     text-decoration: none;
     white-space: nowrap;
+    /* REMOVER font-family se estiver aqui - herdar do body */
+    font-family: inherit;
 }
 
 .btn-header:hover {
@@ -178,6 +180,7 @@ body {
     font-weight: 600;
     border: 2px solid #c8e6c9;
     transition: all 0.3s ease;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .status-sync i {
@@ -208,6 +211,7 @@ body {
     border: 2px solid var(--border);
     transition: all 0.3s ease;
     min-width: 200px;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .user-info:hover {
@@ -237,6 +241,7 @@ body {
     color: var(--primary);
     font-size: 0.95rem;
     margin-bottom: 3px;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .btn-logout {
@@ -293,6 +298,7 @@ body {
     gap: 8px;
     position: relative;
     font-size: 0.9rem;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .tab.active {
@@ -478,6 +484,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .btn-primary {
@@ -496,6 +503,7 @@ body {
     color: var(--secondary);
     border: 2px solid var(--secondary);
     font-weight: 600;
+    font-family: inherit; /* IMPORTANTE: herdar do body */
 }
 
 .btn-outline:hover {
