@@ -139,8 +139,6 @@ body {
     gap: 8px;
     text-decoration: none;
     white-space: nowrap;
-    /* REMOVER font-family se estiver aqui - herdar do body */
-    font-family: inherit;
 }
 
 .btn-header:hover {
