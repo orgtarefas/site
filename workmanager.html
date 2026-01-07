@@ -17,23 +17,52 @@
     </div>
 
     <div class="workmanager-container" id="mainContent" style="display: none;">
-        <!-- Cabeçalho -->
-        <header class="workmanager-header">
-            <div class="header-left">
-                <i class="fas fa-users"></i>
-                <h1>Grupos de Trabalho</h1>
-                <span class="subtitle">Workyz</span>
-            </div>
-            <div class="header-right">
-                <button class="btn btn-outline" onclick="window.location.href='index.html'">
-                    <i class="fas fa-tasks"></i> Minhas Tarefas
-                </button>
-                <button class="btn btn-outline" onclick="window.location.href='dashboard.html'">
-                    <i class="fas fa-chart-line"></i> Minhas Atividades
-                </button>
-                <div class="user-info">
-                    <i class="fas fa-user-circle"></i>
-                    <span id="userName">Usuário</span>
+        <!-- CABEÇALHO PROFISSIONAL (IGUAL AO DASHBOARD.HTML) -->
+        <header class="dashboard-header">
+            <div class="header-full">
+                <!-- Logo à esquerda -->
+                <div class="logo-container">
+                    <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
+                </div>
+                
+                <!-- Todos os itens organizados à direita -->
+                <div class="header-right">
+                    <!-- Botões de navegação -->
+                    <div class="header-actions">
+                        <button class="btn-header" onclick="window.location.href='index.html'">
+                            <i class="fas fa-tasks"></i> Minhas Tarefas
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                            <i class="fas fa-chart-line"></i> Minhas Atividades
+                        </button>
+                        <button class="btn-header active" onclick="window.location.href='workmanager.html'">
+                            <i class="fas fa-users"></i> Grupos de Trabalho
+                        </button>
+                        <button class="btn-header" onclick="window.location.href='chat.html'">
+                            <i class="fas fa-comment-dots"></i> Chat
+                        </button>
+                    </div>
+                    
+                    <!-- Status e informações do usuário -->
+                    <div class="header-status">
+                        <!-- Status de conexão -->
+                        <span class="status-sync" id="status-sincronizacao">
+                            <i class="fas fa-bolt"></i> Conectado
+                        </span>
+                        
+                        <!-- Informações do usuário logado -->
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <span id="userName" class="username">Usuário</span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -271,5 +300,30 @@
 
     <!-- Script principal -->
     <script src="workmanager.js"></script>
+    
+    <script>
+        // Função de logout para o botão do header
+        function logout() {
+            console.log('🚪 Logout realizado');
+            localStorage.removeItem('usuarioLogado');
+            window.location.href = 'login.html';
+        }
+        
+        // Inicializar o nome do usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            const usuarioLogado = localStorage.getItem('usuarioLogado');
+            if (usuarioLogado) {
+                try {
+                    const usuario = JSON.parse(usuarioLogado);
+                    const userNameElement = document.getElementById('userName');
+                    if (userNameElement) {
+                        userNameElement.textContent = usuario.nome || usuario.usuario || 'Usuário';
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar usuário:', error);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
