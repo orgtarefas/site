@@ -45,7 +45,7 @@
         </div>
 
         <!-- Filtros e Tabs -->
-        <div class="workmanager-tabs">
+        <div class="workmanager-tabs" style="display: flex; justify-content: space-between; align-items: center;">
             <div class="tabs">
                 <button class="tab active" onclick="workManager.filtrarGrupos('meus')">
                     <i class="fas fa-user-circle"></i> Meus Grupos
@@ -54,12 +54,16 @@
                     <i class="fas fa-globe"></i> Todos
                 </button>
             </div>
-            <button class="btn btn-primary" onclick="abrirModalGrupo()">
-                <i class="fas fa-plus-circle"></i> Novo Grupo
-            </button>     
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchGroups" placeholder="Buscar grupos...">
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="btn btn-primary" onclick="abrirModalGrupo()">
+                    <i class="fas fa-plus-circle"></i> Novo Grupo
+                </button>
+                
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchGroups" placeholder="Buscar grupos...">
+                </div>
             </div>
         </div>
 
