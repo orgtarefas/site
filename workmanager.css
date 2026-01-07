@@ -79,7 +79,9 @@ body {
     gap: 30px;
 }
 
-/* Botões de navegação - EXATAMENTE IGUAL AO DASHBOARD */
+/* ===== BOTÕES DE NAVEGAÇÃO NO HEADER ===== */
+
+/* Botões de navegação */
 .header-actions {
     display: flex;
     gap: 12px;
@@ -93,7 +95,7 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 600; /* ← NEGRITO IGUAL AO DASHBOARD */
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex;
@@ -101,6 +103,9 @@ body {
     gap: 8px;
     text-decoration: none;
     white-space: nowrap;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-transform: none; /* ← GARANTIR QUE NÃO TENHA TRANFORMAÇÃO DE TEXTO */
+    letter-spacing: normal; /* ← ESPAÇAMENTO NORMAL */
 }
 
 .btn-header:hover {
@@ -223,7 +228,7 @@ body {
 
 /* ===== FIM DO CABEÇALHO ===== */
 
-/* ===== BOTÕES PRINCIPAIS (IGUAL AO DASHBOARD) ===== */
+/* ===== BOTÕES PRINCIPAIS (MODAIS, TABS, ETC) ===== */
 
 /* Botões principais (usados nos modais e tabs) */
 .btn {
@@ -231,13 +236,15 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     font-size: 0.9rem; /* MESMO TAMANHO DO DASHBOARD */
-    font-weight: 600;  /* MESMA ESPESSURA DO DASHBOARD */
+    font-weight: 600;  /* ← NEGRITO IGUAL AO DASHBOARD */
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-transform: none; /* ← GARANTIR CONSISTÊNCIA */
+    letter-spacing: normal;
 }
 
 /* Botão primário (azul) */
@@ -257,6 +264,7 @@ body {
     background: transparent;
     color: var(--secondary);
     border: 2px solid var(--secondary);
+    font-weight: 600; /* ← NEGRITO TAMBÉM */
 }
 
 .btn-outline:hover {
@@ -264,40 +272,11 @@ body {
     color: white;
 }
 
-/* Botão success */
-.btn-success {
-    background: linear-gradient(135deg, var(--success) 0%, #219653 100%);
-    color: white;
-}
-
-.btn-success:hover {
-    background: linear-gradient(135deg, #219653 0%, #1e7e34 100%);
-}
-
-/* Botão danger */
-.btn-danger {
-    background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
-    color: white;
-}
-
-.btn-danger:hover {
-    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
-}
-
-/* Botão warning */
-.btn-warning {
-    background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
-    color: white;
-}
-
-.btn-warning:hover {
-    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
-}
-
 /* Botões pequenos */
 .btn-sm {
     padding: 6px 12px;
     font-size: 0.85rem; /* MESMO TAMANHO DO DASHBOARD */
+    font-weight: 600; /* ← NEGRITO TAMBÉM */
 }
 
 /* Botões de ícone */
@@ -357,7 +336,7 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    font-weight: 600; /* MESMA ESPESSURA DO DASHBOARD */
+    font-weight: 600; /* ← NEGRITO IGUAL AO DASHBOARD */
     color: var(--gray);
     transition: all 0.3s ease;
     display: flex;
@@ -365,12 +344,18 @@ body {
     gap: 8px;
     position: relative;
     font-size: 0.9rem; /* MESMO TAMANHO DO DASHBOARD */
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* MESMA FONTE */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .tab.active {
     background: linear-gradient(135deg, var(--secondary) 0%, #2980b9 100%);
     color: white;
+}
+
+.tab:hover:not(.active) {
+    background: #f8f9fa;
 }
 
 .tab:hover:not(.active) {
