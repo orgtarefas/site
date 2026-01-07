@@ -153,11 +153,11 @@ body {
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* ⭐⭐ MUDANÇA AQUI: Adicione o hover específico para ativo ⭐⭐ */
 .btn-header.active:hover {
-    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+    background: linear-gradient(135deg, #3c546f 0%, #2c3e50 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.4);
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.5);
+    filter: brightness(1.1);
 }
 
 
