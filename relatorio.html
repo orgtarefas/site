@@ -10,7 +10,7 @@
     <div class="container">
         <header class="header">
             <h1>📊 Sistema de Relatórios</h1>
-            <p class="subtitle">Gerencie e exporte relatórios para Google Sheets</p>
+            <p class="subtitle">Canal de Vendas</p>
         </header>
 
         <main class="main-content">
@@ -67,7 +67,7 @@
 
                 <div class="actions">
                     <button id="btnSalvar" class="btn btn-primary" onclick="salvarRelatorio()">
-                        <span class="btn-icon">💾</span> Salvar no Google Sheets
+                        <span class="btn-icon">💾</span> Salvar
                     </button>
                     <button id="btnLimpar" class="btn btn-secondary" onclick="limparFormulario()">
                         <span class="btn-icon">🗑️</span> Limpar
@@ -76,33 +76,37 @@
 
                 <div id="statusMessage" class="status-message"></div>
 
-                <div class="sheet-info">
-                    <h3>📈 Dados serão salvos em:</h3>
-                    <p><strong>Google Sheets:</strong> Canal de Vendas</p>
-                    <p><strong>Colunas:</strong></p>
-                    <ul>
-                        <li>A: Canal de Vendas</li>
-                        <li>B: ID Plataforma</li>
-                        <li>C: Login Input (thiago.carvalho)</li>
-                        <li>D: Data Input</li>
-                    </ul>
-                    <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQzF6_7q6HfCfK7N_zTC7uyS34bQrWomUPyH5FCSz5f0bYNmhod5B8clysLxpazVIENArC52FgEEC9R/pubhtml" 
-                       target="_blank" class="btn-link">
-                       🔗 Ver Google Sheets
-                    </a>
+                <!-- HISTÓRICO DE ENVIOS (mantido) -->
+                <div class="historico-section">
+                    <h3>📋 Últimos Envios</h3>
+                    <div id="historicoContainer" class="historico-container">
+                        <!-- Histórico será carregado aqui pelo JavaScript -->
+                    </div>
                 </div>
             </div>
 
             <div class="card">
-                <h2>📋 Histórico de Envios</h2>
-                <div id="historicoContainer">
-                    <p class="empty-state">Nenhum envio realizado ainda.</p>
+                <h2>⚙️ Informações do Sistema</h2>
+                <div class="system-info">
+                    <p><strong>Status:</strong> <span id="statusConexao" style="color: #10b981;">● Conectado</span></p>
+                    <p><strong>Planilha:</strong> Canal de Vendas</p>
+                    <p><strong>Colunas:</strong></p>
+                    <ul>
+                        <li><strong>A:</strong> Canal de Vendas</li>
+                        <li><strong>B:</strong> ID Plataforma</li>
+                        <li><strong>C:</strong> Login Input (thiago.carvalho)</li>
+                        <li><strong>D:</strong> Data Input</li>
+                    </ul>
+                    <a href="https://docs.google.com/spreadsheets/d/1ZiaoanAU7j5zRU8gy4OrIqvINAtX3hTf_jOZI4q28mY/edit" 
+                       target="_blank" class="btn-link">
+                       🔗 Abrir Planilha
+                    </a>
                 </div>
             </div>
         </main>
 
         <footer class="footer">
-            <p>Sistema de Relatórios &copy; 2024 | Login atual: <strong>thiago.carvalho</strong></p>
+            <p>Sistema de Relatórios &copy; 2024</p>
         </footer>
     </div>
 
