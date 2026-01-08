@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>📊 Sistema de Relatórios</h1>
+            <h1>📊 Relatórios</h1>
             <p class="subtitle">Canal de Vendas</p>
         </header>
 
@@ -23,9 +23,7 @@
                     </label>
                     <select id="tipoRelatorio" class="form-control">
                         <option value="canal_vendas" selected>Canal de Vendas</option>
-                        <option value="outro" disabled>Outros (em breve)</option>
                     </select>
-                    <small class="form-text">Atualmente só suportamos "Canal de Vendas"</small>
                 </div>
 
                 <div class="form-group">
@@ -36,8 +34,9 @@
                         type="text" 
                         id="canalVendas" 
                         class="form-control" 
-                        placeholder="Ex: Loja Online, Facebook, Instagram, Parceiro..."
+                        placeholder="Ex: Loja Online, Facebook, Instagram..."
                         required
+                        autofocus
                     >
                 </div>
 
@@ -54,54 +53,16 @@
                     >
                 </div>
 
-                <div class="info-box">
-                    <div class="info-item">
-                        <span class="info-label">Login que vai gerar:</span>
-                        <span class="info-value" id="loginDisplay">thiago.carvalho</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Data/Hora atual:</span>
-                        <span class="info-value" id="dataHoraDisplay">--:--</span>
-                    </div>
-                </div>
-
                 <div class="actions">
                     <button id="btnSalvar" class="btn btn-primary" onclick="salvarRelatorio()">
                         <span class="btn-icon">💾</span> Salvar
                     </button>
                     <button id="btnLimpar" class="btn btn-secondary" onclick="limparFormulario()">
-                        <span class="btn-icon">🗑️</span> Limpar
+                        Limpar
                     </button>
                 </div>
 
                 <div id="statusMessage" class="status-message"></div>
-
-                <!-- HISTÓRICO DE ENVIOS (mantido) -->
-                <div class="historico-section">
-                    <h3>📋 Últimos Envios</h3>
-                    <div id="historicoContainer" class="historico-container">
-                        <!-- Histórico será carregado aqui pelo JavaScript -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>⚙️ Informações do Sistema</h2>
-                <div class="system-info">
-                    <p><strong>Status:</strong> <span id="statusConexao" style="color: #10b981;">● Conectado</span></p>
-                    <p><strong>Planilha:</strong> Canal de Vendas</p>
-                    <p><strong>Colunas:</strong></p>
-                    <ul>
-                        <li><strong>A:</strong> Canal de Vendas</li>
-                        <li><strong>B:</strong> ID Plataforma</li>
-                        <li><strong>C:</strong> Login Input (thiago.carvalho)</li>
-                        <li><strong>D:</strong> Data Input</li>
-                    </ul>
-                    <a href="https://docs.google.com/spreadsheets/d/1ZiaoanAU7j5zRU8gy4OrIqvINAtX3hTf_jOZI4q28mY/edit" 
-                       target="_blank" class="btn-link">
-                       🔗 Abrir Planilha
-                    </a>
-                </div>
             </div>
         </main>
 
