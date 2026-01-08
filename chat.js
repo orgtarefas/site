@@ -14,7 +14,8 @@ import {
     update, 
     push, 
     onValue,
-    onDisconnect
+    onDisconnect,
+    remove
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 
 // PROJETO 1: LOGINS (Firestore)
@@ -43,6 +44,141 @@ let loginsDb, chatDb, currentUser = null;
 let currentConversation = null;
 let allUsers = {}; // Cache de todos os usuários
 
+// ========== FUNÇÃO DE LOGOUT COMPLETO ==========
+window.logoutFromChat = async function(redirectUrl = null) {
+    console.log('🚪 Iniciando logout do chat...');
+    
+    try {
+        if (currentUser && currentUser.uid) {
+            console.log('👤 Usuário atual:', currentUser.nome);
+            
+            // 1. Atualizar status no Firestore
+            const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+            await updateDoc(loginsRef, {
+                [`${currentUser.uid}.isOnline`]: false,
+                [`${currentUser.uid}.lastSeen`]: new Date().toISOString()
+            });
+            console.log('✅ Status atualizado no Firestore');
+            
+            // 2. Atualizar status no Realtime Database
+            const userRef = ref(chatDb, `users/${currentUser.uid}`);
+            await update(userRef, {
+                isOnline: false,
+                lastSeen: Date.now()
+            });
+            console.log('✅ Status atualizado no Realtime Database');
+            
+            // 3. Cancelar desconexão automática
+            try {
+                const disconnectRef = ref(chatDb, `users/${currentUser.uid}`);
+                onDisconnect(disconnectRef).cancel();
+                console.log('✅ Desconexão automática cancelada');
+            } catch (error) {
+                console.warn('⚠️ Não foi possível cancelar desconexão automática:', error);
+            }
+        } else {
+            console.log('ℹ️ Nenhum usuário logado no chat');
+        }
+        
+        // 4. Limpar variáveis locais
+        currentUser = null;
+        currentConversation = null;
+        
+        console.log('✅ Logout do chat concluído');
+        
+    } catch (error) {
+        console.error('❌ Erro durante logout do chat:', error);
+    }
+    
+    // 5. Redirecionar se necessário
+    if (redirectUrl) {
+        console.log(`🔄 Redirecionando para: ${redirectUrl}`);
+        setTimeout(() => {
+            window.location.href = redirectUrl;
+        }, 100);
+    }
+};
+
+// ========== FUNÇÃO DE LOGOUT COMPLETO (SISTEMA + CHAT) ==========
+window.logout = async function() {
+    console.log('🚪 Logout completo iniciado...');
+    
+    // 1. Executar logout do chat
+    await logoutFromChat();
+    
+    // 2. Remover dados de sessão do localStorage
+    localStorage.removeItem('usuarioLogado');
+    
+    // 3. Redirecionar para login
+    console.log('🔄 Redirecionando para login...');
+    window.location.href = 'login.html';
+};
+
+// ========== FUNÇÃO PARA REDIRECIONAR COM LOGOUT ==========
+window.redirectWithLogout = async function(url) {
+    console.log(`🔄 Redirecionando para ${url} com logout do chat...`);
+    await logoutFromChat(url);
+};
+
+// ========== DETECTAR FECHAMENTO DA PÁGINA ==========
+window.setupPageUnload = function() {
+    console.log('🔧 Configurando detecção de fechamento da página...');
+    
+    // Detectar quando a página está sendo descarregada (fechamento/atualização)
+    window.addEventListener('beforeunload', async function(event) {
+        console.log('⚠️ Página está sendo fechada/atualizada...');
+        
+        // Usar sendBeacon para garantir que o logout seja executado
+        if (navigator.sendBeacon && currentUser) {
+            console.log('📡 Usando sendBeacon para logout...');
+            
+            // Criar dados para enviar via Beacon
+            const data = new FormData();
+            data.append('uid', currentUser.uid);
+            data.append('action', 'logout');
+            data.append('timestamp', Date.now());
+            
+            // Tentar enviar via Beacon (funciona mesmo após fechamento)
+            navigator.sendBeacon(`https://${loginsConfig.authDomain}/__/auth/logout`, data);
+        }
+        
+        // Executar logout sincrono (não usar async/await aqui)
+        try {
+            if (currentUser) {
+                console.log('🔄 Executando logout sincrono...');
+                
+                // Atualizar status no Firestore
+                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
+                await updateDoc(loginsRef, {
+                    [`${currentUser.uid}.isOnline`]: false,
+                    [`${currentUser.uid}.lastSeen`]: new Date().toISOString()
+                });
+                
+                // Atualizar status no Realtime Database
+                const userRef = ref(chatDb, `users/${currentUser.uid}`);
+                await update(userRef, {
+                    isOnline: false,
+                    lastSeen: Date.now()
+                });
+                
+                console.log('✅ Logout executado durante fechamento');
+            }
+        } catch (error) {
+            console.error('❌ Erro durante logout no fechamento:', error);
+        }
+    });
+    
+    // Detectar quando a página fica oculta (mudança de aba)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && currentUser) {
+            console.log('👁️ Página ficou oculta...');
+            // Não fazer logout automático aqui, apenas quando fechar
+        }
+    });
+    
+    console.log('✅ Detecção de fechamento configurada');
+};
+
 // ========== INICIALIZAÇÃO ==========
 async function init() {
     console.log('🚀 Inicializando Chat...');
@@ -57,19 +193,22 @@ async function init() {
         
         console.log('✅ Firebase inicializado');
         
-        // ========== 2. LOGIN DO USUÁRIO ==========
+        // ========== 2. CONFIGURAR DETECÇÃO DE FECHAMENTO ==========
+        setupPageUnload();
+        
+        // ========== 3. LOGIN DO USUÁRIO ==========
         await autoLogin();
         
-        // ========== 3. CONFIGURAR INTERAÇÃO ==========
+        // ========== 4. CONFIGURAR INTERAÇÃO ==========
         setupEventListeners();
         
-        // ========== 4. CONFIGURAR CACHE EM TEMPO REAL ==========
+        // ========== 5. CONFIGURAR CACHE EM TEMPO REAL ==========
         setupUsersCache();
         
-        // ========== 5. INICIALIZAR BOTÕES DE EXPANDIR/RECOLHER ==========
+        // ========== 6. INICIALIZAR BOTÕES DE EXPANDIR/RECOLHER ==========
         initSectionToggles();
         
-        // ========== 6. CARREGAR DADOS INICIAIS ==========
+        // ========== 7. CARREGAR DADOS INICIAIS ==========
         loadOnlineUsers();       // Lista de usuários online
         loadAllUsers();          // Cache completo
         loadAllUsersList();      // Lista todos usuários
@@ -180,9 +319,6 @@ async function autoLogin() {
             }
         }
         
-        // REMOVIDA a linha problemática com current-user-status
-        // O elemento não existe no HTML atualizado
-        
         // Atualizar status online no Firestore
         try {
             await updateDoc(loginsRef, {
@@ -246,7 +382,6 @@ async function loadAllUsers() {
         
         if (docSnap.exists()) {
             allUsers = docSnap.data();
-            //console.log(`📊 ${Object.keys(allUsers).length} usuários carregados no cache`);
         }
     } catch (error) {
         console.error('❌ Erro ao carregar usuários:', error);
@@ -310,7 +445,6 @@ window.toggleSection = function(sectionId) {
     
     console.log(`📂 Seção ${sectionId} ${section.classList.contains('collapsed') ? 'recolhida' : 'expandida'}`);
 };
-
 
 // ========== EXPANDIR/RECOLHER TODAS AS SEÇÕES ==========
 window.toggleAllSections = function(action) {
@@ -454,7 +588,6 @@ async function setupUsersCache() {
     onSnapshot(loginsRef, (doc) => {
         if (doc.exists()) {
             allUsers = doc.data();
-            //console.log(`📊 Cache de usuários atualizado: ${Object.keys(allUsers).length} usuários`);
             
             // Atualizar interface se houver mudanças
             if (currentUser) {
@@ -634,7 +767,6 @@ function renderOnlineUsers(users) {
     console.log(`✅ ${users.length} usuários online renderizados`);
 }
 
-
 // ========== CARREGAR CONVERSAS ==========
 function loadConversations() {
     const conversationsRef = ref(chatDb, `userConversations/${currentUser.uid}`);
@@ -747,7 +879,6 @@ function renderConversations(conversations) {
     
     console.log(`✅ ${container.children.length} conversas renderizadas`);
 }
-    
 
 // ========== INICIAR CONVERSA ==========
 window.startConversation = async function(otherUserId) {
@@ -755,7 +886,7 @@ window.startConversation = async function(otherUserId) {
     
     currentConversation = [currentUser.uid, otherUserId].sort().join('_');
     
-    //console.log('💬 Iniciando conversa com:', otherUserId);
+    console.log('💬 Iniciando conversa com:', otherUserId);
     
     // Obter informações do usuário
     const userInfo = getUserInfo(otherUserId);
@@ -809,7 +940,7 @@ window.startConversation = async function(otherUserId) {
 window.openConversation = function(conversationId, otherUserId) {
     currentConversation = conversationId;
     
-    //console.log('📂 Abrindo conversa:', conversationId);
+    console.log('📂 Abrindo conversa:', conversationId);
     
     // Obter informações do usuário
     const userInfo = getUserInfo(otherUserId);
@@ -888,11 +1019,8 @@ async function sendMessage() {
     const text = input.value.trim();
     
     if (!text || !currentUser || !currentConversation) {
-        //console.log('⚠️ Não pode enviar:', { text, currentUser, currentConversation });
         return;
     }
-    
-    //console.log('📤 Enviando mensagem:', text);
     
     try {
         const messageId = push(ref(chatDb, 'messages')).key;
@@ -923,8 +1051,6 @@ async function sendMessage() {
         // Limpar input
         input.value = '';
         input.focus();
-        
-        //console.log('✅ Mensagem enviada!');
         
     } catch (error) {
         console.error('❌ Erro ao enviar:', error);
@@ -988,20 +1114,6 @@ function setupEventListeners() {
     if (menuToggle) {
         menuToggle.addEventListener('click', () => {
             document.getElementById('sidebar').classList.toggle('active');
-        });
-    }
-    
-    // Botão voltar
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            if (currentUser) {
-                const loginsRef = doc(loginsDb, 'logins', 'LOGINS_ORGTAREFAS');
-                await updateDoc(loginsRef, {
-                    [`${currentUser.uid}.isOnline`]: false
-                });
-            }
-            window.location.href = 'index.html';
         });
     }
     
