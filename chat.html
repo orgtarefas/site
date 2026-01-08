@@ -40,17 +40,21 @@
             <!-- Usuário e botões à direita -->
             <div class="header-right">
                 <div class="header-actions">
-                    <button class="btn-header" onclick="window.location.href='index.html'">
+                    <!-- Botão Minhas Tarefas -->
+                    <button class="btn-header" onclick="redirectWithLogout('index.html')">
                         <i class="fas fa-tasks"></i> Minhas Tarefas
                     </button>
-                    <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                    <!-- Botão Minhas Atividades -->
+                    <button class="btn-header" onclick="redirectWithLogout('dashboard.html')">
                         <i class="fas fa-chart-line"></i> Minhas Atividades
                     </button>
-                    <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                    <!-- Botão Grupos de Trabalho -->
+                    <button class="btn-header" onclick="redirectWithLogout('workmanager.html')">
                         <i class="fas fa-users"></i> Grupos de Trabalho
                     </button>
-                    <button class="btn-header active" onclick="window.location.href='chat.html'">
-                        <i class="fas fa-comment-dots"></i> Chat
+                    <!-- Botão Logout -->
+                    <button class="btn-logout" onclick="logout()" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
                 
