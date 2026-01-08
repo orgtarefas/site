@@ -59,34 +59,56 @@ async function salvarRelatorio() {
             dataFormatada: dataFormatada
         };
         
-        // ENVIAR PARA GOOGLE SHEETS
-        const sucesso = await enviarParaGoogleSheets(dados);
+        // ENVIAR E OBTER RESPOSTA (usando JSONP para ler a resposta)
+        const resposta = await enviarEVerificarDuplicado(dados);
         
-        if (sucesso) {
-            // SUCESSO
-            mostrarMensagem(`
-                <div style="font-size: 0.95em;">
-                    <div style="color: #059669; font-weight: 600; margin-bottom: 8px;">
-                        ✅ Relatório salvo com sucesso!
-                    </div>
-                    <div style="color: #475569;">
-                        <div>🏪 <strong>Canal:</strong> ${canalVendas}</div>
-                        <div>🆔 <strong>ID:</strong> ${idPlataforma}</div>
-                        <div style="margin-top: 5px; font-size: 0.9em; color: #64748b;">
-                            Dados salvos na planilha do Google Sheets
+        if (resposta.success) {
+            if (resposta.acao === 'atualizado') {
+                // SE JÁ EXISTIA - ATUALIZADO
+                mostrarMensagem(`
+                    <div style="font-size: 0.95em;">
+                        <div style="color: #f59e0b; font-weight: 600; margin-bottom: 8px;">
+                            ⚠️ Registro atualizado
+                        </div>
+                        <div style="color: #475569;">
+                            <div>🏪 <strong>Canal:</strong> ${canalVendas}</div>
+                            <div>🆔 <strong>ID:</strong> ${idPlataforma}</div>
+                            <div style="margin-top: 5px; font-size: 0.9em; color: #64748b;">
+                                Este registro já existia. Data de atualização foi modificada.
+                            </div>
                         </div>
                     </div>
-                </div>
-            `, 'success');
-            
-            // EFEITO DE SUCESSO
-            efeitoSucesso();
+                `, 'warning');
+                
+                // EFEITO DIFERENTE PARA ATUALIZAÇÃO
+                efeitoAtualizacao();
+                
+            } else {
+                // SE É NOVO - CRIADO
+                mostrarMensagem(`
+                    <div style="font-size: 0.95em;">
+                        <div style="color: #059669; font-weight: 600; margin-bottom: 8px;">
+                            ✅ Novo registro criado!
+                        </div>
+                        <div style="color: #475569;">
+                            <div>🏪 <strong>Canal:</strong> ${canalVendas}</div>
+                            <div>🆔 <strong>ID:</strong> ${idPlataforma}</div>
+                            <div style="margin-top: 5px; font-size: 0.9em; color: #64748b;">
+                                Novo registro adicionado à planilha.
+                            </div>
+                        </div>
+                    </div>
+                `, 'success');
+                
+                // EFEITO DE SUCESSO
+                efeitoSucesso();
+            }
             
             // LIMPAR APÓS 3 SEGUNDOS
             setTimeout(limparFormulario, 3000);
             
         } else {
-            throw new Error('Falha no envio');
+            throw new Error(resposta.message || 'Falha no envio');
         }
         
     } catch (error) {
@@ -99,8 +121,7 @@ async function salvarRelatorio() {
                     ❌ Erro ao salvar
                 </div>
                 <div style="color: #475569;">
-                    Não foi possível conectar ao Google Sheets.
-                    Tente novamente em alguns instantes.
+                    ${error.message || 'Não foi possível conectar ao Google Sheets.'}
                 </div>
             </div>
         `, 'error');
@@ -113,32 +134,64 @@ async function salvarRelatorio() {
 }
 
 // ============================================
-// ENVIAR PARA GOOGLE SHEETS
+// ENVIAR E VERIFICAR DUPLICADO
 // ============================================
-async function enviarParaGoogleSheets(dados) {
-    try {
-        // USAR GET (simples)
+function enviarEVerificarDuplicado(dados) {
+    return new Promise((resolve) => {
+        // Criar callback único para receber resposta
+        const callbackName = 'callback_' + Date.now();
+        
+        // Função que será chamada pelo JSONP
+        window[callbackName] = function(resposta) {
+            console.log('📨 Resposta recebida:', resposta);
+            delete window[callbackName];
+            document.body.removeChild(script);
+            resolve(resposta);
+        };
+        
+        // Construir URL com callback
         const params = new URLSearchParams();
         params.append('canalVendas', dados.canalVendas);
         params.append('idPlataforma', dados.idPlataforma);
         params.append('login', dados.login);
         params.append('dataFormatada', dados.dataFormatada);
+        params.append('callback', callbackName);
         
         const url = `${CONFIG.GOOGLE_SCRIPT_URL}?${params}`;
+        console.log('🔗 Enviando para:', url.substring(0, 100) + '...');
         
-        // Enviar com fetch (no-cors para GitHub Pages)
-        await fetch(url, {
-            method: 'GET',
-            mode: 'no-cors',
-            cache: 'no-store'
-        });
+        // Criar script para JSONP
+        const script = document.createElement('script');
+        script.src = url;
         
-        return true;
+        // Tratar erro
+        script.onerror = () => {
+            console.error('❌ Erro no carregamento do script');
+            delete window[callbackName];
+            document.body.removeChild(script);
+            resolve({
+                success: false,
+                message: 'Erro de conexão'
+            });
+        };
         
-    } catch (error) {
-        console.error('Erro no envio:', error);
-        return false;
-    }
+        document.body.appendChild(script);
+        
+        // Timeout após 10 segundos
+        setTimeout(() => {
+            if (window[callbackName]) {
+                console.warn('⏰ Timeout na requisição');
+                delete window[callbackName];
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+                resolve({
+                    success: false,
+                    message: 'Timeout - tente novamente'
+                });
+            }
+        }, 10000);
+    });
 }
 
 // ============================================
@@ -154,8 +207,15 @@ function mostrarMensagem(texto, tipo) {
     div.className = `status-message ${tipo}`;
     div.style.display = 'block';
     
+    // Adicionar classe para warning
+    if (tipo === 'warning') {
+        div.style.background = '#fef3c7';
+        div.style.color = '#92400e';
+        div.style.border = '2px solid #fde68a';
+    }
+    
     // AUTO-ESCONDER
-    const tempo = tipo === 'success' ? 5000 : 7000;
+    const tempo = 5000;
     setTimeout(() => {
         if (div.style.display === 'block') {
             div.style.opacity = '0';
@@ -169,7 +229,7 @@ function mostrarMensagem(texto, tipo) {
     }, tempo);
 }
 
-// EFEITO DE SUCESSO
+// EFEITO DE SUCESSO (novo registro)
 function efeitoSucesso() {
     const btn = document.getElementById('btnSalvar');
     if (!btn) return;
@@ -177,6 +237,23 @@ function efeitoSucesso() {
     const originalBackground = btn.style.background;
     
     btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+    btn.style.transform = 'scale(1.02)';
+    btn.style.transition = 'all 0.3s';
+    
+    setTimeout(() => {
+        btn.style.background = originalBackground;
+        btn.style.transform = 'scale(1)';
+    }, 1000);
+}
+
+// EFEITO DE ATUALIZAÇÃO (registro existente)
+function efeitoAtualizacao() {
+    const btn = document.getElementById('btnSalvar');
+    if (!btn) return;
+    
+    const originalBackground = btn.style.background;
+    
+    btn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
     btn.style.transform = 'scale(1.02)';
     btn.style.transition = 'all 0.3s';
     
@@ -215,3 +292,32 @@ function limparFormulario() {
         document.getElementById('canalVendas').focus();
     }, 100);
 }
+
+// ============================================
+// ADICIONAR ESTILO PARA WARNING
+// ============================================
+const estiloWarning = document.createElement('style');
+estiloWarning.textContent = `
+    .status-message.warning {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+        border: 2px solid #fde68a !important;
+    }
+    
+    .loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(estiloWarning);
