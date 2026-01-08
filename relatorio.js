@@ -2,7 +2,7 @@
 // CONFIGURAÇÕES
 // ============================================
 const CONFIG = {
-    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzMXiybH9m-VJx7zk0pGcZnoL4mjyHxBdo-TCYwR263QycHXR6dp6b4QGErf/exec',
+    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwo9RWlqguYAoV_hPI0cL_Ez7FPQ7MJ1oBCl11cUb-QBndaZZjWc4-vO78Bj94pFUwQzg/exec',
     LOGIN_USUARIO: 'thiago.carvalho',
     PLANILHA_ID: '1ZiaoanAU7j5zRU8gy4OrIqvINAtX3hTf_jOZI4q28mY'
 };
