@@ -145,20 +145,26 @@ function enviarEVerificarDuplicado(dados) {
         window[callbackName] = function(resposta) {
             console.log('📨 Resposta recebida:', resposta);
             delete window[callbackName];
-            document.body.removeChild(script);
+            
+            // Remover o script se ainda existir
+            const script = document.querySelector(`script[src*="${callbackName}"]`);
+            if (script && script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+            
             resolve(resposta);
         };
         
-        // Construir URL com callback
+        // Construir URL com callback - usar encodeURIComponent
         const params = new URLSearchParams();
-        params.append('canalVendas', dados.canalVendas);
-        params.append('idPlataforma', dados.idPlataforma);
-        params.append('login', dados.login);
-        params.append('dataFormatada', dados.dataFormatada);
+        params.append('canalVendas', encodeURIComponent(dados.canalVendas));
+        params.append('idPlataforma', encodeURIComponent(dados.idPlataforma));
+        params.append('login', encodeURIComponent(dados.login));
+        params.append('dataFormatada', encodeURIComponent(dados.dataFormatada));
         params.append('callback', callbackName);
         
         const url = `${CONFIG.GOOGLE_SCRIPT_URL}?${params}`;
-        console.log('🔗 Enviando para:', url.substring(0, 100) + '...');
+        console.log('🔗 Enviando para:', url);
         
         // Criar script para JSONP
         const script = document.createElement('script');
@@ -168,29 +174,32 @@ function enviarEVerificarDuplicado(dados) {
         script.onerror = () => {
             console.error('❌ Erro no carregamento do script');
             delete window[callbackName];
-            document.body.removeChild(script);
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
             resolve({
                 success: false,
-                message: 'Erro de conexão'
+                message: 'Erro de conexão com o servidor'
             });
         };
         
         document.body.appendChild(script);
         
-        // Timeout após 10 segundos
+        // Timeout após 15 segundos
         setTimeout(() => {
             if (window[callbackName]) {
                 console.warn('⏰ Timeout na requisição');
                 delete window[callbackName];
-                if (script.parentNode) {
-                    script.parentNode.removeChild(script);
+                const existingScript = document.querySelector(`script[src*="${callbackName}"]`);
+                if (existingScript && existingScript.parentNode) {
+                    existingScript.parentNode.removeChild(existingScript);
                 }
                 resolve({
                     success: false,
                     message: 'Timeout - tente novamente'
                 });
             }
-        }, 10000);
+        }, 15000);
     });
 }
 
