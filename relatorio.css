@@ -104,6 +104,13 @@ body {
     cursor: not-allowed;
 }
 
+/* Status Message - Warning */
+.status-message.warning {
+    background: #fef3c7;
+    color: #92400e;
+    border: 2px solid #fde68a;
+}
+
 /* Botões */
 .actions {
     display: flex;
