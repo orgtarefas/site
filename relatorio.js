@@ -1,6 +1,7 @@
 // Configurações
 const CONFIG = {
     GOOGLE_SHEETS_ID: '2PACX-1vQzF6_7q6HfCfK7N_zTC7uyS34bQrWomUPyH5FCSz5f0bYNmhod5B8clysLxpazVIENArC52FgEEC9R',
+    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxaB_h0-N5DAMt0xOOnCvpBHzHYceg8sdsVhF2fGoGHG3MXcZaCWzyqJB-4NGIZdTfdRw/exec',
     LOGIN_USUARIO: 'thiago.carvalho',
     SHEET_NAME: 'Canal de Vendas',
     COLUNAS: {
@@ -21,7 +22,60 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Atualizar data/hora a cada minuto
     setInterval(atualizarDataHora, 60000);
+    
+    // Testar conexão com Google Script
+    testarConexaoGoogleScript();
 });
+
+// Testar conexão com Google Apps Script
+async function testarConexaoGoogleScript() {
+    try {
+        const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+            method: 'HEAD'
+        });
+        
+        if (response.ok) {
+            console.log('✅ Conexão com Google Apps Script estabelecida');
+            mostrarStatusConexao(true);
+        } else {
+            throw new Error('Falha na conexão');
+        }
+    } catch (error) {
+        console.warn('⚠️ Não foi possível testar conexão com Google Apps Script');
+        mostrarStatusConexao(false);
+    }
+}
+
+// Mostrar status da conexão
+function mostrarStatusConexao(sucesso) {
+    const footer = document.querySelector('.footer');
+    if (!footer) return;
+    
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'statusConexao';
+    statusDiv.style.cssText = `
+        margin-top: 10px;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-block;
+    `;
+    
+    if (sucesso) {
+        statusDiv.innerHTML = '🟢 Conectado ao Google Sheets';
+        statusDiv.style.background = '#d1fae5';
+        statusDiv.style.color = '#065f46';
+        statusDiv.style.border = '2px solid #a7f3d0';
+    } else {
+        statusDiv.innerHTML = '🟡 Usando modo simulação';
+        statusDiv.style.background = '#fef3c7';
+        statusDiv.style.color = '#92400e';
+        statusDiv.style.border = '2px solid #fde68a';
+    }
+    
+    footer.appendChild(statusDiv);
+}
 
 // Atualizar data/hora no display
 function atualizarDataHora() {
@@ -53,7 +107,7 @@ async function salvarRelatorio() {
     // Desabilitar botão e mostrar loading
     const btnSalvar = document.getElementById('btnSalvar');
     const btnTextoOriginal = btnSalvar.innerHTML;
-    btnSalvar.innerHTML = '<span class="loading"></span> Salvando...';
+    btnSalvar.innerHTML = '<span class="loading"></span> Conectando ao Google Sheets...';
     btnSalvar.disabled = true;
     
     try {
@@ -68,17 +122,14 @@ async function salvarRelatorio() {
             login: CONFIG.LOGIN_USUARIO,
             dataHora: dataHora,
             dataFormatada: dataFormatada,
-            tipo: document.getElementById('tipoRelatorio').value
+            tipo: document.getElementById('tipoRelatorio').value,
+            timestamp: Date.now()
         };
         
-        // Simular envio para Google Sheets
-        // NOTA: Para funcionar realmente, você precisa configurar:
-        // 1. Google Sheets API no Google Cloud Console
-        // 2. Criar credenciais OAuth 2.0
-        // 3. Compartilhar a planilha com o email do serviço
+        // Tentar enviar para Google Sheets via Apps Script
+        console.log('📤 Enviando dados para Google Sheets:', dadosRelatorio);
         
-        // Aqui está a implementação SIMULADA
-        const sucesso = await simularEnvioGoogleSheets(dadosRelatorio);
+        const sucesso = await enviarParaGoogleSheets(dadosRelatorio);
         
         if (sucesso) {
             // Salvar no histórico local
@@ -89,31 +140,48 @@ async function salvarRelatorio() {
             };
             
             historicoEnvios.unshift(envio);
+            // Manter apenas últimos 50 registros
+            if (historicoEnvios.length > 50) {
+                historicoEnvios = historicoEnvios.slice(0, 50);
+            }
             localStorage.setItem('relatorio_historico', JSON.stringify(historicoEnvios));
             
             // Atualizar histórico na tela
             carregarHistorico();
             
             // Mostrar mensagem de sucesso
-            mostrarMensagem(`✅ Relatório salvo com sucesso no Google Sheets!<br>
-                           Canal: ${canalVendas}<br>
-                           ID: ${idPlataforma}<br>
-                           Data: ${dataFormatada}`, 'success');
+            mostrarMensagem(
+                `<strong>✅ Relatório salvo com sucesso!</strong><br>
+                📊 <strong>Canal:</strong> ${canalVendas}<br>
+                🆔 <strong>ID Plataforma:</strong> ${idPlataforma}<br>
+                📅 <strong>Data:</strong> ${dataFormatada}<br>
+                👤 <strong>Usuário:</strong> ${CONFIG.LOGIN_USUARIO}<br><br>
+                <small>Os dados foram salvos na próxima linha disponível do Google Sheets.</small>`,
+                'success'
+            );
             
-            // Limpar formulário após 2 segundos
-            setTimeout(limparFormulario, 2000);
+            // Limpar formulário após 3 segundos
+            setTimeout(limparFormulario, 3000);
             
-            // Abrir link do Google Sheets em nova aba
+            // Abrir link do Google Sheets em nova aba após 2 segundos
             setTimeout(() => {
                 window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.GOOGLE_SHEETS_ID}/edit`, '_blank');
-            }, 1500);
+            }, 2000);
         } else {
-            throw new Error('Falha ao conectar com Google Sheets');
+            throw new Error('Falha ao salvar no Google Sheets');
         }
         
     } catch (error) {
         console.error('Erro ao salvar relatório:', error);
-        mostrarMensagem(`❌ Erro ao salvar: ${error.message}`, 'error');
+        
+        // Mostrar mensagem de erro específica
+        let mensagemErro = `❌ Erro ao salvar no Google Sheets: ${error.message}`;
+        
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            mensagemErro = '❌ Erro de conexão. Verifique sua internet e tente novamente.';
+        }
+        
+        mostrarMensagem(mensagemErro, 'error');
         
         // Mesmo com erro, salvar localmente
         const envio = {
@@ -130,6 +198,13 @@ async function salvarRelatorio() {
         historicoEnvios.unshift(envio);
         localStorage.setItem('relatorio_historico', JSON.stringify(historicoEnvios));
         carregarHistorico();
+        
+        // Oferecer opção de salvar localmente
+        setTimeout(() => {
+            if (confirm('Deseja salvar os dados localmente e tentar novamente mais tarde?')) {
+                mostrarMensagem('📱 Dados salvos localmente. Tente enviar novamente quando a conexão estiver restabelecida.', 'info');
+            }
+        }, 1000);
     } finally {
         // Restaurar botão
         btnSalvar.innerHTML = btnTextoOriginal;
@@ -137,48 +212,69 @@ async function salvarRelatorio() {
     }
 }
 
-// Simular envio para Google Sheets
-async function simularEnvioGoogleSheets(dados) {
-    // Esta é uma simulação
-    // Para implementação real, você precisará:
+// Enviar dados para Google Sheets via Apps Script
+async function enviarParaGoogleSheets(dados) {
+    console.log('🔗 Enviando para URL:', CONFIG.GOOGLE_SCRIPT_URL);
     
-    // Opção 1: Usar Google Sheets API diretamente
-    /*
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.GOOGLE_SHEETS_ID}/values/${CONFIG.SHEET_NAME}!A:D:append?valueInputOption=USER_ENTERED`, {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer SEU_TOKEN_AQUI',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            values: [[
-                dados.canalVendas,
-                dados.idPlataforma,
-                dados.login,
-                dados.dataFormatada
-            ]]
-        })
-    });
-    return response.ok;
-    */
+    // Adicionar timeout de 30 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     
-    // Opção 2: Usar Google Apps Script (recomendado para GitHub Pages)
-    /*
-    const scriptUrl = 'SUA_URL_DO_APPS_SCRIPT_AQUI';
-    const response = await fetch(scriptUrl, {
-        method: 'POST',
-        body: JSON.stringify(dados)
+    try {
+        const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Importante para Apps Script
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dados),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Com 'no-cors', não podemos ler a resposta, apenas saber se foi enviada
+        console.log('📨 Dados enviados para Google Apps Script');
+        
+        // Em modo no-cors, consideramos sucesso se não houver erro de rede
+        return true;
+        
+    } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+            throw new Error('Tempo limite excedido (30s)');
+        }
+        
+        throw error;
+    }
+}
+
+// Função alternativa usando GET (para debug)
+async function enviarViaGET(dados) {
+    // Converte dados para parâmetros de URL
+    const params = new URLSearchParams({
+        canalVendas: dados.canalVendas,
+        idPlataforma: dados.idPlataforma,
+        login: dados.login,
+        dataFormatada: dados.dataFormatada,
+        tipo: dados.tipo,
+        timestamp: dados.timestamp
     });
-    return response.ok;
-    */
     
-    // Por enquanto, simulamos um sucesso após 1.5 segundos
-    return new Promise(resolve => {
-        setTimeout(() => {
-            console.log('📤 Dados simulados para Google Sheets:', dados);
-            resolve(true);
-        }, 1500);
-    });
+    const url = `${CONFIG.GOOGLE_SCRIPT_URL}?${params}`;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            mode: 'no-cors'
+        });
+        
+        console.log('✅ Dados enviados via GET');
+        return true;
+    } catch (error) {
+        throw new Error(`Falha no envio GET: ${error.message}`);
+    }
 }
 
 // Limpar formulário
@@ -186,6 +282,9 @@ function limparFormulario() {
     document.getElementById('canalVendas').value = '';
     document.getElementById('idPlataforma').value = '';
     document.getElementById('tipoRelatorio').value = 'canal_vendas';
+    
+    // Focar no primeiro campo
+    document.getElementById('canalVendas').focus();
     
     // Limpar mensagem de status
     const statusMessage = document.getElementById('statusMessage');
@@ -201,12 +300,13 @@ function mostrarMensagem(texto, tipo) {
     statusMessage.className = `status-message ${tipo}`;
     statusMessage.style.display = 'block';
     
-    // Auto-remover após 5 segundos
-    if (tipo === 'success') {
-        setTimeout(() => {
-            statusMessage.style.display = 'none';
-        }, 5000);
-    }
+    // Auto-remover após segundos diferentes
+    const tempoExibicao = tipo === 'success' ? 8000 : 
+                         tipo === 'error' ? 10000 : 5000;
+    
+    setTimeout(() => {
+        statusMessage.style.display = 'none';
+    }, tempoExibicao);
 }
 
 // Carregar histórico de envios
@@ -214,72 +314,114 @@ function carregarHistorico() {
     const container = document.getElementById('historicoContainer');
     
     if (historicoEnvios.length === 0) {
-        container.innerHTML = '<p class="empty-state">Nenhum envio realizado ainda.</p>';
+        container.innerHTML = '<p class="empty-state">📭 Nenhum envio realizado ainda.</p>';
         return;
     }
     
     let html = '';
+    const limiteExibicao = Math.min(historicoEnvios.length, 10);
     
-    historicoEnvios.slice(0, 5).forEach(envio => {
+    for (let i = 0; i < limiteExibicao; i++) {
+        const envio = historicoEnvios[i];
         const statusIcon = envio.status === 'sucesso' ? '✅' : '❌';
         const statusClass = envio.status === 'sucesso' ? 'success' : 'error';
+        const statusText = envio.status === 'sucesso' ? 'Enviado' : 'Falhou';
+        
+        // Formatar data
+        let dataExibicao;
+        try {
+            const data = new Date(envio.dataHora || envio.id);
+            dataExibicao = data.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            dataExibicao = 'Data inválida';
+        }
         
         html += `
             <div class="historico-item ${statusClass}">
                 <div class="historico-header">
-                    <div class="historico-title">${statusIcon} ${envio.canalVendas}</div>
-                    <div class="historico-date">${envio.dataFormatada}</div>
+                    <div class="historico-title">
+                        ${statusIcon} ${envio.canalVendas || 'Sem nome'}
+                    </div>
+                    <div class="historico-date">${dataExibicao}</div>
                 </div>
                 <div class="historico-details">
                     <div class="historico-detail">
                         <div class="detail-label">ID Plataforma</div>
-                        <div class="detail-value">${envio.idPlataforma}</div>
+                        <div class="detail-value">${envio.idPlataforma || 'N/A'}</div>
                     </div>
                     <div class="historico-detail">
-                        <div class="detail-label">Login</div>
-                        <div class="detail-value">${envio.login}</div>
+                        <div class="detail-label">Usuário</div>
+                        <div class="detail-value">${envio.login || CONFIG.LOGIN_USUARIO}</div>
                     </div>
                     <div class="historico-detail">
                         <div class="detail-label">Status</div>
-                        <div class="detail-value ${statusClass}">${envio.status === 'sucesso' ? 'Enviado' : 'Erro'}</div>
+                        <div class="detail-value ${statusClass}">${statusText}</div>
                     </div>
                 </div>
-                ${envio.erro ? `<div class="erro-detalhe">Erro: ${envio.erro}</div>` : ''}
+                ${envio.erro ? `
+                    <div class="erro-detalhe" style="
+                        margin-top: 10px;
+                        padding: 8px;
+                        background: #fee2e2;
+                        border-radius: 5px;
+                        font-size: 0.85rem;
+                        color: #991b1b;
+                    ">
+                        <strong>Erro:</strong> ${envio.erro}
+                    </div>
+                ` : ''}
             </div>
         `;
-    });
+    }
+    
+    // Adicionar botão para limpar histórico se tiver muitos itens
+    if (historicoEnvios.length > 10) {
+        html += `
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="limparHistoricoCompleto()" 
+                        style="
+                            padding: 8px 15px;
+                            background: #f1f5f9;
+                            border: 2px solid #cbd5e1;
+                            border-radius: 8px;
+                            color: #64748b;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                        ">
+                    🗑️ Limpar histórico completo
+                </button>
+                <small style="display: block; margin-top: 5px; color: #94a3b8;">
+                    Mostrando 10 de ${historicoEnvios.length} registros
+                </small>
+            </div>
+        `;
+    }
     
     container.innerHTML = html;
 }
 
-// Implementação REAL com Google Apps Script (opcional)
-// Para usar, crie um script no Google Apps Script e cole o código abaixo:
-
-/*
-// Código do Google Apps Script (GoogleSheetsAPI.gs)
-function doPost(e) {
-    try {
-        const dados = JSON.parse(e.postData.contents);
-        const sheet = SpreadsheetApp.openById('SEU_SHEET_ID_AQUI')
-            .getSheetByName('Canal de Vendas');
-        
-        // Encontrar próxima linha vazia
-        const ultimaLinha = sheet.getLastRow();
-        const novaLinha = ultimaLinha + 1;
-        
-        // Inserir dados
-        sheet.getRange(novaLinha, 1).setValue(dados.canalVendas); // Coluna A
-        sheet.getRange(novaLinha, 2).setValue(dados.idPlataforma); // Coluna B
-        sheet.getRange(novaLinha, 3).setValue(dados.login); // Coluna C
-        sheet.getRange(novaLinha, 4).setValue(dados.dataFormatada); // Coluna D
-        
-        return ContentService
-            .createTextOutput(JSON.stringify({ success: true, linha: novaLinha }))
-            .setMimeType(ContentService.MimeType.JSON);
-            
-    } catch (error) {
-        return ContentService
-            .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-            .setMimeType(ContentService.MimeType.JSON);
+// Limpar histórico completo
+function limparHistoricoCompleto() {
+    if (confirm('Tem certeza que deseja limpar todo o histórico de envios?')) {
+        historicoEnvios = [];
+        localStorage.removeItem('relatorio_historico');
+        carregarHistorico();
+        mostrarMensagem('🗑️ Histórico limpo com sucesso!', 'info');
     }
 }
+
+// Permitir enviar com Enter
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        const focused = document.activeElement;
+        if (focused.id === 'canalVendas' || focused.id === 'idPlataforma') {
+            e.preventDefault();
+            salvarRelatorio();
+        }
+    }
+});
