@@ -8,6 +8,7 @@ let grupos = [];
 let atividadesPorTarefa = {};
 let editandoTarefaId = null;
 let modoEdicao = false;
+let editandoProgramaId = null;
 
 // Estado global dos alertas
 let alertasObservador = [];
@@ -48,6 +49,49 @@ document.addEventListener('DOMContentLoaded', async function() {
     //console.log('📥 Continuando inicialização do sistema...');
     await inicializarSistema();
 });
+
+// FUNÇÃO: Carregar programas
+async function carregarProgramas() {
+    console.log('📋 Carregando programas...');
+    
+    try {
+        // Verificar se existe a coleção "programas"
+        const programasRef = db.collection("programas");
+        const snapshot = await programasRef.orderBy("dataAtualizacao", "desc").get();
+        
+        if (snapshot.empty) {
+            console.log('ℹ️ Nenhum programa encontrado no sistema');
+            programas = [];
+            return;
+        }
+        
+        programas = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('✅ Programas carregados:', programas.length);
+        console.log('📋 Programas:', programas);
+
+        // Preencher select de programas no modal
+        const selectProgramas = document.getElementById('tarefaPrograma');
+        
+        if (selectProgramas) {
+            selectProgramas.innerHTML = '<option value="">Nenhum programa</option>';
+            
+            programas.forEach(programa => {
+                const option = document.createElement('option');
+                option.value = programa.id;
+                option.textContent = programa.titulo || programa.nome || programa.id; // Usa 'titulo' se existir
+                selectProgramas.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar programas:', error);
+        programas = [];
+    }
+}
 
 async function inicializarBancosFirebase() {
     try {
@@ -110,7 +154,7 @@ async function inicializarBancosFirebase() {
 }
 
 async function inicializarSistema() {
-    //console.log('📋 Inicializando sistema...');
+    console.log('📋 Inicializando sistema...');
     document.getElementById('loadingText').textContent = 'Conectando aos bancos de dados...';
 
     // INICIALIZAR CONTADORES COMO ZERO E OCULTOS
@@ -137,7 +181,7 @@ async function inicializarSistema() {
     // ⚡ AJUSTE IMPORTANTE: Se não tiver grupos, buscar AGORA antes de continuar
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     if (!usuarioLogado.grupos || usuarioLogado.grupos.length === 0) {
-        //console.log('🔄 Carregando grupos do usuário antes de continuar...');
+        console.log('🔄 Carregando grupos do usuário antes de continuar...');
         document.getElementById('loadingText').textContent = 'Carregando grupos do usuário...';
         
         try {
@@ -146,7 +190,7 @@ async function inicializarSistema() {
             
             // Recarregar usuário logado atualizado
             const usuarioAtualizado = JSON.parse(localStorage.getItem('usuarioLogado'));
-            //console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
+            console.log('✅ Grupos carregados:', usuarioAtualizado.grupos);
         } catch (error) {
             console.error('❌ Erro ao carregar grupos:', error);
         }
@@ -180,21 +224,24 @@ async function inicializarSistema() {
     // Continuar com o resto do sistema
     try {
         // PRIMEIRO: Carregar usuários e grupos DO USUÁRIO LOGADO
-        //console.log('📥 Carregando dados do usuário...');
+        console.log('📥 Carregando dados do usuário...');
         document.getElementById('loadingText').textContent = 'Carregando seus dados...';
         
         // Carregar usuários primeiro (APENAS do LOGINS agora)
         await carregarUsuarios();
         
+        // Carregar programas ← ADICIONE ESTA LINHA
+        await carregarProgramas();
+        
         // Verificar se grupos do usuário foram carregados
         const usuarioAtual = JSON.parse(localStorage.getItem('usuarioLogado'));
         
         if (!usuarioAtual.grupos || usuarioAtual.grupos.length === 0) {
-            //console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
+            console.log('⚠️ Usuário não está em nenhum grupo! Mostrando todas as tarefas.');
         }
         
         // DEPOIS: Carregar o resto
-        //console.log('📊 Carregando dados do sistema...');
+        console.log('📊 Carregando dados do sistema...');
         document.getElementById('loadingText').textContent = 'Carregando tarefas...';
         
         await carregarGrupos(); // Esta carrega todos os grupos do sistema
@@ -210,7 +257,7 @@ async function inicializarSistema() {
                           window.location.pathname.endsWith('/');
         
         if (isHomePage) {
-            //console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
+            console.log('🏠 Página Home detectada - Iniciando sistema de alertas');
             
             // Configurar listener específico para observadores
             configurarListenerObservadores();
@@ -219,12 +266,12 @@ async function inicializarSistema() {
             setTimeout(() => {
                 const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
                 if (usuarioLogado) {
-                    //console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
+                    console.log('🚀 Iniciando sistema de alertas para:', usuarioLogado.usuario);
                     verificarAlertas();
                 }
             }, 3000);
         } else {
-            //console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
+            console.log('📋 Página Dashboard - Alertas não serão iniciados aqui');
         }
         
     } catch (error) {
@@ -245,27 +292,38 @@ function criarEstatisticasClicaveis() {
     ];
     
     estatisticas.forEach(estatistica => {
-        const card = document.querySelector(`#${estatistica.id}`).closest('.stat-card');
-        if (card) {
-            // Adicionar cursor pointer
-            card.style.cursor = 'pointer';
-            
-            // Adicionar efeito hover simples
-            card.addEventListener('mouseenter', function() {
-                this.style.opacity = '0.9';
-                this.style.transform = 'translateY(-2px)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.opacity = '1';
-                this.style.transform = 'translateY(0)';
-            });
-            
-            // Adicionar evento de clique DIRETO
-            card.addEventListener('click', function() {
-                aplicarFiltroStatus(estatistica.status);
-            });
+        // PRIMEIRO: Verificar se o elemento existe
+        const elemento = document.getElementById(estatistica.id);
+        if (!elemento) {
+            console.warn(`⚠️ Elemento #${estatistica.id} não encontrado no DOM`);
+            return; // Pular para a próxima estatística
         }
+        
+        // SEGUNDO: Tentar encontrar o .stat-card pai
+        const card = elemento.closest('.stat-card');
+        if (!card) {
+            console.warn(`⚠️ Não encontrou .stat-card pai para #${estatistica.id}`);
+            return;
+        }
+        
+        // Adicionar cursor pointer
+        card.style.cursor = 'pointer';
+        
+        // Adicionar efeito hover simples
+        card.addEventListener('mouseenter', function() {
+            this.style.opacity = '0.9';
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.opacity = '1';
+            this.style.transform = 'translateY(0)';
+        });
+        
+        // Adicionar evento de clique DIRETO
+        card.addEventListener('click', function() {
+            aplicarFiltroStatus(estatistica.status);
+        });
     });
 }
 
@@ -1106,14 +1164,6 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         // Atualizar interface
         atualizarContadoresAlertas();
-
-        // aqui1
-        // Se houver novos alertas, mostrar notificação
-        //if (alertasObservador.length > 0) {
-        //    setTimeout(() => {
-        //        mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
-        //    }, 1000);
-        //}
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
@@ -1704,7 +1754,7 @@ function preencherFormulario(tarefaId) {
     if (!tarefa) return;
     
     // USANDO A FUNÇÃO AUXILIAR para extrair título sem os grupos
-    const tituloOriginal = extrairTituloSemGrupos(tarefa.titulo, tarefa.gruposAcesso);
+    const tituloOriginal = extrairTituloSemGrupos(tarefa.titulo, tarefa.gruposAcesso, tarefa.programaId);
     
     // Preencher os campos do formulário
     document.getElementById('tarefaTitulo').value = tituloOriginal;
@@ -1712,6 +1762,12 @@ function preencherFormulario(tarefaId) {
     document.getElementById('tarefaPrioridade').value = tarefa.prioridade;
     document.getElementById('tarefaDataInicio').value = tarefa.dataInicio || '';
     document.getElementById('tarefaDataFim').value = tarefa.dataFim;
+    
+    // Preencher programa
+    const selectProgramas = document.getElementById('tarefaPrograma');
+    if (selectProgramas) {
+        selectProgramas.value = tarefa.programaId || '';
+    }
     
     // Preencher grupos (múltipla seleção)
     const selectGrupos = document.getElementById('tarefaGrupos');
@@ -1731,42 +1787,108 @@ function preencherFormulario(tarefaId) {
         }
     }
     
-    //console.log('📝 Formulário preenchido:', {
-    //    tituloOriginal: tituloOriginal,
-    //    gruposAcesso: tarefa.gruposAcesso,
-    //    nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
-    //    tituloCompleto: tarefa.titulo
-    //});
+    // Armazenar programa atual para verificar mudanças
+    editandoTarefaId = tarefaId;
+    editandoProgramaId = tarefa.programaId; // ← Adicione esta linha
+    
+    console.log('📝 Formulário preenchido:', {
+        tituloOriginal: tituloOriginal,
+        programaId: tarefa.programaId,
+        programaNome: obterNomePrograma(tarefa.programaId),
+        gruposAcesso: tarefa.gruposAcesso,
+        nomesGrupos: obterNomesTodosGrupos(tarefa.gruposAcesso),
+        tituloCompleto: tarefa.titulo
+    });
 }
 
-// FUNÇÃO AUXILIAR: Extrair título sem os grupos (para formulário de edição)
-function extrairTituloSemGrupos(tituloCompleto, gruposIds) {
-    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
-        return tituloCompleto;
+// FUNÇÃO AUXILIAR: Extrair título sem os grupos e programa (para formulário de edição)
+function extrairTituloSemGrupos(tituloCompleto, gruposIds, programaId = null) {
+    if (!tituloCompleto) return '';
+    
+    const nomePrograma = programaId ? obterNomePrograma(programaId) : '';
+    const nomesGrupos = gruposIds && Array.isArray(gruposIds) && gruposIds.length > 0 ? 
+        obterNomesTodosGrupos(gruposIds) : '';
+    
+    console.log('🔍 Extraindo título sem prefixos:', {
+        tituloCompleto,
+        nomePrograma,
+        nomesGrupos
+    });
+    
+    let tituloLimpo = tituloCompleto;
+    
+    // Tentar remover todos os padrões possíveis
+    
+    // Padrão 1: "Programa - Tarefa - Grupos"
+    if (nomePrograma && nomesGrupos) {
+        const padrao1 = `${nomePrograma} - ${nomesGrupos} - `;
+        const padrao2 = `${nomePrograma} - ${nomesGrupos} -`;
+        const padrao3 = `${nomePrograma} -  - ${nomesGrupos}`;
+        
+        if (tituloCompleto.startsWith(padrao1)) {
+            tituloLimpo = tituloCompleto.substring(padrao1.length);
+        } else if (tituloCompleto.startsWith(padrao2)) {
+            tituloLimpo = tituloCompleto.substring(padrao2.length);
+        } else if (tituloCompleto.includes(padrao3)) {
+            // Se houver espaço extra entre os traços
+            const match = tituloCompleto.match(new RegExp(`^${nomePrograma.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} - (.*?) - ${nomesGrupos.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+            if (match) tituloLimpo = match[1];
+        }
     }
     
-    const nomesGrupos = obterNomesTodosGrupos(gruposIds);
+    // Padrão 2: "Programa - Tarefa" (sem grupos no título)
+    if (nomePrograma && tituloLimpo === tituloCompleto) {
+        const padrao = `${nomePrograma} - `;
+        if (tituloCompleto.startsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(padrao.length);
+        }
+    }
     
-    if (nomesGrupos) {
-        // Primeiro tenta com todos os grupos
-        const prefixoComTodos = nomesGrupos + ' - ';
-        if (tituloCompleto.startsWith(prefixoComTodos)) {
-            return tituloCompleto.substring(prefixoComTodos.length);
+    // Padrão 3: "Tarefa - Grupos" (apenas grupos, sem programa)
+    if (!nomePrograma && nomesGrupos && tituloLimpo === tituloCompleto) {
+        const padrao = ` - ${nomesGrupos}`;
+        if (tituloCompleto.endsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(0, tituloCompleto.length - padrao.length);
+        }
+    }
+    
+    // Padrão 4: "Grupos - Tarefa" (formato antigo - para compatibilidade)
+    if (!nomePrograma && nomesGrupos && tituloLimpo === tituloCompleto) {
+        const padrao = `${nomesGrupos} - `;
+        if (tituloCompleto.startsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(padrao.length);
+        }
+    }
+    
+    // Se ainda não limpou, tentar remover qualquer coisa que comece com " - " ou termine com " - "
+    if (tituloLimpo === tituloCompleto) {
+        // Remover prefixos que começam com "X - "
+        const prefixMatch = tituloCompleto.match(/^([^-]+ - )(.*)$/);
+        if (prefixMatch) {
+            tituloLimpo = prefixMatch[2];
         }
         
-        // Para compatibilidade com tarefas antigas que só tinham primeiro grupo
-        const primeiroGrupoId = gruposIds[0];
-        const primeiroGrupo = grupos.find(g => g.id === primeiroGrupoId);
-        if (primeiroGrupo) {
-            const prefixoIndividual = primeiroGrupo.nome + ' - ';
-            if (tituloCompleto.startsWith(prefixoIndividual)) {
-                return tituloCompleto.substring(prefixoIndividual.length);
-            }
+        // Remover sufixos que terminam com " - X"
+        const suffixMatch = tituloLimpo.match(/^(.*)( - [^-]+)$/);
+        if (suffixMatch) {
+            tituloLimpo = suffixMatch[1];
         }
     }
     
-    // Se não encontrar prefixo, retorna o título original
-    return tituloCompleto;
+    // Limpar espaços extras
+    tituloLimpo = tituloLimpo.trim();
+    
+    console.log('✅ Título limpo:', tituloLimpo);
+    return tituloLimpo;
+}
+
+// FUNÇÃO: Obter nome do programa pelo ID
+function obterNomePrograma(programaId) {
+    if (!programaId) return '';
+    
+    const programa = programas.find(p => p.id === programaId);
+    // Retorna 'titulo' (conforme sua estrutura) ou 'nome' como fallback
+    return programa ? (programa.titulo || programa.nome || '') : '';
 }
 
 // FUNÇÃO: Obter nomes de TODOS os grupos separados por vírgula
@@ -1790,6 +1912,12 @@ function limparFormulario() {
     }
     configurarDataMinima();
     
+    // Resetar programa para "Nenhum"
+    const selectProgramas = document.getElementById('tarefaPrograma');
+    if (selectProgramas) {
+        selectProgramas.value = '';
+    }
+    
     // Desmarcar todos os grupos
     const selectGrupos = document.getElementById('tarefaGrupos');
     if (selectGrupos) {
@@ -1805,9 +1933,46 @@ function limparFormulario() {
     }
 }
 
-// CRUD Operations
+// Função para atualizar array de tarefas_relacionadas no programa (OPCIONAL)
+async function atualizarTarefasRelacionadasNoPrograma(programaId, tarefaId) {
+    try {
+        if (!programaId) return; // Se não tem programa, não faz nada
+        
+        const programaRef = db.collection("programas").doc(programaId);
+        const programaDoc = await programaRef.get();
+        
+        if (!programaDoc.exists) {
+            console.warn('⚠️ Programa não encontrado:', programaId);
+            return;
+        }
+        
+        const programaData = programaDoc.data();
+        const tarefasRelacionadas = programaData.tarefas_relacionadas || [];
+        
+        // Adicionar tarefaId se ainda não estiver na lista
+        if (!tarefasRelacionadas.includes(tarefaId)) {
+            tarefasRelacionadas.push(tarefaId);
+            
+            await programaRef.update({
+                tarefas_relacionadas: tarefasRelacionadas,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log(`✅ Tarefa ${tarefaId} adicionada às tarefas_relacionadas do programa ${programaId}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar tarefas_relacionadas do programa:', error);
+    }
+}
+
+
 async function salvarTarefa() {
-    //console.log('💾 Salvando tarefa...');
+    console.log('💾 Salvando tarefa...');
+    
+    // Obter programa selecionado
+    const programaSelect = document.getElementById('tarefaPrograma');
+    const novoProgramaId = programaSelect ? programaSelect.value : '';
     
     // Obter grupos selecionados
     const gruposSelect = document.getElementById('tarefaGrupos');
@@ -1820,14 +1985,39 @@ async function salvarTarefa() {
         return;
     }
     
-    // USANDO A NOVA FUNÇÃO: Obter nomes de TODOS os grupos
+    // Obter nomes dos elementos
+    const nomePrograma = obterNomePrograma(novoProgramaId);
     const nomesTodosGrupos = obterNomesTodosGrupos(gruposSelecionados);
     const tituloDigitado = document.getElementById('tarefaTitulo').value.trim();
     
-    // Criar título com prefixo de todos os grupos
-    const tituloCompleto = nomesTodosGrupos ? 
-        `${nomesTodosGrupos} - ${tituloDigitado}` : 
-        tituloDigitado;
+    if (!tituloDigitado) {
+        mostrarNotificacao('Digite um título para a tarefa!', 'error');
+        return;
+    }
+    
+    // ✅ Criar título com a ordem sempre correta
+    let tituloCompleto = '';
+    
+    if (nomePrograma && nomesTodosGrupos) {
+        // 1. COM PROGRAMA E GRUPOS: "Programa - Tarefa - Grupos"
+        tituloCompleto = `${nomePrograma} - ${tituloDigitado} - ${nomesTodosGrupos}`;
+    } else if (nomePrograma) {
+        // 2. APENAS COM PROGRAMA: "Programa - Tarefa"
+        tituloCompleto = `${nomePrograma} - ${tituloDigitado}`;
+    } else if (nomesTodosGrupos) {
+        // 3. APENAS COM GRUPOS: "Tarefa - Grupos" (INVERTIDO)
+        tituloCompleto = `${tituloDigitado} - ${nomesTodosGrupos}`;
+    } else {
+        // 4. SEM PROGRAMA NEM GRUPOS (não deveria acontecer, mas previne erro)
+        tituloCompleto = tituloDigitado;
+    }
+    
+    console.log('📝 Formatando título:', {
+        nomePrograma,
+        tituloDigitado,
+        nomesTodosGrupos,
+        tituloCompleto
+    });
     
     // Preparar objeto tarefa
     const tarefa = {
@@ -1836,20 +2026,40 @@ async function salvarTarefa() {
         prioridade: document.getElementById('tarefaPrioridade').value,
         dataInicio: document.getElementById('tarefaDataInicio').value || null,
         dataFim: document.getElementById('tarefaDataFim').value,
+        programaId: novoProgramaId || null, // Campo do programa
         gruposAcesso: gruposSelecionados,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
     try {
+        let tarefaId = editandoTarefaId;
+        
         if (modoEdicao && editandoTarefaId) {
-            // ✏️ Editando tarefa - NÃO atualize o status
+            // ✏️ Editando tarefa existente
+            
+            // ✅ 1. Se mudou de programa, remover do programa antigo
+            if (editandoProgramaId && editandoProgramaId !== novoProgramaId) {
+                console.log(`🔄 Mudando tarefa ${editandoTarefaId} do programa ${editandoProgramaId} para ${novoProgramaId}`);
+                await removerTarefaDePrograma(editandoProgramaId, editandoTarefaId);
+            }
+            
+            // ✅ 2. Se removeu o programa, remover do programa antigo
+            if (editandoProgramaId && !novoProgramaId) {
+                console.log(`🔄 Removendo tarefa ${editandoTarefaId} do programa ${editandoProgramaId}`);
+                await removerTarefaDePrograma(editandoProgramaId, editandoTarefaId);
+            }
+            
+            // 3. Atualizar a tarefa no Firestore
             await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
+            tarefaId = editandoTarefaId;
+            
+            console.log(`✅ Tarefa ${editandoTarefaId} atualizada`);
+            
         } else {
             // 🆕 Criando nova tarefa
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             
             // Para nova tarefa, pode definir como "nao_iniciado" inicialmente
-            // Será atualizado quando tiver atividades
             const novaTarefa = {
                 ...tarefa,
                 status: 'nao_iniciado', // Status inicial
@@ -1857,28 +2067,85 @@ async function salvarTarefa() {
                 criadoPor: usuarioLogado.usuario
             };
             
-            await db.collection("tarefas").add(novaTarefa);
+            const tarefaRef = await db.collection("tarefas").add(novaTarefa);
+            tarefaId = tarefaRef.id;
+            
+            console.log(`✅ Nova tarefa criada: ${tarefaId}`);
         }
         
+        // ✅ 4. Se tem um programa novo, adicionar ao array de tarefas_relacionadas
+        if (novoProgramaId && tarefaId) {
+            console.log(`🔄 Adicionando tarefa ${tarefaId} ao programa ${novoProgramaId}`);
+            await atualizarTarefasRelacionadasNoPrograma(novoProgramaId, tarefaId);
+        }
+        
+        // 5. Limpar estados de edição
+        editandoProgramaId = null;
+        
+        // 6. Fechar modal e mostrar mensagem
         fecharModalTarefa();
         mostrarNotificacao(modoEdicao ? 'Tarefa atualizada com sucesso!' : 'Tarefa criada com sucesso!', 'success');
+        
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa:', error);
         mostrarNotificacao('Erro ao salvar tarefa: ' + error.message, 'error');
     }
 }
 
+
 async function excluirTarefa(tarefaId) {
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     
-    //console.log('🗑️ Excluindo tarefa:', tarefaId);
+    console.log('🗑️ Excluindo tarefa:', tarefaId);
     
     try {
+        // Primeiro, remover de todos os programas que referenciam esta tarefa
+        const tarefa = tarefas.find(t => t.id === tarefaId);
+        if (tarefa && tarefa.programaId) {
+            await removerTarefaDePrograma(tarefa.programaId, tarefaId);
+        }
+        
         await db.collection("tarefas").doc(tarefaId).delete();
         mostrarNotificacao('Tarefa excluída com sucesso!', 'success');
     } catch (error) {
         console.error('❌ Erro ao excluir tarefa:', error);
         mostrarNotificacao('Erro ao excluir tarefa', 'error');
+    }
+}
+
+// Função para remover tarefa do array de tarefas_relacionadas do programa
+async function removerTarefaDePrograma(programaId, tarefaId) {
+    try {
+        if (!programaId) return; // Se não tem programa, não faz nada
+        
+        console.log(`🔄 Removendo tarefa ${tarefaId} do programa ${programaId}`);
+        
+        const programaRef = db.collection("programas").doc(programaId);
+        const programaDoc = await programaRef.get();
+        
+        if (!programaDoc.exists) {
+            console.warn('⚠️ Programa não encontrado:', programaId);
+            return;
+        }
+        
+        const programaData = programaDoc.data();
+        let tarefasRelacionadas = programaData.tarefas_relacionadas || [];
+        
+        // Filtrar para remover a tarefaId
+        const novasTarefasRelacionadas = tarefasRelacionadas.filter(id => id !== tarefaId);
+        
+        // Se a lista mudou, atualizar
+        if (tarefasRelacionadas.length !== novasTarefasRelacionadas.length) {
+            await programaRef.update({
+                tarefas_relacionadas: novasTarefasRelacionadas,
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log(`✅ Tarefa ${tarefaId} removida das tarefas_relacionadas do programa ${programaId}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao remover tarefa do programa:', error);
     }
 }
 
@@ -2031,35 +2298,36 @@ function atualizarEstatisticas() {
 function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
     if (!container) {
-        console.error('❌ Container de tarefas não encontrado!');
-        return;
+        console.warn('⚠️ Container de tarefas não encontrado. A página pode não ter carregado completamente.');
+        return; // Sai da função se o container não existir
     }
     
-    //console.log('📊 Atualizando lista de tarefas...');
-    //console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
+    console.log('📊 Atualizando lista de tarefas...');
+    console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
     
     // Obter usuário logado
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const usuarioGrupos = usuarioLogado?.grupos || [];
     
-    //console.log(`👤 Usuário logado: ${usuarioLogado?.usuario}`);
-    //console.log(`👥 Grupos do usuário: ${usuarioGrupos.length} grupos`, usuarioGrupos);
+    console.log(`👤 Usuário logado: ${usuarioLogado?.usuario}`);
+    console.log(`👥 Grupos do usuário: ${usuarioGrupos.length} grupos`, usuarioGrupos);
     
     // DEBUG: Listar todas as tarefas disponíveis
-    //console.log('🔍 Todas as tarefas disponíveis no sistema:');
+    console.log('🔍 Todas as tarefas disponíveis no sistema:');
     tarefas.forEach((tarefa, index) => {
-        //console.log(`${index + 1}. ${tarefa.titulo} | Grupos: ${JSON.stringify(tarefa.gruposAcesso)} | Status: ${tarefa.status}`);
+        console.log(`${index + 1}. ${tarefa.titulo} | Programa: ${tarefa.programaId || 'Nenhum'} | Grupos: ${JSON.stringify(tarefa.gruposAcesso)} | Status: ${tarefa.status}`);
     });
     
     // Filtrar tarefas baseado no usuário logado
     const tarefasFiltradasPorGrupo = tarefas.filter(tarefa => {
         // DEBUG: Mostrar verificação para cada tarefa
-        //console.log(`\n🔍 Verificando tarefa: ${tarefa.titulo}`);
-        //console.log(`   Grupos da tarefa: ${JSON.stringify(tarefa.gruposAcesso)}`);
+        console.log(`\n🔍 Verificando tarefa: ${tarefa.titulo}`);
+        console.log(`   Programa: ${tarefa.programaId || 'Nenhum'}`);
+        console.log(`   Grupos da tarefa: ${JSON.stringify(tarefa.gruposAcesso)}`);
         
         // Se a tarefa não tem grupos definidos, mostra para todos
         if (!tarefa.gruposAcesso || !Array.isArray(tarefa.gruposAcesso) || tarefa.gruposAcesso.length === 0) {
-            //console.log(`   ✅ MOSTRAR: Tarefa sem grupos definidos (mostra para todos)`);
+            console.log(`   ✅ MOSTRAR: Tarefa sem grupos definidos (mostra para todos)`);
             return true;
         }
         
@@ -2068,17 +2336,17 @@ function atualizarListaTarefas() {
             usuarioGrupos.includes(grupoId)
         );
         
-        //console.log(`   ${temAcesso ? '✅ MOSTRAR' : '❌ OCULTAR'}: Usuário ${temAcesso ? 'tem' : 'NÃO tem'} acesso`);
+        console.log(`   ${temAcesso ? '✅ MOSTRAR' : '❌ OCULTAR'}: Usuário ${temAcesso ? 'tem' : 'NÃO tem'} acesso`);
         
         return temAcesso;
     });
     
-    //console.log(`📊 Tarefas após filtro de grupos: ${tarefasFiltradasPorGrupo.length}`);
+    console.log(`📊 Tarefas após filtro de grupos: ${tarefasFiltradasPorGrupo.length}`);
     
     // Aplicar outros filtros (busca, status, etc.)
     const tarefasFiltradas = filtrarTarefas(tarefasFiltradasPorGrupo);
     
-    //console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
+    console.log(`📊 Tarefas após todos os filtros: ${tarefasFiltradas.length}`);
     
     // ====== DESTACAR FILTRO ATIVO NAS ESTATÍSTICAS ======
     // Obter status do filtro ativo
@@ -2169,10 +2437,24 @@ function atualizarListaTarefas() {
     }
 
     // Renderizar tarefas
-    //console.log('🎨 Renderizando tarefas...');
+    console.log('🎨 Renderizando tarefas...');
     
     container.innerHTML = tarefasFiltradas.map(tarefa => {
-        //console.log(`   Renderizando: ${tarefa.titulo}`);
+        console.log(`   Renderizando: ${tarefa.titulo}`);
+        
+        // Adicionar informação do programa se houver
+        let programaInfo = '';
+        if (tarefa.programaId) {
+            const programa = programas.find(p => p.id === tarefa.programaId);
+            if (programa) {
+                programaInfo = `
+                    <div class="programa-tarefa">
+                        <i class="fas fa-project-diagram"></i>
+                        <span class="programa-nome">${programa.titulo || 'Programa'}</span>
+                    </div>
+                `;
+            }
+        }
         
         // Adicionar informação de grupos (todos os grupos)
         let gruposInfo = '';
@@ -2238,11 +2520,12 @@ function atualizarListaTarefas() {
         }
         
         return `
-        <div class="task-card prioridade-${tarefa.prioridade}">
+        <div class="task-card prioridade-${tarefa.prioridade} ${tarefa.programaId ? 'has-programa' : ''}">
             <div class="task-header">
                 <div>
                     <div class="task-title">${tarefa.titulo}</div>
                     ${tarefa.descricao ? `<div class="task-desc">${tarefa.descricao}</div>` : ''}
+                    ${programaInfo}
                     ${gruposInfo}
                 </div>
             </div>
@@ -2280,8 +2563,64 @@ function atualizarListaTarefas() {
         `;
     }).join('');
     
-    //console.log('✅ Lista de tarefas renderizada!');
+    console.log('✅ Lista de tarefas renderizada!');
 }
+
+// Função para testar a formatação do título
+window.testarFormatacaoTitulo = function(programaId = '', titulo = 'Minha Tarefa', gruposIds = []) {
+    const nomePrograma = programaId ? obterNomePrograma(programaId) : '';
+    const nomesGrupos = gruposIds.length > 0 ? obterNomesTodosGrupos(gruposIds) : '';
+    
+    console.log('🧪 TESTE DE FORMATAÇÃO:');
+    console.log('=====================');
+    console.log('Programa:', nomePrograma);
+    console.log('Título:', titulo);
+    console.log('Grupos:', nomesGrupos);
+    
+    let tituloFormatado = '';
+    
+    if (nomePrograma && nomesGrupos) {
+        tituloFormatado = `${nomePrograma} - ${titulo} - ${nomesGrupos}`;
+        console.log('📝 Formato 1 (Programa + Tarefa + Grupos):', tituloFormatado);
+    } else if (nomePrograma) {
+        tituloFormatado = `${nomePrograma} - ${titulo}`;
+        console.log('📝 Formato 2 (Programa + Tarefa):', tituloFormatado);
+    } else if (nomesGrupos) {
+        tituloFormatado = `${titulo} - ${nomesGrupos}`;
+        console.log('📝 Formato 3 (Tarefa + Grupos):', tituloFormatado);
+    } else {
+        tituloFormatado = titulo;
+        console.log('📝 Formato 4 (Apenas Tarefa):', tituloFormatado);
+    }
+    
+    return tituloFormatado;
+};
+
+// Função para debug dos programas
+window.debugProgramas = function() {
+    console.log('🔍 DEBUG - Programas');
+    console.log('===================');
+    console.log(`Total de programas: ${programas.length}`);
+    
+    programas.forEach((programa, index) => {
+        console.log(`\n${index + 1}. ${programa.titulo || 'Sem título'} (ID: ${programa.id})`);
+        console.log(`   Descrição: ${programa.descricao || 'Nenhuma'}`);
+        console.log(`   Tarefas relacionadas: ${programa.tarefas_relacionadas?.length || 0}`);
+        if (programa.tarefas_relacionadas?.length > 0) {
+            console.log(`   IDs das tarefas:`, programa.tarefas_relacionadas);
+        }
+    });
+    
+    // Mostrar tarefas com programa
+    const tarefasComPrograma = tarefas.filter(t => t.programaId);
+    console.log(`\n📊 Tarefas com programa: ${tarefasComPrograma.length}/${tarefas.length}`);
+    
+    tarefasComPrograma.forEach((tarefa, index) => {
+        const programa = programas.find(p => p.id === tarefa.programaId);
+        console.log(`${index + 1}. "${tarefa.titulo.substring(0, 40)}..."`);
+        console.log(`   Programa: ${programa?.titulo || 'Não encontrado'} (${tarefa.programaId})`);
+    });
+};
 
 // Função de debug para testar acesso às tarefas
 window.debugTarefas = function() {
