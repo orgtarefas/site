@@ -1,31 +1,51 @@
-// programa.js - Funcionalidades específicas para a página de Programas
+// programa.js - Sistema de Programas com Relacionamento de Tarefas
 
 // Variáveis globais
 let programas = [];
-let tarefas = [];
-let atividades = [];
-let db = null;
+let todasTarefas = [];
+let tarefasPorPrograma = {};
 let programasCollection = null;
+let tarefasCollection = null;
+let usuarioLogado = null;
+let programaEditando = null;
 
 // Inicialização da página
-document.addEventListener('DOMContentLoaded', function() {
-    inicializarFirebase();
-    inicializarProgramas();
-    configurarEventListeners();
-});
-
-// Inicializar Firebase
-async function inicializarFirebase() {
+document.addEventListener('DOMContentLoaded', async function() {
     try {
-        // Verificar se usuário está logado
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+        // Verificar autenticação
+        usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
         
         if (!usuarioLogado) {
             window.location.href = 'login.html';
             return;
         }
+        
+        document.getElementById('userName').textContent = usuarioLogado.nome || usuarioLogado.usuario;
+        document.getElementById('loadingText').textContent = 'Inicializando sistema...';
+        
+        // Inicializar Firebase
+        await inicializarFirebase();
+        
+        // Configurar listeners e carregar dados
+        configurarEventListeners();
+        await carregarDadosCompletos();
+        
+        // Esconder tela de loading
+        setTimeout(() => {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+        }, 1000);
+        
+    } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+        document.getElementById('loadingText').textContent = 'Erro ao carregar. Tente novamente.';
+    }
+});
 
-        // Configuração do Firebase ORGTAREFAS (mesma do script.js)
+// Inicializar Firebase
+async function inicializarFirebase() {
+    try {
+        // Usando a mesma configuração do script.js
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
             authDomain: "orgtarefas-85358.firebaseapp.com",
@@ -35,237 +55,173 @@ async function inicializarFirebase() {
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
         
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
+        // Inicializar Firebase se ainda não foi
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        // Configurar referências
+        const db = firebase.firestore();
         programasCollection = db.collection("programas");
+        tarefasCollection = db.collection("tarefas");
         
-        document.getElementById('userName').textContent = usuarioLogado.nome || usuarioLogado.usuario;
-        
-        // Carregar dados
-        await carregarDadosCompletos();
-        
-        setTimeout(() => {
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-        }, 500);
+        // Configurar listener em tempo real para programas
+        configurarListenerProgramas();
         
     } catch (error) {
         console.error('❌ Erro ao inicializar Firebase:', error);
-        mostrarErro('Erro ao conectar com o banco de dados');
+        throw error;
     }
 }
 
-// Carregar todos os dados necessários
+// Configurar listener em tempo real para programas
+function configurarListenerProgramas() {
+    programasCollection.orderBy("dataCriacao", "desc")
+        .onSnapshot(async (snapshot) => {
+            try {
+                programas = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Para cada programa, buscar informações das tarefas relacionadas
+                await buscarInformacoesTarefas();
+                
+                // Atualizar estatísticas
+                await calcularEstatisticasReais();
+                
+                // Renderizar programas
+                renderizarProgramas(programas);
+                
+                // Atualizar status de conexão
+                document.getElementById('status-sincronizacao').innerHTML = 
+                    '<i class="fas fa-check-circle"></i> Conectado';
+                
+            } catch (error) {
+                console.error('❌ Erro no listener de programas:', error);
+            }
+        }, (error) => {
+            console.error('❌ Erro no Firestore:', error);
+            document.getElementById('status-sincronizacao').innerHTML = 
+                '<i class="fas fa-exclamation-triangle"></i> Erro Conexão';
+        });
+}
+
+// Carregar dados completos
 async function carregarDadosCompletos() {
     try {
-        document.getElementById('loadingText').textContent = 'Carregando programas...';
+        // Carregar todas as tarefas uma vez
+        await carregarTodasTarefas();
         
-        // Carregar programas
-        await carregarProgramas();
-        
+    } catch (error) {
+        console.error('❌ Erro ao carregar dados completos:', error);
+    }
+}
+
+// Carregar todas as tarefas
+async function carregarTodasTarefas() {
+    try {
         document.getElementById('loadingText').textContent = 'Carregando tarefas...';
         
-        // Carregar tarefas
-        await carregarTarefas();
-        
-        document.getElementById('loadingText').textContent = 'Carregando atividades...';
-        
-        // Carregar atividades
-        await carregarAtividades();
-        
-        // Calcular estatísticas
-        await calcularEstatisticasReais();
-        
-        // Renderizar programas
-        renderizarProgramas(programas);
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error);
-    }
-}
-
-// Carregar programas do Firebase
-async function carregarProgramas() {
-    try {
-        const snapshot = await programasCollection.get();
-        programas = snapshot.docs.map(doc => ({
+        const snapshot = await tarefasCollection.get();
+        todasTarefas = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
         
-        console.log(`✅ ${programas.length} programas carregados`);
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar programas:', error);
-        programas = [];
-    }
-}
-
-// Carregar tarefas do Firebase
-async function carregarTarefas() {
-    try {
-        const snapshot = await db.collection("tarefas").get();
-        tarefas = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        console.log(`✅ ${tarefas.length} tarefas carregadas`);
+        console.log(`✅ ${todasTarefas.length} tarefas carregadas`);
         
     } catch (error) {
         console.error('❌ Erro ao carregar tarefas:', error);
-        tarefas = [];
+        todasTarefas = [];
     }
 }
 
-// Carregar atividades do Firebase
-async function carregarAtividades() {
-    try {
-        const snapshot = await db.collection("atividades").get();
-        atividades = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+// Buscar informações detalhadas das tarefas relacionadas aos programas
+async function buscarInformacoesTarefas() {
+    tarefasPorPrograma = {};
+    
+    for (const programa of programas) {
+        const tarefasIds = programa.tarefas_relacionadas || [];
+        const tarefasDoPrograma = [];
         
-        console.log(`✅ ${atividades.length} atividades carregadas`);
+        // Buscar cada tarefa pelo ID
+        for (const tarefaId of tarefasIds) {
+            const tarefa = todasTarefas.find(t => t.id === tarefaId);
+            if (tarefa) {
+                tarefasDoPrograma.push({
+                    id: tarefa.id,
+                    titulo: tarefa.titulo || 'Tarefa sem título',
+                    status: tarefa.status || 'nao_iniciado',
+                    prioridade: tarefa.prioridade || 'media',
+                    dataFim: tarefa.dataFim,
+                    gruposAcesso: tarefa.gruposAcesso || [],
+                    descricao: tarefa.descricao || ''
+                });
+            }
+        }
         
-    } catch (error) {
-        console.error('❌ Erro ao carregar atividades:', error);
-        atividades = [];
+        tarefasPorPrograma[programa.id] = tarefasDoPrograma;
     }
 }
 
-// Calcular estatísticas reais baseadas nas tarefas do Firebase
+// Calcular estatísticas reais baseadas nas tarefas
 async function calcularEstatisticasReais() {
     try {
-        // Contar total de programas
         const totalProgramas = programas.length;
-        
-        // Mapear quais tarefas pertencem a quais programas
-        const tarefasPorPrograma = mapearTarefasPorPrograma();
-        
-        // Para cada programa, verificar o status das suas tarefas
         let programasEmAndamento = 0;
         let programasConcluidos = 0;
         let totalTarefasEmProgramas = 0;
         let tarefasAtivasEmProgramas = 0;
+        let programasComTarefas = 0;
         
-        // Map para armazenar estatísticas por programa
-        const estatisticasPorPrograma = {};
-        
+        // Para cada programa, analisar suas tarefas
         programas.forEach(programa => {
-            const programaId = programa.id;
-            const tarefasDoPrograma = tarefasPorPrograma[programaId] || [];
-            const totalTarefas = tarefasDoPrograma.length;
+            const tarefasPrograma = tarefasPorPrograma[programa.id] || [];
+            const totalTarefas = tarefasPrograma.length;
             
-            // Contar tarefas ativas (não concluídas)
-            const tarefasAtivas = tarefasDoPrograma.filter(tarefa => {
-                const status = (tarefa.status || '').toLowerCase().trim();
-                return status !== 'concluido' && status !== 'concluído';
-            }).length;
-            
-            // Determinar status do programa
-            const statusPrograma = determinarStatusPrograma(tarefasDoPrograma);
-            
-            // Armazenar estatísticas
-            estatisticasPorPrograma[programaId] = {
-                programa: programa.nome,
-                totalTarefas,
-                tarefasAtivas,
-                statusPrograma,
-                progresso: totalTarefas > 0 ? ((totalTarefas - tarefasAtivas) / totalTarefas) * 100 : 0
-            };
-            
-            // Acumular totais gerais
-            totalTarefasEmProgramas += totalTarefas;
-            tarefasAtivasEmProgramas += tarefasAtivas;
-            
-            if (statusPrograma === 'em_andamento') {
-                programasEmAndamento++;
-            } else if (statusPrograma === 'concluido') {
-                programasConcluidos++;
+            if (totalTarefas > 0) {
+                programasComTarefas++;
+                totalTarefasEmProgramas += totalTarefas;
+                
+                // Contar tarefas ativas (não concluídas)
+                const tarefasAtivas = tarefasPrograma.filter(tarefa => {
+                    const status = (tarefa.status || '').toLowerCase().trim();
+                    return !(status === 'concluido' || status === 'concluído');
+                }).length;
+                
+                tarefasAtivasEmProgramas += tarefasAtivas;
+                
+                // Determinar status do programa
+                const todasConcluidas = tarefasPrograma.every(tarefa => {
+                    const status = (tarefa.status || '').toLowerCase().trim();
+                    return status === 'concluido' || status === 'concluído';
+                });
+                
+                if (todasConcluidas) {
+                    programasConcluidos++;
+                } else if (tarefasAtivas > 0) {
+                    programasEmAndamento++;
+                }
             }
         });
         
-        // Atualizar interface com as estatísticas
-        document.getElementById('programas-ativos').textContent = totalProgramas;
-        document.getElementById('tarefas-programas').textContent = `${totalTarefasEmProgramas} / ${totalProgramas}`;
+        // Atualizar interface
+        document.getElementById('total-programas').textContent = totalProgramas;
         document.getElementById('programas-andamento').textContent = programasEmAndamento;
         document.getElementById('programas-concluidos').textContent = programasConcluidos;
-        document.getElementById('tarefas-ativas').textContent = `${tarefasAtivasEmProgramas} / ${programasEmAndamento}`;
-        
-        // Armazenar estatísticas para uso posterior
-        window.estatisticasPorPrograma = estatisticasPorPrograma;
-        
-        console.log('📊 Estatísticas calculadas:', {
-            totalProgramas,
-            programasEmAndamento,
-            programasConcluidos,
-            totalTarefasEmProgramas,
-            tarefasAtivasEmProgramas,
-            estatisticasPorPrograma
-        });
+        document.getElementById('tarefas-totais-programas').innerHTML = 
+            `<span class="total">${totalTarefasEmProgramas}</span>
+             <span class="separator">/</span>
+             <span class="programas">${programasComTarefas}</span>`;
+        document.getElementById('tarefas-ativas-programas').innerHTML = 
+            `<span class="total">${tarefasAtivasEmProgramas}</span>
+             <span class="separator">/</span>
+             <span class="programas">${programasEmAndamento}</span>`;
         
     } catch (error) {
         console.error('❌ Erro ao calcular estatísticas:', error);
     }
-}
-
-// Mapear tarefas por programa
-function mapearTarefasPorPrograma() {
-    const tarefasPorPrograma = {};
-    
-    // Para simplificar, vamos considerar que o nome do programa está no título da tarefa
-    // Ou podemos adicionar um campo "programaId" nas tarefas futuramente
-    programas.forEach(programa => {
-        const programaId = programa.id;
-        const programaNome = programa.nome.toLowerCase();
-        
-        // Filtrar tarefas que pertencem a este programa
-        const tarefasDoPrograma = tarefas.filter(tarefa => {
-            // Verificar se o título da tarefa contém o nome do programa
-            const tituloTarefa = (tarefa.titulo || '').toLowerCase();
-            
-            // Verificar também se tem algum campo de programa na tarefa
-            return tituloTarefa.includes(programaNome) || 
-                   (tarefa.programa && tarefa.programa === programaId) ||
-                   (tarefa.programaNome && tarefa.programaNome.toLowerCase().includes(programaNome));
-        });
-        
-        tarefasPorPrograma[programaId] = tarefasDoPrograma;
-    });
-    
-    return tarefasPorPrograma;
-}
-
-// Determinar status do programa baseado nas tarefas
-function determinarStatusPrograma(tarefasDoPrograma) {
-    if (tarefasDoPrograma.length === 0) {
-        return 'planejamento';
-    }
-    
-    // Verificar se todas as tarefas estão concluídas
-    const todasConcluidas = tarefasDoPrograma.every(tarefa => {
-        const status = (tarefa.status || '').toLowerCase().trim();
-        return status === 'concluido' || status === 'concluído';
-    });
-    
-    if (todasConcluidas) {
-        return 'concluido';
-    }
-    
-    // Verificar se há alguma tarefa não concluída
-    const temTarefaAtiva = tarefasDoPrograma.some(tarefa => {
-        const status = (tarefa.status || '').toLowerCase().trim();
-        return status !== 'concluido' && status !== 'concluído';
-    });
-    
-    if (temTarefaAtiva) {
-        return 'em_andamento';
-    }
-    
-    return 'planejamento';
 }
 
 // Configurar eventos
@@ -290,16 +246,8 @@ function configurarEventListeners() {
     
     // Filtros
     const filterStatus = document.getElementById('filter-program-status');
-    const filterCategory = document.getElementById('filter-program-category');
-    
     if (filterStatus) {
         filterStatus.addEventListener('change', () => {
-            filtrarProgramas();
-        });
-    }
-    
-    if (filterCategory) {
-        filterCategory.addEventListener('change', () => {
             filtrarProgramas();
         });
     }
@@ -307,10 +255,61 @@ function configurarEventListeners() {
     // Fechar modal ao clicar fora
     window.addEventListener('click', (event) => {
         const modal = document.getElementById('modalPrograma');
+        const modalDetalhes = document.getElementById('modalDetalhesPrograma');
+        
         if (event.target === modal) {
             fecharModalPrograma();
         }
+        if (event.target === modalDetalhes) {
+            fecharModalDetalhesPrograma();
+        }
     });
+}
+
+// Filtrar programas
+function filtrarProgramas() {
+    const termoBusca = document.getElementById('program-search')?.value.toLowerCase() || '';
+    const filtroStatus = document.getElementById('filter-program-status')?.value || '';
+    
+    const programasFiltrados = programas.filter(programa => {
+        // Filtro por busca
+        if (termoBusca && !programa.titulo.toLowerCase().includes(termoBusca) && 
+            !(programa.descricao && programa.descricao.toLowerCase().includes(termoBusca))) {
+            return false;
+        }
+        
+        // Filtro por status
+        if (filtroStatus) {
+            const tarefasPrograma = tarefasPorPrograma[programa.id] || [];
+            let statusPrograma = 'planejamento';
+            
+            if (tarefasPrograma.length > 0) {
+                const todasConcluidas = tarefasPrograma.every(tarefa => {
+                    const status = (tarefa.status || '').toLowerCase().trim();
+                    return status === 'concluido' || status === 'concluído';
+                });
+                
+                const temAtivas = tarefasPrograma.some(tarefa => {
+                    const status = (tarefa.status || '').toLowerCase().trim();
+                    return !(status === 'concluido' || status === 'concluído');
+                });
+                
+                if (todasConcluidas) {
+                    statusPrograma = 'concluido';
+                } else if (temAtivas) {
+                    statusPrograma = 'andamento';
+                }
+            }
+            
+            if (statusPrograma !== filtroStatus) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    renderizarProgramas(programasFiltrados);
 }
 
 // Renderizar programas na grid
@@ -337,84 +336,62 @@ function renderizarProgramas(listaProgramas) {
     });
 }
 
-// Criar card de programa com dados reais
+// Criar card de programa
 function criarCardPrograma(programa) {
     const card = document.createElement('div');
     card.className = 'program-card';
     card.dataset.id = programa.id;
-    card.dataset.status = programa.status;
-    card.dataset.categoria = programa.categoria || '';
     
-    // Obter estatísticas do programa
-    const estatisticas = window.estatisticasPorPrograma?.[programa.id] || {};
-    const totalTarefas = estatisticas.totalTarefas || 0;
-    const tarefasAtivas = estatisticas.tarefasAtivas || 0;
-    const progresso = estatisticas.progresso || 0;
-    const statusPrograma = estatisticas.statusPrograma || programa.status || 'planejamento';
+    const tarefasPrograma = tarefasPorPrograma[programa.id] || [];
+    const totalTarefas = tarefasPrograma.length;
     
-    // Determinar ícone baseado na categoria
-    let iconClass = 'fa-project-diagram';
-    switch(programa.categoria) {
-        case 'operacional':
-            iconClass = 'fa-cogs';
-            break;
-        case 'estrategico':
-            iconClass = 'fa-chart-line';
-            break;
-        case 'melhoria':
-            iconClass = 'fa-tools';
-            break;
-        case 'projeto':
-            iconClass = 'fa-bullseye';
-            break;
-    }
+    // Calcular progresso
+    const tarefasConcluidas = tarefasPrograma.filter(tarefa => {
+        const status = (tarefa.status || '').toLowerCase().trim();
+        return status === 'concluido' || status === 'concluído';
+    }).length;
     
-    // Formatar datas
-    const dataInicio = formatarData(programa.dataInicio);
-    const dataFim = formatarData(programa.dataFim);
+    const progresso = totalTarefas > 0 ? (tarefasConcluidas / totalTarefas) * 100 : 0;
     
-    // Determinar classe de status
-    let statusClass = '';
-    let statusText = '';
+    // Determinar status do programa
+    let statusPrograma = 'planejamento';
+    let statusClass = 'status-planejamento';
+    let statusText = 'Planejamento';
     
-    switch(statusPrograma) {
-        case 'ativo':
-        case 'em_andamento':
-            statusClass = 'status-ativo';
-            statusText = 'Em Andamento';
-            break;
-        case 'planejamento':
-            statusClass = 'status-planejamento';
-            statusText = 'Planejamento';
-            break;
-        case 'concluido':
+    if (totalTarefas > 0) {
+        if (tarefasConcluidas === totalTarefas) {
+            statusPrograma = 'concluido';
             statusClass = 'status-concluido';
             statusText = 'Concluído';
-            break;
-        case 'pausado':
-            statusClass = 'status-pausado';
-            statusText = 'Pausado';
-            break;
-        default:
-            statusClass = 'status-planejamento';
-            statusText = programa.status || 'Planejamento';
+        } else if (tarefasConcluidas > 0 || tarefasPrograma.some(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'andamento' || status === 'em andamento';
+        })) {
+            statusPrograma = 'andamento';
+            statusClass = 'status-ativo';
+            statusText = 'Em Andamento';
+        }
     }
+    
+    // Formatar data
+    const dataCriacao = programa.dataCriacao ? 
+        formatarDataFirestore(programa.dataCriacao) : 'Não definida';
     
     card.innerHTML = `
         <div class="program-header">
             <div class="program-icon">
-                <i class="fas ${iconClass}"></i>
+                <i class="fas fa-project-diagram"></i>
             </div>
             <div class="program-title">
-                <h3>${programa.nome}</h3>
+                <h3>${programa.titulo || 'Programa sem título'}</h3>
                 <span class="program-status ${statusClass}">${statusText}</span>
             </div>
             <div class="program-actions">
+                <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
                 <button class="btn-icon" title="Editar" onclick="editarPrograma('${programa.id}')">
                     <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon" title="Configurar" onclick="configurarPrograma('${programa.id}')">
-                    <i class="fas fa-cog"></i>
                 </button>
             </div>
         </div>
@@ -423,18 +400,19 @@ function criarCardPrograma(programa) {
             <div class="program-meta">
                 <div class="meta-item">
                     <i class="fas fa-calendar-alt"></i>
-                    <span>${dataInicio} - ${dataFim}</span>
-                </div>
-                <div class="meta-item">
-                    <i class="fas fa-users"></i>
-                    <span>${programa.times ? programa.times.length : 0} Times</span>
+                    <span>Criado: ${dataCriacao}</span>
                 </div>
                 <div class="meta-item">
                     <i class="fas fa-tasks"></i>
                     <span>${totalTarefas} Tarefas</span>
-                    <small style="margin-left: 5px; color: #666;">
-                        (${tarefasAtivas} ativas)
-                    </small>
+                    ${tarefasConcluidas > 0 ? 
+                        `<small style="margin-left: 5px; color: #4CAF50;">
+                            (${tarefasConcluidas} concluídas)
+                        </small>` : ''}
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-user"></i>
+                    <span>${programa.criadoPor || 'Não informado'}</span>
                 </div>
             </div>
             <div class="progress-container">
@@ -452,175 +430,457 @@ function criarCardPrograma(programa) {
     return card;
 }
 
-// Formatar data para exibição
-function formatarData(dataString) {
-    if (!dataString) return 'Não definida';
-    
-    try {
-        const data = new Date(dataString);
-        if (isNaN(data.getTime())) return 'Data inválida';
-        
-        const mes = data.toLocaleDateString('pt-BR', { month: 'short' });
-        const ano = data.getFullYear();
-        
-        return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${ano}`;
-    } catch (error) {
-        return 'Data inválida';
-    }
-}
-
-// Filtrar programas
-function filtrarProgramas() {
-    const termoBusca = document.getElementById('program-search')?.value.toLowerCase() || '';
-    const filtroStatus = document.getElementById('filter-program-status')?.value || '';
-    const filtroCategoria = document.getElementById('filter-program-category')?.value || '';
-    
-    const programasFiltrados = programas.filter(programa => {
-        // Filtro por busca
-        if (termoBusca && !programa.nome.toLowerCase().includes(termoBusca) && 
-            !(programa.descricao && programa.descricao.toLowerCase().includes(termoBusca))) {
-            return false;
-        }
-        
-        // Filtro por status
-        if (filtroStatus) {
-            const estatisticas = window.estatisticasPorPrograma?.[programa.id] || {};
-            const statusReal = estatisticas.statusPrograma || programa.status;
-            
-            // Mapear status real para os status do filtro
-            let statusParaFiltro = statusReal;
-            if (statusReal === 'em_andamento') statusParaFiltro = 'ativo';
-            if (statusReal === 'planejamento') statusParaFiltro = 'planejamento';
-            if (statusReal === 'concluido') statusParaFiltro = 'concluido';
-            
-            if (statusParaFiltro !== filtroStatus) {
-                return false;
-            }
-        }
-        
-        // Filtro por categoria
-        if (filtroCategoria && programa.categoria !== filtroCategoria) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    renderizarProgramas(programasFiltrados);
-}
-
-// Modal de Programa
-function abrirModalPrograma(programaId = null) {
+// MODAL DE PROGRAMA
+async function abrirModalPrograma(programaId = null) {
     const modal = document.getElementById('modalPrograma');
     const titulo = document.getElementById('modalProgramaTitle');
-    const form = document.getElementById('formPrograma');
     
-    if (programaId) {
-        // Modo edição
-        const programa = programas.find(p => p.id === programaId);
-        if (programa) {
-            titulo.textContent = 'Editar Programa';
-            preencherFormulario(programa);
-        }
+    programaEditando = programaId ? programas.find(p => p.id === programaId) : null;
+    
+    if (programaEditando) {
+        titulo.textContent = 'Editar Programa';
+        preencherFormularioPrograma(programaEditando);
     } else {
-        // Modo novo
         titulo.textContent = 'Novo Programa';
-        form.reset();
-        
-        // Resetar datas
-        const hoje = new Date().toISOString().split('T')[0];
-        document.getElementById('programaDataInicio').value = hoje;
-        
-        const umMesAFrente = new Date();
-        umMesAFrente.setMonth(umMesAFrente.getMonth() + 1);
-        document.getElementById('programaDataFim').value = umMesAFrente.toISOString().split('T')[0];
+        limparFormularioPrograma();
     }
     
-    modal.style.display = 'block';
+    // Carregar tarefas para seleção
+    await carregarTarefasParaSelecao(programaEditando?.tarefas_relacionadas);
+    
+    modal.style.display = 'flex';
 }
 
 function fecharModalPrograma() {
     const modal = document.getElementById('modalPrograma');
     modal.style.display = 'none';
-    document.getElementById('formPrograma').reset();
+    programaEditando = null;
+    limparFormularioPrograma();
 }
 
-function preencherFormulario(programa) {
-    document.getElementById('programaNome').value = programa.nome || '';
+function preencherFormularioPrograma(programa) {
+    document.getElementById('programaTitulo').value = programa.titulo || '';
     document.getElementById('programaDescricao').value = programa.descricao || '';
-    document.getElementById('programaCategoria').value = programa.categoria || '';
     document.getElementById('programaStatus').value = programa.status || 'planejamento';
-    document.getElementById('programaDataInicio').value = programa.dataInicio || '';
-    document.getElementById('programaDataFim').value = programa.dataFim || '';
     
-    // Selecionar times
-    const timesSelect = document.getElementById('programaTimes');
-    if (programa.times) {
-        Array.from(timesSelect.options).forEach(option => {
-            option.selected = programa.times.includes(option.value);
-        });
+    // Datas - converter de Timestamp para string
+    if (programa.dataInicio) {
+        document.getElementById('programaDataInicio').value = 
+            formatarTimestampParaInput(programa.dataInicio);
     }
+    if (programa.dataFim) {
+        document.getElementById('programaDataFim').value = 
+            formatarTimestampParaInput(programa.dataFim);
+    }
+}
+
+function limparFormularioPrograma() {
+    document.getElementById('formPrograma').reset();
+    document.getElementById('tarefas-selecionadas-container').innerHTML = '';
+}
+
+// Carregar tarefas para seleção no modal
+async function carregarTarefasParaSelecao(tarefasSelecionadasIds = []) {
+    const container = document.getElementById('lista-tarefas-selecao');
+    
+    if (todasTarefas.length === 0) {
+        container.innerHTML = '<div class="no-tarefas">Nenhuma tarefa encontrada</div>';
+        return;
+    }
+    
+    // Limpar container de selecionados
+    const containerSelecionados = document.getElementById('tarefas-selecionadas-container');
+    containerSelecionados.innerHTML = '';
+    
+    // Adicionar tarefas selecionadas
+    tarefasSelecionadasIds.forEach(tarefaId => {
+        const tarefa = todasTarefas.find(t => t.id === tarefaId);
+        if (tarefa) {
+            adicionarTarefaSelecionada(tarefa);
+        }
+    });
+    
+    // Filtrar tarefas que não estão selecionadas
+    const tarefasDisponiveis = todasTarefas.filter(tarefa => 
+        !tarefasSelecionadasIds.includes(tarefa.id)
+    );
+    
+    if (tarefasDisponiveis.length === 0) {
+        container.innerHTML = '<div class="no-tarefas">Todas as tarefas já estão selecionadas</div>';
+        return;
+    }
+    
+    // Renderizar tarefas disponíveis
+    container.innerHTML = tarefasDisponiveis.map(tarefa => `
+        <div class="tarefa-item-selecao" data-tarefa-id="${tarefa.id}">
+            <div class="tarefa-info">
+                <div class="tarefa-titulo">${tarefa.titulo || 'Tarefa sem título'}</div>
+                <div class="tarefa-detalhes">
+                    <span class="badge prioridade-${tarefa.prioridade || 'media'}">
+                        ${tarefa.prioridade || 'Média'}
+                    </span>
+                    <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                        ${formatarStatus(tarefa.status)}
+                    </span>
+                    ${tarefa.dataFim ? `<small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>` : ''}
+                </div>
+            </div>
+            <button class="btn-add-tarefa" onclick="selecionarTarefa('${tarefa.id}')">
+                <i class="fas fa-plus"></i> Adicionar
+            </button>
+        </div>
+    `).join('');
+}
+
+// Filtrar tarefas na busca
+function filtrarTarefasSelecao(termo) {
+    const container = document.getElementById('lista-tarefas-selecao');
+    const items = container.querySelectorAll('.tarefa-item-selecao');
+    
+    termo = termo.toLowerCase();
+    
+    items.forEach(item => {
+        const titulo = item.querySelector('.tarefa-titulo').textContent.toLowerCase();
+        const descricao = item.querySelector('.tarefa-detalhes')?.textContent.toLowerCase() || '';
+        
+        if (titulo.includes(termo) || descricao.includes(termo)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Selecionar tarefa
+function selecionarTarefa(tarefaId) {
+    const tarefa = todasTarefas.find(t => t.id === tarefaId);
+    if (tarefa) {
+        // Adicionar ao container de selecionados
+        adicionarTarefaSelecionada(tarefa);
+        
+        // Remover da lista de disponíveis
+        const item = document.querySelector(`.tarefa-item-selecao[data-tarefa-id="${tarefaId}"]`);
+        if (item) {
+            item.remove();
+        }
+    }
+}
+
+// Adicionar tarefa ao container de selecionadas
+function adicionarTarefaSelecionada(tarefa) {
+    const container = document.getElementById('tarefas-selecionadas-container');
+    
+    const tarefaDiv = document.createElement('div');
+    tarefaDiv.className = 'tarefa-selecionada-item';
+    tarefaDiv.dataset.tarefaId = tarefa.id;
+    
+    tarefaDiv.innerHTML = `
+        <div class="tarefa-selecionada-info">
+            <div class="tarefa-selecionada-titulo">
+                <i class="fas fa-task"></i>
+                ${tarefa.titulo || 'Tarefa sem título'}
+            </div>
+            <div class="tarefa-selecionada-detalhes">
+                <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                    ${formatarStatus(tarefa.status)}
+                </span>
+            </div>
+        </div>
+        <button class="btn-remover-tarefa" onclick="removerTarefaSelecionada('${tarefa.id}')">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(tarefaDiv);
+}
+
+// Remover tarefa selecionada
+function removerTarefaSelecionada(tarefaId) {
+    // Remover do container de selecionados
+    const item = document.querySelector(`.tarefa-selecionada-item[data-tarefa-id="${tarefaId}"]`);
+    if (item) {
+        item.remove();
+    }
+    
+    // Adicionar de volta à lista de disponíveis
+    const tarefa = todasTarefas.find(t => t.id === tarefaId);
+    if (tarefa) {
+        const container = document.getElementById('lista-tarefas-selecao');
+        const novoItem = document.createElement('div');
+        novoItem.className = 'tarefa-item-selecao';
+        novoItem.dataset.tarefaId = tarefa.id;
+        novoItem.innerHTML = `
+            <div class="tarefa-info">
+                <div class="tarefa-titulo">${tarefa.titulo || 'Tarefa sem título'}</div>
+                <div class="tarefa-detalhes">
+                    <span class="badge prioridade-${tarefa.prioridade || 'media'}">
+                        ${tarefa.prioridade || 'Média'}
+                    </span>
+                    <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                        ${formatarStatus(tarefa.status)}
+                    </span>
+                    ${tarefa.dataFim ? `<small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>` : ''}
+                </div>
+            </div>
+            <button class="btn-add-tarefa" onclick="selecionarTarefa('${tarefa.id}')">
+                <i class="fas fa-plus"></i> Adicionar
+            </button>
+        `;
+        
+        container.appendChild(novoItem);
+    }
+}
+
+// Obter IDs das tarefas selecionadas
+function obterTarefasSelecionadasIds() {
+    const container = document.getElementById('tarefas-selecionadas-container');
+    const items = container.querySelectorAll('.tarefa-selecionada-item');
+    return Array.from(items).map(item => item.dataset.tarefaId);
 }
 
 // Salvar programa
 async function salvarPrograma() {
-    const form = document.getElementById('formPrograma');
-    
-    if (!form.checkValidity()) {
-        alert('Por favor, preencha todos os campos obrigatórios.');
-        return;
-    }
-    
-    const programaData = {
-        nome: document.getElementById('programaNome').value.trim(),
-        descricao: document.getElementById('programaDescricao').value.trim(),
-        categoria: document.getElementById('programaCategoria').value,
-        status: document.getElementById('programaStatus').value,
-        dataInicio: document.getElementById('programaDataInicio').value,
-        dataFim: document.getElementById('programaDataFim').value,
-        times: Array.from(document.getElementById('programaTimes').selectedOptions).map(opt => opt.value),
-        dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
     try {
-        const programaId = document.getElementById('modalProgramaTitle').textContent === 'Editar Programa' 
-            ? programas.find(p => p.nome === programaData.nome)?.id 
-            : null;
+        const titulo = document.getElementById('programaTitulo').value.trim();
+        const descricao = document.getElementById('programaDescricao').value.trim();
+        const status = document.getElementById('programaStatus').value;
+        const dataInicio = document.getElementById('programaDataInicio').value;
+        const dataFim = document.getElementById('programaDataFim').value;
+        const tarefasSelecionadas = obterTarefasSelecionadasIds();
         
-        if (programaId) {
-            // Atualizar programa existente
-            await programasCollection.doc(programaId).update(programaData);
-            mostrarMensagemSucesso('Programa atualizado com sucesso!');
-        } else {
-            // Criar novo programa
-            programaData.dataCriacao = firebase.firestore.FieldValue.serverTimestamp();
-            await programasCollection.add(programaData);
-            mostrarMensagemSucesso('Programa criado com sucesso!');
+        if (!titulo) {
+            alert('O título do programa é obrigatório!');
+            return;
         }
         
-        // Recarregar dados
-        await carregarProgramas();
-        await calcularEstatisticasReais();
-        renderizarProgramas(programas);
+        const programaData = {
+            titulo,
+            descricao,
+            status,
+            dataInicio: dataInicio || null,
+            dataFim: dataFim || null,
+            tarefas_relacionadas: tarefasSelecionadas,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (programaEditando) {
+            // Atualizar programa existente
+            await programasCollection.doc(programaEditando.id).update(programaData);
+            mostrarMensagem('Programa atualizado com sucesso!', 'success');
+        } else {
+            // Criar novo programa
+            programaData.criadoPor = usuarioLogado.usuario;
+            programaData.dataCriacao = firebase.firestore.FieldValue.serverTimestamp();
+            
+            await programasCollection.add(programaData);
+            mostrarMensagem('Programa criado com sucesso!', 'success');
+        }
+        
         fecharModalPrograma();
         
     } catch (error) {
         console.error('❌ Erro ao salvar programa:', error);
-        alert('Erro ao salvar programa: ' + error.message);
+        mostrarMensagem('Erro ao salvar programa: ' + error.message, 'error');
     }
 }
 
-// Ações de programas
-async function editarPrograma(id) {
-    abrirModalPrograma(id);
+// MODAL DE DETALHES
+async function verDetalhesPrograma(programaId) {
+    const programa = programas.find(p => p.id === programaId);
+    if (!programa) return;
+    
+    const modal = document.getElementById('modalDetalhesPrograma');
+    const tarefasPrograma = tarefasPorPrograma[programaId] || [];
+    
+    // Preencher informações básicas
+    document.getElementById('detalhesProgramaTitle').textContent = programa.titulo;
+    document.getElementById('detalhesNomePrograma').textContent = programa.titulo;
+    document.getElementById('detalhesDescricaoPrograma').textContent = programa.descricao || 'Sem descrição';
+    document.getElementById('detalhesCriadoPor').textContent = programa.criadoPor || 'Não informado';
+    
+    // Datas
+    const dataCriacao = programa.dataCriacao ? 
+        formatarDataFirestore(programa.dataCriacao) : 'Não definida';
+    document.getElementById('detalhesDatasPrograma').textContent = `Criado em: ${dataCriacao}`;
+    
+    // Status
+    const statusElement = document.getElementById('detalhesStatusPrograma');
+    let statusClass = 'status-planejamento';
+    let statusText = 'Planejamento';
+    
+    if (tarefasPrograma.length > 0) {
+        const todasConcluidas = tarefasPrograma.every(tarefa => {
+            const status = (tarefa.status || '').toLowerCase().trim();
+            return status === 'concluido' || status === 'concluído';
+        });
+        
+        if (todasConcluidas) {
+            statusClass = 'status-concluido';
+            statusText = 'Concluído';
+        } else if (tarefasPrograma.some(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'andamento' || status === 'em andamento';
+        })) {
+            statusClass = 'status-ativo';
+            statusText = 'Em Andamento';
+        }
+    }
+    
+    statusElement.className = `badge ${statusClass}`;
+    statusElement.textContent = statusText;
+    
+    // Progresso
+    const tarefasConcluidas = tarefasPrograma.filter(tarefa => {
+        const status = (tarefa.status || '').toLowerCase().trim();
+        return status === 'concluido' || status === 'concluído';
+    }).length;
+    
+    const progresso = tarefasPrograma.length > 0 ? 
+        (tarefasConcluidas / tarefasPrograma.length) * 100 : 0;
+    
+    document.getElementById('detalhesProgressoPrograma').textContent = `${Math.round(progresso)}%`;
+    document.getElementById('detalhesProgressoBarra').style.width = `${progresso}%`;
+    
+    // Configurar botão de editar
+    document.getElementById('btnEditarPrograma').onclick = () => {
+        fecharModalDetalhesPrograma();
+        setTimeout(() => editarPrograma(programaId), 300);
+    };
+    
+    // Listar tarefas
+    const containerTarefas = document.getElementById('lista-tarefas-detalhes');
+    if (tarefasPrograma.length === 0) {
+        containerTarefas.innerHTML = '<div class="no-tarefas">Nenhuma tarefa relacionada</div>';
+    } else {
+        containerTarefas.innerHTML = tarefasPrograma.map(tarefa => `
+            <div class="tarefa-detalhe-item">
+                <div class="tarefa-detalhe-header">
+                    <div class="tarefa-detalhe-titulo">
+                        <i class="fas fa-task"></i>
+                        ${tarefa.titulo}
+                    </div>
+                    <div class="tarefa-detalhe-status">
+                        <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                            ${formatarStatus(tarefa.status)}
+                        </span>
+                    </div>
+                </div>
+                ${tarefa.descricao ? `
+                    <div class="tarefa-detalhe-descricao">
+                        ${tarefa.descricao}
+                    </div>
+                ` : ''}
+                <div class="tarefa-detalhe-meta">
+                    ${tarefa.dataFim ? `
+                        <small><i class="fas fa-calendar"></i> Vence: ${formatarData(tarefa.dataFim)}</small>
+                    ` : ''}
+                    <small><i class="fas fa-flag"></i> ${tarefa.prioridade || 'Média'}</small>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    modal.style.display = 'flex';
 }
 
-async function configurarPrograma(id) {
-    // Redirecionar para página de configuração do programa
-    window.location.href = `programa-config.html?id=${id}`;
+function fecharModalDetalhesPrograma() {
+    const modal = document.getElementById('modalDetalhesPrograma');
+    modal.style.display = 'none';
 }
 
-// Logout
+// Funções de ação
+function editarPrograma(programaId) {
+    abrirModalPrograma(programaId);
+}
+
+// Funções auxiliares
+function formatarData(dataString) {
+    if (!dataString) return 'Não definida';
+    try {
+        return new Date(dataString + 'T00:00:00').toLocaleDateString('pt-BR');
+    } catch {
+        return dataString;
+    }
+}
+
+function formatarDataFirestore(timestamp) {
+    if (!timestamp) return 'Não definida';
+    try {
+        const date = timestamp.toDate();
+        return date.toLocaleDateString('pt-BR');
+    } catch {
+        return 'Data inválida';
+    }
+}
+
+function formatarTimestampParaInput(timestamp) {
+    if (!timestamp) return '';
+    try {
+        const date = timestamp.toDate();
+        return date.toISOString().split('T')[0];
+    } catch {
+        return '';
+    }
+}
+
+function formatarStatus(status) {
+    if (!status) return 'Não Iniciado';
+    const statusNorm = status.toLowerCase().trim();
+    
+    switch(statusNorm) {
+        case 'nao_iniciado':
+        case 'não iniciado':
+            return 'Não Iniciado';
+        case 'pendente':
+            return 'Pendente';
+        case 'andamento':
+        case 'em andamento':
+            return 'Em Andamento';
+        case 'concluido':
+        case 'concluído':
+            return 'Concluído';
+        default:
+            return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+}
+
+function mostrarMensagem(mensagem, tipo = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${tipo}`;
+    notification.innerHTML = `
+        <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        ${mensagem}
+    `;
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        background: ${tipo === 'success' ? '#4CAF50' : '#f44336'};
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.parentElement.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
 function logout() {
     if (confirm('Deseja realmente sair do sistema?')) {
         localStorage.removeItem('usuarioLogado');
@@ -628,97 +888,14 @@ function logout() {
     }
 }
 
-// Funções auxiliares
-function mostrarMensagemSucesso(mensagem) {
-    const mensagemEl = document.createElement('div');
-    mensagemEl.className = 'success-message';
-    mensagemEl.innerHTML = `
-        <i class="fas fa-check-circle"></i>
-        <span>${mensagem}</span>
-    `;
-    
-    mensagemEl.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4CAF50;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        animation: slideIn 0.3s ease;
-    `;
-    
-    document.body.appendChild(mensagemEl);
-    
-    setTimeout(() => {
-        mensagemEl.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            if (mensagemEl.parentNode) {
-                mensagemEl.parentNode.removeChild(mensagemEl);
-            }
-        }, 300);
-    }, 3000);
-}
-
-function mostrarErro(mensagem) {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 15px 20px;
-        border-radius: 8px;
-        color: white;
-        font-weight: 500;
-        z-index: 10000;
-        background: #dc3545;
-        text-align: center;
-    `;
-    notification.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${mensagem}`;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        document.body.removeChild(notification);
-    }, 5000);
-}
-
-// Adicionar estilos de animação
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
-
 // Torna funções globais
 window.abrirModalPrograma = abrirModalPrograma;
 window.fecharModalPrograma = fecharModalPrograma;
 window.salvarPrograma = salvarPrograma;
 window.editarPrograma = editarPrograma;
-window.configurarPrograma = configurarPrograma;
+window.verDetalhesPrograma = verDetalhesPrograma;
+window.fecharModalDetalhesPrograma = fecharModalDetalhesPrograma;
+window.filtrarTarefasSelecao = filtrarTarefasSelecao;
+window.selecionarTarefa = selecionarTarefa;
+window.removerTarefaSelecionada = removerTarefaSelecionada;
 window.logout = logout;
