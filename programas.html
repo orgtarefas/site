@@ -13,11 +13,11 @@
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <i class="fas fa-spinner fa-spin loading-icon"></i>
-            <p id="loadingText">Verificando autenticação...</p>
+            <p id="loadingText">Carregando programas...</p>
         </div>
     </div>
 
-    <div class="container" id="mainContent">
+    <div class="container" id="mainContent" style="display: none;">
         <!-- CABEÇALHO PROFISSIONAL -->
         <header class="home-header">
             <div class="header-full">
@@ -72,18 +72,25 @@
         </header>
 
         <!-- Conteúdo Principal dos Programas -->
+        <div class="programs-container">
+            <!-- Cabeçalho da Página -->
+            <div class="page-header">
+                <h1><i class="fas fa-project-diagram"></i> Programas (Fluxos de Trabalho)</h1>
+                <p class="page-description">Gerencie programas de trabalho e relacione tarefas existentes</p>
+            </div>
+
             <!-- Estatísticas de Programas -->
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-card program-stat">
                     <div class="stat-icon">
                         <i class="fas fa-project-diagram"></i>
                     </div>
                     <div class="stat-info">
                         <h3>Total de Programas</h3>
-                        <div class="number" id="programas-ativos">0</div>
+                        <div class="number" id="total-programas">0</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card program-stat">
                     <div class="stat-icon">
                         <i class="fas fa-tasks"></i>
                     </div>
@@ -92,7 +99,7 @@
                         <div class="number" id="programas-andamento">0</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card program-stat">
                     <div class="stat-icon">
                         <i class="fas fa-check-circle"></i>
                     </div>
@@ -101,26 +108,26 @@
                         <div class="number" id="programas-concluidos">0</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card program-stat">
                     <div class="stat-icon">
                         <i class="fas fa-list-check"></i>
                     </div>
                     <div class="stat-info">
                         <h3>Tarefas Totais em Programas</h3>
-                        <div class="number format-duplo" id="tarefas-programas">
+                        <div class="number" id="tarefas-totais-programas">
                             <span class="total">0</span>
                             <span class="separator">/</span>
                             <span class="programas">0</span>
                         </div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card program-stat">
                     <div class="stat-icon">
                         <i class="fas fa-bolt"></i>
                     </div>
                     <div class="stat-info">
                         <h3>Tarefas Ativas em Programas</h3>
-                        <div class="number format-duplo" id="tarefas-ativas">
+                        <div class="number" id="tarefas-ativas-programas">
                             <span class="total">0</span>
                             <span class="separator">/</span>
                             <span class="programas">0</span>
@@ -139,16 +146,9 @@
                     <select id="filter-program-status" class="filter-select">
                         <option value="">Todos os Status</option>
                         <option value="planejamento">Em Planejamento</option>
-                        <option value="ativo">Ativo</option>
-                        <option value="pausado">Pausado</option>
+                        <option value="andamento">Em Andamento</option>
                         <option value="concluido">Concluído</option>
-                    </select>
-                    <select id="filter-program-category" class="filter-select">
-                        <option value="">Todas as Categorias</option>
-                        <option value="operacional">Operacional</option>
-                        <option value="estrategico">Estratégico</option>
-                        <option value="melhoria">Melhoria Contínua</option>
-                        <option value="projeto">Projeto Especial</option>
+                        <option value="pausado">Pausado</option>
                     </select>
                 </div>
                 <div class="controls-right">
@@ -160,153 +160,11 @@
 
             <!-- Grid de Programas -->
             <div class="programs-grid" id="programs-grid">
-                <!-- Programa de Exemplo 1 -->
-                <div class="program-card">
-                    <div class="program-header">
-                        <div class="program-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="program-title">
-                            <h3>Dashboard de Desempenho</h3>
-                            <span class="program-status status-ativo">Ativo</span>
-                        </div>
-                        <div class="program-actions">
-                            <button class="btn-icon" title="Editar" onclick="editarPrograma(1)">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon" title="Configurar" onclick="configurarPrograma(1)">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="program-content">
-                        <p class="program-description">
-                            Desenvolvimento e implementação de dashboard para monitoramento de KPIs e métricas de desempenho.
-                        </p>
-                        <div class="program-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span>Jan 2024 - Jun 2024</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-users"></i>
-                                <span>3 Times</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-tasks"></i>
-                                <span>24 Tarefas</span>
-                            </div>
-                        </div>
-                        <div class="progress-container">
-                            <div class="progress-label">
-                                <span>Progresso</span>
-                                <span>65%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: 65%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Programa de Exemplo 2 -->
-                <div class="program-card">
-                    <div class="program-header">
-                        <div class="program-icon">
-                            <i class="fas fa-cogs"></i>
-                        </div>
-                        <div class="program-title">
-                            <h3>Automação de Processos</h3>
-                            <span class="program-status status-planejamento">Planejamento</span>
-                        </div>
-                        <div class="program-actions">
-                            <button class="btn-icon" title="Editar" onclick="editarPrograma(2)">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon" title="Configurar" onclick="configurarPrograma(2)">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="program-content">
-                        <p class="program-description">
-                            Implementação de automação para processos manuais recorrentes.
-                        </p>
-                        <div class="program-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span>Mar 2024 - Dez 2024</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-users"></i>
-                                <span>2 Times</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-tasks"></i>
-                                <span>18 Tarefas</span>
-                            </div>
-                        </div>
-                        <div class="progress-container">
-                            <div class="progress-label">
-                                <span>Progresso</span>
-                                <span>15%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: 15%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Programa de Exemplo 3 -->
-                <div class="program-card">
-                    <div class="program-header">
-                        <div class="program-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <div class="program-title">
-                            <h3>Segurança de Dados</h3>
-                            <span class="program-status status-concluido">Concluído</span>
-                        </div>
-                        <div class="program-actions">
-                            <button class="btn-icon" title="Ver Relatório" onclick="verRelatorio(3)">
-                                <i class="fas fa-file-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="program-content">
-                        <p class="program-description">
-                            Implementação de políticas e ferramentas de segurança de dados.
-                        </p>
-                        <div class="program-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span>Set 2023 - Jan 2024</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-users"></i>
-                                <span>4 Times</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-tasks"></i>
-                                <span>32 Tarefas</span>
-                            </div>
-                        </div>
-                        <div class="progress-container">
-                            <div class="progress-label">
-                                <span>Progresso</span>
-                                <span>100%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: 100%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Programas serão renderizados aqui pelo JavaScript -->
             </div>
 
             <!-- Mensagem de estado vazio -->
-            <div class="empty-state" id="empty-programs">
+            <div class="empty-state" id="empty-programs" style="display: none;">
                 <i class="fas fa-project-diagram"></i>
                 <h3>Nenhum programa encontrado</h3>
                 <p>Crie seu primeiro programa para organizar fluxos de trabalho</p>
@@ -317,7 +175,7 @@
         </div>
     </div>
 
-    <!-- Modal de Novo Programa -->
+    <!-- Modal de Novo/Editar Programa -->
     <div id="modalPrograma" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -328,55 +186,57 @@
                 <form id="formPrograma">
                     <div class="form-grid">
                         <div class="form-group full-width">
-                            <label for="programaNome">Nome do Programa *</label>
-                            <input type="text" id="programaNome" required placeholder="Ex: Dashboard de Desempenho">
+                            <label for="programaTitulo">Título do Programa *</label>
+                            <input type="text" id="programaTitulo" required placeholder="Ex: Criação Canal de Vendas">
                         </div>
                         
                         <div class="form-group full-width">
                             <label for="programaDescricao">Descrição</label>
-                            <textarea id="programaDescricao" placeholder="Descreva os objetivos e escopo deste programa"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="programaCategoria"><i class="fas fa-tag"></i> Categoria *</label>
-                            <select id="programaCategoria" required>
-                                <option value="">Selecione uma categoria</option>
-                                <option value="operacional">Operacional</option>
-                                <option value="estrategico">Estratégico</option>
-                                <option value="melhoria">Melhoria Contínua</option>
-                                <option value="projeto">Projeto Especial</option>
-                            </select>
+                            <textarea id="programaDescricao" placeholder="Descreva os objetivos deste programa" rows="3"></textarea>
                         </div>
                         
                         <div class="form-group">
                             <label for="programaStatus"><i class="fas fa-circle"></i> Status *</label>
                             <select id="programaStatus" required>
                                 <option value="planejamento">Em Planejamento</option>
-                                <option value="ativo">Ativo</option>
-                                <option value="pausado">Pausado</option>
+                                <option value="andamento">Em Andamento</option>
                                 <option value="concluido">Concluído</option>
+                                <option value="pausado">Pausado</option>
                             </select>
                         </div>
                         
                         <div class="form-group">
-                            <label for="programaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início *</label>
-                            <input type="date" id="programaDataInicio" required>
+                            <label for="programaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início</label>
+                            <input type="date" id="programaDataInicio">
                         </div>
                         
                         <div class="form-group">
-                            <label for="programaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
-                            <input type="date" id="programaDataFim" required>
+                            <label for="programaDataFim"><i class="fas fa-calendar-check"></i> Data Final</label>
+                            <input type="date" id="programaDataFim">
                         </div>
                         
+                        <!-- Seção para relacionar tarefas -->
                         <div class="form-group full-width">
-                            <label for="programaTimes"><i class="fas fa-users"></i> Times Envolvidos</label>
-                            <select id="programaTimes" multiple style="min-height: 100px;">
-                                <option value="time1">Time de Desenvolvimento</option>
-                                <option value="time2">Time de Operações</option>
-                                <option value="time3">Time de QA</option>
-                                <option value="time4">Time de Suporte</option>
-                            </select>
-                            <small class="form-help">Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos times</small>
+                            <label for="selecionarTarefas"><i class="fas fa-tasks"></i> Relacionar Tarefas Existentes</label>
+                            <div class="tarefas-container">
+                                <div class="tarefas-pesquisa">
+                                    <input type="text" id="pesquisaTarefas" placeholder="Buscar tarefas..." 
+                                           onkeyup="filtrarTarefasSelecao(this.value)">
+                                    <small>Pesquise e selecione tarefas para adicionar ao programa</small>
+                                </div>
+                                <div class="tarefas-lista" id="lista-tarefas-selecao">
+                                    <!-- Tarefas serão carregadas aqui -->
+                                    <div class="loading-tarefas">
+                                        <i class="fas fa-spinner fa-spin"></i> Carregando tarefas...
+                                    </div>
+                                </div>
+                                <div class="tarefas-selecionadas">
+                                    <h4>Tarefas Selecionadas:</h4>
+                                    <div id="tarefas-selecionadas-container">
+                                        <!-- Tarefas selecionadas aparecerão aqui -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -384,6 +244,60 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="fecharModalPrograma()">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btnSalvarPrograma" onclick="salvarPrograma()">Salvar Programa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes do Programa -->
+    <div id="modalDetalhesPrograma" class="modal">
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h2 id="detalhesProgramaTitle">Detalhes do Programa</h2>
+                <button class="close" onclick="fecharModalDetalhesPrograma()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="programa-detalhes-grid">
+                    <div class="detalhes-info">
+                        <h3 id="detalhesNomePrograma"></h3>
+                        <p id="detalhesDescricaoPrograma" class="descricao"></p>
+                        
+                        <div class="detalhes-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span id="detalhesDatasPrograma"></span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-circle"></i>
+                                <span class="badge" id="detalhesStatusPrograma"></span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                <span id="detalhesCriadoPor"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Progresso Geral</span>
+                                <span id="detalhesProgressoPrograma">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="detalhesProgressoBarra" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detalhes-tarefas">
+                        <h4><i class="fas fa-tasks"></i> Tarefas Relacionadas</h4>
+                        <div class="tarefas-lista-detalhes" id="lista-tarefas-detalhes">
+                            <!-- Tarefas do programa serão listadas aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="fecharModalDetalhesPrograma()">Fechar</button>
+                <button type="button" class="btn btn-primary" id="btnEditarPrograma">Editar Programa</button>
             </div>
         </div>
     </div>
