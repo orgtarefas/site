@@ -30,6 +30,46 @@ body {
     color: var(--dark);
 }
 
+/* Estilo para o campo de programa */
+.form-group select#programaAtividade {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    margin-top: 5px;
+}
+
+.form-group label[for="programaAtividade"] {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-group label[for="programaAtividade"] i {
+    color: #6f42c1;
+    margin-right: 8px;
+}
+
+/* Badge para indicar programa na atividade */
+.badge-programa {
+    background-color: #6f42c1 !important;
+    color: white !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.badge-programa i {
+    margin-right: 3px;
+    font-size: 9px;
+}
+
 /* Loading para tarefas */
 .loading-tarefas {
     text-align: center;
