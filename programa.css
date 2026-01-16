@@ -976,6 +976,202 @@
     border: 1px solid #ffe0b2;
 }
 
+/* Estilos para lista de tarefas nos cards de programa */
+.program-tarefas-lista {
+    margin: 15px 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f9f9f9;
+}
+
+.tarefas-lista-header {
+    background: #f0f7ff;
+    padding: 10px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.tarefas-lista-items {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.tarefa-lista-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.tarefa-lista-item:hover {
+    background: #f8f9fa;
+    transform: translateX(3px);
+}
+
+.tarefa-lista-item:last-child {
+    border-bottom: none;
+}
+
+.tarefa-lista-item.concluida {
+    background: #f8f9fa;
+    opacity: 0.8;
+}
+
+.tarefa-lista-item.concluida .tarefa-item-titulo {
+    text-decoration: line-through;
+    color: #666;
+}
+
+.tarefa-item-numero {
+    width: 28px;
+    height: 28px;
+    background: #0078d4;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.tarefa-lista-item.concluida .tarefa-item-numero {
+    background: #4CAF50;
+}
+
+.tarefa-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tarefa-item-titulo {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarefa-item-detalhes {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.tarefa-item-detalhes .badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.tarefa-item-action {
+    margin-left: 10px;
+    color: #0078d4;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.tarefa-lista-item:hover .tarefa-item-action {
+    opacity: 1;
+}
+
+.tarefas-lista-footer {
+    padding: 8px 15px;
+    background: #f0f7ff;
+    text-align: center;
+    border-top: 1px solid #e0e0e0;
+    font-size: 12px;
+    color: #666;
+}
+
+.program-sem-tarefas {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 15px 0;
+    color: #666;
+    text-align: center;
+    justify-content: center;
+}
+
+.program-sem-tarefas i {
+    font-size: 18px;
+    color: #999;
+}
+
+/* Status das tarefas (cores) */
+.badge.status-nao_iniciado {
+    background: #f5f5f5;
+    color: #757575;
+    border: 1px solid #e0e0e0;
+}
+
+.badge.status-pendente {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffe0b2;
+}
+
+.badge.status-andamento {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
+.badge.status-concluido {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Prioridades */
+.badge.prioridade-alta {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.badge.prioridade-media {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffe0b2;
+}
+
+.badge.prioridade-baixa {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Ajuste no conteúdo do programa */
+.program-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.program-content .program-description {
+    margin-bottom: 15px;
+}
+
+.program-content .program-meta {
+    margin-top: 15px;
+}
+
 /* Responsividade */
 @media (max-width: 1200px) {
     .programs-grid {
