@@ -2,7 +2,6 @@
 
 // Variáveis globais
 let programas = [];
-let todasTarefas = [];
 let tarefasPorPrograma = {};
 let programasCollection = null;
 let tarefasCollection = null;
@@ -21,14 +20,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         document.getElementById('userName').textContent = usuarioLogado.nome || usuarioLogado.usuario;
-        document.getElementById('loadingText').textContent = 'Inicializando sistema...';
         
         // Inicializar Firebase
         await inicializarFirebase();
         
         // Configurar listeners e carregar dados
         configurarEventListeners();
-        await carregarDadosCompletos();
         
         // Esconder tela de loading
         setTimeout(() => {
@@ -45,7 +42,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 // Inicializar Firebase
 async function inicializarFirebase() {
     try {
-        // Usando a mesma configuração do script.js
         const firebaseConfig = {
             apiKey: "AIzaSyAs0Ke4IBfBWDrfH0AXaOhCEjtfpPtR_Vg",
             authDomain: "orgtarefas-85358.firebaseapp.com",
@@ -55,17 +51,15 @@ async function inicializarFirebase() {
             appId: "1:1023569488575:web:18f9e201115a1a92ccb40a"
         };
         
-        // Inicializar Firebase se ainda não foi
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         
-        // Configurar referências
         const db = firebase.firestore();
         programasCollection = db.collection("programas");
         tarefasCollection = db.collection("tarefas");
         
-        // Configurar listener em tempo real para programas
+        // Configurar listener em tempo real
         configurarListenerProgramas();
         
     } catch (error) {
@@ -84,10 +78,8 @@ function configurarListenerProgramas() {
                     ...doc.data()
                 }));
                 
-                console.log(`📊 ${programas.length} programas carregados`);
-                
-                // Para cada programa, buscar informações das tarefas relacionadas
-                await buscarInformacoesTarefas();
+                // Buscar informações das tarefas relacionadas (SEM CACHE)
+                await buscarInformacoesTarefasDireto();
                 
                 // Atualizar estatísticas
                 atualizarEstatisticasReais();
@@ -113,60 +105,37 @@ function configurarListenerProgramas() {
         });
 }
 
-// Carregar dados completos
-async function carregarDadosCompletos() {
-    try {
-        // Carregar todas as tarefas uma vez
-        await carregarTodasTarefas();
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados completos:', error);
-    }
-}
-
-// Carregar todas as tarefas
-async function carregarTodasTarefas() {
-    try {
-        const loadingText = document.getElementById('loadingText');
-        if (loadingText) {
-            loadingText.textContent = 'Carregando tarefas...';
-        }
-        
-        const snapshot = await tarefasCollection.get();
-        todasTarefas = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        console.log(`✅ ${todasTarefas.length} tarefas carregadas`);
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar tarefas:', error);
-        todasTarefas = [];
-    }
-}
-
-// Buscar informações detalhadas das tarefas relacionadas aos programas
-async function buscarInformacoesTarefas() {
+// Buscar informações das tarefas relacionadas - BUSCA DIRETA SEM CACHE
+async function buscarInformacoesTarefasDireto() {
     tarefasPorPrograma = {};
     
     for (const programa of programas) {
         const tarefasIds = programa.tarefas_relacionadas || [];
         const tarefasDoPrograma = [];
         
-        // Buscar cada tarefa pelo ID
-        for (const tarefaId of tarefasIds) {
-            const tarefa = todasTarefas.find(t => t.id === tarefaId);
-            if (tarefa) {
-                tarefasDoPrograma.push({
-                    id: tarefa.id,
-                    titulo: tarefa.titulo || 'Tarefa sem título',
-                    status: tarefa.status || 'nao_iniciado',
-                    prioridade: tarefa.prioridade || 'media',
-                    dataFim: tarefa.dataFim,
-                    gruposAcesso: tarefa.gruposAcesso || [],
-                    descricao: tarefa.descricao || ''
-                });
+        if (tarefasIds.length > 0) {
+            // Buscar cada tarefa diretamente do Firebase
+            for (const tarefaId of tarefasIds) {
+                try {
+                    const tarefaDoc = await tarefasCollection.doc(tarefaId).get();
+                    
+                    if (tarefaDoc.exists) {
+                        const tarefaData = tarefaDoc.data();
+                        tarefasDoPrograma.push({
+                            id: tarefaId,
+                            titulo: tarefaData.titulo || 'Tarefa sem título',
+                            status: tarefaData.status || 'nao_iniciado',
+                            prioridade: tarefaData.prioridade || 'media',
+                            dataFim: tarefaData.dataFim,
+                            gruposAcesso: tarefaData.gruposAcesso || [],
+                            descricao: tarefaData.descricao || '',
+                            dataCriacao: tarefaData.dataCriacao,
+                            criadoPor: tarefaData.criadoPor
+                        });
+                    }
+                } catch (error) {
+                    console.error(`❌ Erro ao buscar tarefa ${tarefaId}:`, error);
+                }
             }
         }
         
@@ -174,7 +143,7 @@ async function buscarInformacoesTarefas() {
     }
 }
 
-// Calcular estatísticas reais baseadas nas tarefas
+// Calcular estatísticas
 function atualizarEstatisticasReais() {
     try {
         const totalProgramas = programas.length;
@@ -184,7 +153,6 @@ function atualizarEstatisticasReais() {
         let tarefasAtivasEmProgramas = 0;
         let programasComTarefas = 0;
         
-        // Para cada programa, analisar suas tarefas
         programas.forEach(programa => {
             const tarefasPrograma = tarefasPorPrograma[programa.id] || [];
             const totalTarefas = tarefasPrograma.length;
@@ -193,7 +161,6 @@ function atualizarEstatisticasReais() {
                 programasComTarefas++;
                 totalTarefasEmProgramas += totalTarefas;
                 
-                // Contar tarefas ativas (não concluídas)
                 const tarefasAtivas = tarefasPrograma.filter(tarefa => {
                     const status = (tarefa.status || '').toLowerCase().trim();
                     return !(status === 'concluido' || status === 'concluído');
@@ -201,7 +168,6 @@ function atualizarEstatisticasReais() {
                 
                 tarefasAtivasEmProgramas += tarefasAtivas;
                 
-                // Determinar status do programa
                 const todasConcluidas = tarefasPrograma.every(tarefa => {
                     const status = (tarefa.status || '').toLowerCase().trim();
                     return status === 'concluido' || status === 'concluído';
@@ -215,7 +181,7 @@ function atualizarEstatisticasReais() {
             }
         });
         
-        // Atualizar interface - VERIFICAR SE ELEMENTOS EXISTEM
+        // Atualizar interface
         const totalProgramasEl = document.getElementById('total-programas');
         const programasAndamentoEl = document.getElementById('programas-andamento');
         const programasConcluidosEl = document.getElementById('programas-concluidos');
@@ -241,15 +207,6 @@ function atualizarEstatisticasReais() {
                 <span class="programas">${programasEmAndamento}</span>
             `;
         }
-        
-        console.log('📊 Estatísticas calculadas:', {
-            totalProgramas,
-            programasEmAndamento,
-            programasConcluidos,
-            totalTarefasEmProgramas,
-            tarefasAtivasEmProgramas,
-            programasComTarefas
-        });
         
     } catch (error) {
         console.error('❌ Erro ao calcular estatísticas:', error);
@@ -389,10 +346,9 @@ function criarCardPrograma(programa) {
     const dataCriacao = programa.dataCriacao ? 
         formatarDataFirestore(programa.dataCriacao) : 'Não definida';
     
-    // ✅ NOVO: Criar lista de tarefas para exibição
+    // Criar lista de tarefas
     let listaTarefasHTML = '';
     if (totalTarefas > 0) {
-        // Limitar a 5 tarefas para não sobrecarregar o card
         const tarefasParaExibir = tarefasPrograma.slice(0, 5);
         
         listaTarefasHTML = `
@@ -474,7 +430,6 @@ function criarCardPrograma(programa) {
         <div class="program-content">
             <p class="program-description">${programa.descricao || 'Sem descrição'}</p>
             
-            <!-- ✅ NOVO: Lista de tarefas -->
             ${listaTarefasHTML}
             
             <div class="program-meta">
