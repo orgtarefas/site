@@ -192,6 +192,14 @@
                 <form id="formTarefa">
                     <div class="form-grid">
                         <div class="form-group">
+                            <label for="tarefaPrograma"><i class="fas fa-project-diagram"></i> Programa</label>
+                            <select id="tarefaPrograma">
+                                <option value="">Nenhum programa</option>
+                            </select>
+                            <small class="form-help">Selecione o programa relacionado (opcional)</small>
+                        </div>
+                        
+                        <div class="form-group">
                             <label for="tarefaGrupos"><i class="fas fa-users"></i> Grupos com Acesso *</label>
                             <select id="tarefaGrupos" multiple required style="min-height: 120px;">
                                 <option value="">Carregando grupos...</option>
@@ -202,7 +210,7 @@
                         <div class="form-group full-width">
                             <label for="tarefaTitulo">Título da Tarefa *</label>
                             <input type="text" id="tarefaTitulo" required placeholder="Ex: MACRO PLANILHA CONVÊNIOS PKL">
-                            <small class="form-help">O nome do grupo será adicionado automaticamente antes do título</small>
+                            <small class="form-help">O nome do programa e grupos serão adicionados automaticamente</small>
                         </div>
                         
                         <div class="form-group full-width">
