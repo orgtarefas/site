@@ -2802,8 +2802,39 @@ function formatarData(dataString) {
     return new Date(dataString + 'T00:00:00').toLocaleDateString('pt-BR');
 }
 
-function mostrarNotificacao(mensagem, tipo) {
+function mostrarNotificacao(mensagem, tipo = 'success') {
+    // Remover notificações existentes primeiro
+    const notificacoesExistentes = document.querySelectorAll('.sistema-notificacao');
+    notificacoesExistentes.forEach(notificacao => {
+        if (notificacao.parentElement) {
+            notificacao.parentElement.removeChild(notificacao);
+        }
+    });
+    
     const notification = document.createElement('div');
+    notification.className = 'sistema-notificacao';
+    
+    // Mapear tipos para cores
+    const cores = {
+        success: '#28a745', // Verde
+        error: '#dc3545',   // Vermelho
+        warning: '#ffc107', // Amarelo
+        info: '#17a2b8'     // Azul
+    };
+    
+    // Mapear tipos para ícones
+    const icones = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    notification.innerHTML = `
+        <i class="fas ${icones[tipo] || icones.success}"></i>
+        <span>${mensagem}</span>
+    `;
+    
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -2813,15 +2844,59 @@ function mostrarNotificacao(mensagem, tipo) {
         color: white;
         font-weight: 500;
         z-index: 10000;
-        background: ${tipo === 'success' ? '#28a745' : '#dc3545'};
+        background: ${cores[tipo] || cores.success};
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s ease;
     `;
-    notification.textContent = mensagem;
+    
+    // Adicionar CSS para animação se não existir
+    if (!document.querySelector('#notificacao-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notificacao-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+            
+            .sistema-notificacao {
+                animation: slideIn 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     document.body.appendChild(notification);
-
-    // aqui4
-    //setTimeout(() => {
-    //    document.body.removeChild(notification);
-    //}, 3000);
+    
+    // Remover automaticamente após 3 segundos
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.parentElement.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 function mostrarErro(mensagem) {
