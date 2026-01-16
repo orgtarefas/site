@@ -188,25 +188,7 @@
                             <textarea id="programaDescricao" placeholder="Descreva os objetivos deste programa" rows="3"></textarea>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="programaStatus"><i class="fas fa-circle"></i> Status *</label>
-                            <select id="programaStatus" required>
-                                <option value="planejamento">Em Planejamento</option>
-                                <option value="andamento">Em Andamento</option>
-                                <option value="concluido">Concluído</option>
-                                <option value="pausado">Pausado</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="programaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início</label>
-                            <input type="date" id="programaDataInicio">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="programaDataFim"><i class="fas fa-calendar-check"></i> Data Final</label>
-                            <input type="date" id="programaDataFim">
-                        </div>
+                        <!-- REMOVIDO: Status, Data Início e Data Fim -->
                         
                         <!-- Seção para relacionar tarefas -->
                         <div class="form-group full-width">
@@ -241,6 +223,8 @@
         </div>
     </div>
 
+
+
     <!-- Modal de Detalhes do Programa -->
     <div id="modalDetalhesPrograma" class="modal">
         <div class="modal-content modal-wide">
@@ -259,13 +243,14 @@
                                 <i class="fas fa-calendar-alt"></i>
                                 <span id="detalhesDatasPrograma"></span>
                             </div>
-                            <div class="meta-item">
-                                <i class="fas fa-circle"></i>
-                                <span class="badge" id="detalhesStatusPrograma"></span>
-                            </div>
+                            <!-- REMOVIDO: Seção de Status -->
                             <div class="meta-item">
                                 <i class="fas fa-user"></i>
                                 <span id="detalhesCriadoPor"></span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tasks"></i>
+                                <span id="detalhesTotalTarefas">0 tarefas</span>
                             </div>
                         </div>
                         
@@ -277,13 +262,27 @@
                             <div class="progress-bar">
                                 <div class="progress-fill" id="detalhesProgressoBarra" style="width: 0%"></div>
                             </div>
+                            <div class="progress-stats">
+                                <small id="detalhesTarefasConcluidas">0 concluídas</small>
+                                <small>de</small>
+                                <small id="detalhesTotalTarefasContagem">0 tarefas</small>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="detalhes-tarefas">
-                        <h4><i class="fas fa-tasks"></i> Tarefas Relacionadas</h4>
+                        <div class="tarefas-header">
+                            <h4><i class="fas fa-tasks"></i> Tarefas Relacionadas</h4>
+                            <div class="tarefas-summary">
+                                <span class="badge status-ativo" id="detalhesStatusAutomatico">Em Andamento</span>
+                            </div>
+                        </div>
                         <div class="tarefas-lista-detalhes" id="lista-tarefas-detalhes">
                             <!-- Tarefas do programa serão listadas aqui -->
+                            <div class="no-tarefas">
+                                <i class="fas fa-info-circle"></i>
+                                <p>Nenhuma tarefa relacionada a este programa</p>
+                            </div>
                         </div>
                     </div>
                 </div>
