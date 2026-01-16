@@ -19,107 +19,100 @@ let ultimoStatusNotificado = {};
 // Variável para o banco de logins
 let dbLogins = null;
 
-// Verificar se estamos na página correta
-const isIndexPage = window.location.pathname.includes('index.html') || 
-                    window.location.pathname.endsWith('/') ||
-                    window.location.pathname === '/';
+// ============================================
+// ✅ VERIFICAÇÃO DE PÁGINA - CORRIGIDA
+// ============================================
 
-// Se NÃO estamos na página index/home, NÃO inicializar o sistema de tarefas
-if (!isIndexPage) {
-    console.log('📋 Página detectada como não-index, desativando sistema de tarefas');
+// Verificar se estamos na página correta
+const isHomePage = (function() {
+    const currentPath = window.location.pathname.toLowerCase();
+    return currentPath.includes('index.html') || 
+           currentPath.endsWith('/') ||
+           currentPath === '' ||
+           currentPath.includes('/index');
+})();
+
+console.log('📍 Página detectada:', window.location.pathname);
+console.log('🏠 É página home?', isHomePage);
+
+// Se NÃO estamos na página home, NÃO inicializar o sistema de tarefas
+if (!isHomePage) {
+    console.log('📋 Página detectada como não-home, desativando sistema de tarefas');
     
-    // Sobrescrever as funções principais para evitar erros
+    // Sobrescrever funções problemáticas com versões seguras
     window.atualizarListaTarefas = function() {
         console.log('ℹ️ Sistema de tarefas desativado nesta página');
+        return false;
     };
     
     window.atualizarInterface = function() {
         console.log('ℹ️ Sistema de tarefas desativado nesta página');
+        return false;
     };
     
-    // Pular toda a inicialização
+    // Configurar um listener mínimo para a página
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('✅ Script.js carregado em página não-index, apenas funcionalidades básicas');
-        document.getElementById('loadingScreen')?.style.display = 'none';
-        document.getElementById('mainContent')?.style.display = 'block';
+        console.log('✅ Script.js carregado em página não-home - modo seguro');
+        
+        // Esconder tela de loading se existir
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            if (mainContent) {
+                mainContent.style.display = 'block';
+            }
+        }, 500);
     });
     
-    // Parar a execução do script aqui
-    throw new Error('Script.js não deve ser executado nesta página');
-}
-
-// Inicialização
-// Configurar event listeners
-document.addEventListener('DOMContentLoaded', async function() {
-    //console.log('🚀 Inicializando sistema...');
-    document.getElementById('loadingText').textContent = 'Verificando autenticação...';
+    // Não executar o resto do script
+    // Encerrar aqui mesmo
+} else {
+    // ============================================
+    // ✅ SE É PÁGINA HOME, CONTINUAR COM O CÓDIGO
+    // ============================================
     
-    // Verificar se usuário está logado
-    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    console.log('🚀 Iniciando sistema na página home...');
     
-    if (!usuarioLogado) {
-        //console.log('❌ Usuário não logado, redirecionando...');
-        window.location.href = 'login.html';
-        return;
-    }
-
-    //console.log('👤 Usuário logado:', usuarioLogado.nome);
-    document.getElementById('userName').textContent = usuarioLogado.nome;
-
-    // DEBUG: Verificar dados do usuário logado
-    //console.log('📋 Dados completos do usuário logado:', usuarioLogado);
-    //console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
-    
-    // PRIMEIRO: Inicializar os bancos Firebase ANTES de qualquer operação
-    //console.log('🔥 Inicializando DOIS bancos Firebase PRIMEIRO...');
-    await inicializarBancosFirebase();
-    
-    // DEPOIS: Continuar com o resto da inicialização
-    //console.log('📥 Continuando inicialização do sistema...');
-    await inicializarSistema();
-});
-
-// FUNÇÃO: Carregar programas
-async function carregarProgramas() {
-    console.log('📋 Carregando programas...');
-    
-    try {
-        // Verificar se existe a coleção "programas"
-        const programasRef = db.collection("programas");
-        const snapshot = await programasRef.orderBy("dataAtualizacao", "desc").get();
+    // Inicialização APENAS para home
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('🚀 Inicializando sistema...');
         
-        if (snapshot.empty) {
-            console.log('ℹ️ Nenhum programa encontrado no sistema');
-            programas = [];
-            return;
-        }
-        
-        programas = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-
-        console.log('✅ Programas carregados:', programas.length);
-        console.log('📋 Programas:', programas);
-
-        // Preencher select de programas no modal
-        const selectProgramas = document.getElementById('tarefaPrograma');
-        
-        if (selectProgramas) {
-            selectProgramas.innerHTML = '<option value="">Nenhum programa</option>';
+        try {
+            document.getElementById('loadingText').textContent = 'Verificando autenticação...';
             
-            programas.forEach(programa => {
-                const option = document.createElement('option');
-                option.value = programa.id;
-                option.textContent = programa.titulo || programa.nome || programa.id; // Usa 'titulo' se existir
-                selectProgramas.appendChild(option);
-            });
+            // Verificar se usuário está logado
+            const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+            
+            if (!usuarioLogado) {
+                console.log('❌ Usuário não logado, redirecionando...');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            console.log('👤 Usuário logado:', usuarioLogado.nome);
+            document.getElementById('userName').textContent = usuarioLogado.nome;
+
+            // DEBUG: Verificar dados do usuário logado
+            console.log('📋 Dados completos do usuário logado:', usuarioLogado);
+            console.log('👥 Grupos do usuário:', usuarioLogado.grupos);
+            
+            // PRIMEIRO: Inicializar os bancos Firebase ANTES de qualquer operação
+            console.log('🔥 Inicializando DOIS bancos Firebase PRIMEIRO...');
+            await inicializarBancosFirebase();
+            
+            // DEPOIS: Continuar com o resto da inicialização
+            console.log('📥 Continuando inicialização do sistema...');
+            await inicializarSistema();
+            
+        } catch (error) {
+            console.error('❌ Erro na inicialização:', error);
+            document.getElementById('loadingText').textContent = 'Erro ao carregar. Tente novamente.';
         }
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar programas:', error);
-        programas = [];
-    }
+    });
 }
 
 async function inicializarBancosFirebase() {
