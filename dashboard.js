@@ -38,118 +38,6 @@ async function visualizarAtividade(atividadeId) {
     }
 }
 
-// Função para atualizar o preview do título
-function atualizarPreviewTituloComPrograma() {
-    const selectPrograma = document.getElementById('programaAtividade');
-    const inputTitulo = document.getElementById('tituloAtividade');
-    
-    if (selectPrograma && inputTitulo) {
-        const programaSelecionado = selectPrograma.value;
-        const tituloAtual = inputTitulo.value;
-        
-        if (programaSelecionado && gestorAtividades) {
-            const programa = gestorAtividades.programas.find(p => p.id === programaSelecionado);
-            if (programa) {
-                // Verificar se o título já contém o nome do programa
-                const nomePrograma = programa.titulo || 'Programa Desconhecido';
-                const prefixoPrograma = `${nomePrograma} - `;
-                
-                // Se o título não começa com o nome do programa, adicionar
-                if (!tituloAtual.startsWith(prefixoPrograma)) {
-                    // Remover prefixo de outro programa se existir
-                    let novoTitulo = tituloAtual;
-                    gestorAtividades.programas.forEach(p => {
-                        const prefixo = `${p.titulo} - `;
-                        if (tituloAtual.startsWith(prefixo)) {
-                            novoTitulo = tituloAtual.substring(prefixo.length);
-                        }
-                    });
-                    
-                    // Adicionar novo prefixo
-                    inputTitulo.value = prefixoPrograma + novoTitulo;
-                }
-            }
-        }
-        
-        // Adicionar listener para quando o programa for alterado
-        selectPrograma.addEventListener('change', () => {
-            const programaSelecionado = selectPrograma.value;
-            const tituloAtual = inputTitulo.value;
-            
-            if (programaSelecionado && gestorAtividades) {
-                const programa = gestorAtividades.programas.find(p => p.id === programaSelecionado);
-                if (programa) {
-                    const nomePrograma = programa.titulo || 'Programa Desconhecido';
-                    const prefixoPrograma = `${nomePrograma} - `;
-                    
-                    // Remover prefixo de outro programa se existir
-                    let novoTitulo = tituloAtual;
-                    gestorAtividades.programas.forEach(p => {
-                        const prefixo = `${p.titulo} - `;
-                        if (tituloAtual.startsWith(prefixo)) {
-                            novoTitulo = tituloAtual.substring(prefixo.length);
-                        }
-                    });
-                    
-                    // Adicionar novo prefixo
-                    inputTitulo.value = prefixoPrograma + novoTitulo;
-                }
-            } else if (!programaSelecionado && tituloAtual.includes(' - ')) {
-                // Se remover o programa, remover o prefixo do título
-                const partes = tituloAtual.split(' - ');
-                if (partes.length > 1) {
-                    // Verificar se a primeira parte é um nome de programa conhecido
-                    const primeiroTermo = partes[0];
-                    const isNomePrograma = gestorAtividades.programas.some(p => p.titulo === primeiroTermo);
-                    if (isNomePrograma) {
-                        // Remover o primeiro termo (nome do programa)
-                        inputTitulo.value = partes.slice(1).join(' - ');
-                    }
-                }
-            }
-        });
-    }
-}
-
-// Função para atualizar programa com tarefa relacionada
-async function atualizarProgramaComTarefa(programaId, tarefaId, remover = false) {
-    try {
-        const programaRef = db.collection('programas').doc(programaId);
-        const programaDoc = await programaRef.get();
-        
-        if (!programaDoc.exists) {
-            console.log(`❌ Programa ${programaId} não encontrado`);
-            return;
-        }
-        
-        const programaData = programaDoc.data();
-        let tarefasRelacionadas = programaData.tarefas_relacionadas || [];
-        
-        if (remover) {
-            // Remover a tarefa da lista
-            tarefasRelacionadas = tarefasRelacionadas.filter(id => id !== tarefaId);
-            console.log(`➖ Removendo tarefa ${tarefaId} do programa ${programaId}`);
-        } else {
-            // Adicionar a tarefa se ainda não estiver na lista
-            if (!tarefasRelacionadas.includes(tarefaId)) {
-                tarefasRelacionadas.push(tarefaId);
-                console.log(`➕ Adicionando tarefa ${tarefaId} ao programa ${programaId}`);
-            }
-        }
-        
-        // Atualizar o programa
-        await programaRef.update({
-            tarefas_relacionadas: tarefasRelacionadas,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        console.log(`✅ Programa ${programaId} atualizado com ${tarefasRelacionadas.length} tarefa(s) relacionada(s)`);
-        
-    } catch (error) {
-        console.error('❌ Erro ao atualizar programa:', error);
-    }
-}
-
 // Função para abrir modal de visualização (sem edição)
 function abrirModalVisualizacaoAtividade(atividade) {
     //console.log(`📋 Abrindo modal de visualização para atividade: ${atividade.id}`);
@@ -173,15 +61,6 @@ function abrirModalVisualizacaoAtividade(atividade) {
     // Formatar vínculos
     const vinculosFormatados = atividade.atividadesVinculadas && atividade.atividadesVinculadas.length > 0 ?
         atividade.atividadesVinculadas.length + ' atividade(s) vinculada(s)' : 'Nenhum';
-    
-    // Formatar programa, se existir
-    let programaInfo = 'Não vinculado';
-    if (atividade.programaId && gestorAtividades) {
-        const programa = gestorAtividades.programas.find(p => p.id === atividade.programaId);
-        if (programa) {
-            programaInfo = programa.titulo;
-        }
-    }
     
     document.getElementById('modalAtividadeBody').innerHTML = `
         <div class="atividade-view">
@@ -208,8 +87,8 @@ function abrirModalVisualizacaoAtividade(atividade) {
             
             <div class="view-row">
                 <div class="view-field">
-                    <label>Programa:</label>
-                    <div class="view-value">${programaInfo}</div>
+                    <label>Criado por:</label>
+                    <div class="view-value">${atividade.criadoPor || 'Não informado'}</div>
                 </div>
                 <div class="view-field">
                     <label>Data de Criação:</label>
@@ -369,6 +248,7 @@ function fecharModalObservadores() {
         modal.remove();
     }
 }
+
 
 // Função para toggle do multi-select
 function toggleMultiSelect(selectId) {
@@ -686,28 +566,6 @@ class GestorAtividades {
         this.charts = {};
         this.atividadeEditando = null;
         this.atividadesDisponiveis = [];
-        this.programas = []; // ← ADICIONAR ESTA LINHA
-    }
-
-    async carregarProgramas() {
-        try {
-            console.log('📋 Carregando programas...');
-            const snapshot = await db.collection('programas').get();
-            this.programas = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`✅ ${this.programas.length} programas carregados`);
-            
-            // Adicione este log para ver os programas carregados
-            this.programas.forEach((programa, index) => {
-                console.log(`   ${index + 1}. ${programa.titulo} (ID: ${programa.id})`);
-            });
-            
-        } catch (error) {
-            console.error('❌ Erro ao carregar programas:', error);
-            this.programas = [];
-        }
     }
 
     async init() {
@@ -718,9 +576,6 @@ class GestorAtividades {
         
         // Carregar dados dos DOIS BANCOS
         await this.carregarDados();
-        
-        // Carregar programas ← ADICIONAR ESTA LINHA
-        await this.carregarProgramas();
         
         // Carregar atividades disponíveis para vínculos
         await this.carregarAtividadesParaVinculo();
@@ -841,27 +696,6 @@ class GestorAtividades {
         return nome;
     }
 
-    // Você pode adicionar este método para formatar o título da tarefa com programa
-    formatarTituloTarefa(tarefa, incluirGrupos = true) {
-        // Usar titulo se existir, senão nome
-        const nomeExibicao = tarefa.titulo || tarefa.nome || 'Tarefa sem nome';
-        
-        // Verificar se há programa vinculado às atividades
-        const atividadesComPrograma = tarefa.atividades?.filter(a => a.programaId) || [];
-        
-        if (atividadesComPrograma.length > 0 && incluirGrupos) {
-            // Pegar o primeiro programa encontrado (você pode ajustar esta lógica)
-            const primeiroProgramaId = atividadesComPrograma[0].programaId;
-            const programa = this.programas.find(p => p.id === primeiroProgramaId);
-            
-            if (programa) {
-                return `${programa.titulo} - ${nomeExibicao}`;
-            }
-        }
-        
-        return nomeExibicao;
-    }
-
     async verificarAutenticacao() {
         console.log('🔐 Verificando autenticação no banco de logins...');
         const usuarioLogado = localStorage.getItem('usuarioLogado');
@@ -966,6 +800,7 @@ class GestorAtividades {
         localStorage.removeItem('usuarioLogado');
         window.location.href = 'login.html';
     }
+
 
     async carregarDados() {
         console.log('📊 Carregando dados do Firebase...');
@@ -1665,11 +1500,6 @@ class GestorAtividades {
                                         <div class="item-info">
                                             <div class="item-title">
                                                 ${atividade.titulo}
-                                                ${atividade.programaId ? 
-                                                    `<span class="badge badge-programa" style="margin-left: 8px; font-size: 10px; background-color: #6f42c1;">
-                                                        <i class="fas fa-project-diagram"></i> Programa
-                                                    </span>` : ''
-                                                }
                                                 ${!tarefa.acessoCompleto && isObservador ? 
                                                     `<span class="badge badge-acesso-parcial" style="margin-left: 8px; font-size: 10px;">
                                                         <i class="fas fa-eye"></i> Observador
@@ -2030,23 +1860,12 @@ class GestorAtividades {
             : `Nova Atividade - ${titulos[tipo]}`;
         
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
-    
-        // Gerar opções de programas - VERIFIQUE SE ESTÁ GERANDO OPÇÕES
-        const programasOptions = this.programas.map(programa => {
-            return `<option value="${programa.id}">${programa.titulo}</option>`;
-        }).join('');
         
-        console.log(`📊 Programas disponíveis: ${this.programas.length} - Opções: ${programasOptions ? 'SIM' : 'NÃO'}`);
-                
-        // Gerar opções de usuários
+        // MODIFICAÇÃO AQUI: Mostrar apenas o login (username) no select
         const usuariosOptions = this.usuarios.map(user => {
+            // MOSTRAR APENAS O LOGIN (username) - não mostrar o nome
             return `<option value="${user.usuario}">${user.usuario}</option>`;
         }).join('');
-    
-        // Preparar dados para exibição
-        const programaSelecionado = atividadeExistente && atividadeExistente.programaId 
-            ? atividadeExistente.programaId 
-            : '';
         
         const formatarDataParaInput = (dataString) => {
             if (!dataString) return '';
@@ -2100,25 +1919,12 @@ class GestorAtividades {
             `;
         }
         
-        // VERIFIQUE SE O CAMPO DE PROGRAMA ESTÁ SENDO ADICIONADO AO HTML
         document.getElementById('modalAtividadeBody').innerHTML = `
             <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
-                <!-- NOVO CAMPO: Programa -->
-                <div class="form-group">
-                    <label for="programaAtividade">
-                        <i class="fas fa-project-diagram"></i> Programa (opcional)
-                        <small class="form-text">Selecione um programa para vincular esta atividade</small>
-                    </label>
-                    <select id="programaAtividade" class="form-control">
-                        <option value="">Selecione um programa</option>
-                        ${programasOptions}
-                    </select>
-                </div>
                 <div class="form-group">
                     <label for="tituloAtividade">Título *</label>
                     <input type="text" id="tituloAtividade" class="form-control" required 
-                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}"
-                           placeholder="O título será automaticamente ajustado com o programa">
+                           value="${atividadeExistente ? this.escapeHtml(atividadeExistente.titulo) : ''}">
                 </div>
                 <div class="form-group">
                     <label for="descricaoAtividade">Descrição</label>
@@ -2129,7 +1935,7 @@ class GestorAtividades {
                         <label for="responsavelAtividade">Responsável *</label>
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
-                            ${usuariosOptions}
+                            ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -2154,8 +1960,9 @@ class GestorAtividades {
                                 <span id="observadoresPreview">Nenhum observador selecionado</span>
                                 <i class="fas fa-chevron-down"></i>
                             </div>
+                            <!-- AQUI TAMBÉM: mostra apenas logins -->
                             <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
-                                ${usuariosOptions}
+                                ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
                             </select>
                         </div>
                         <small class="form-text">Clique para selecionar múltiplos observadores (Ctrl+Clique para seleção múltipla)</small>
@@ -2182,20 +1989,6 @@ class GestorAtividades {
         
         // Configurar valores após o DOM ser renderizado
         setTimeout(() => {
-            // Configurar programa selecionado
-            const selectPrograma = document.getElementById('programaAtividade');
-            console.log(`🔍 Select programa encontrado: ${selectPrograma ? 'SIM' : 'NÃO'}`);
-            
-            if (selectPrograma && programaSelecionado) {
-                selectPrograma.value = programaSelecionado;
-                console.log(`🎯 Programa selecionado: ${programaSelecionado}`);
-                
-                // Atualizar preview do título
-                atualizarPreviewTituloComPrograma();
-            } else if (selectPrograma) {
-                console.log(`ℹ️ Nenhum programa selecionado anteriormente`);
-            }
-            
             // Configurar responsável
             const selectResponsavel = document.getElementById('responsavelAtividade');
             if (selectResponsavel && atividadeExistente && atividadeExistente.responsavel) {
@@ -2218,14 +2011,14 @@ class GestorAtividades {
             // Configurar o multi-select
             configurarMultiSelectBehavior();
             
-            // Atualizar preview inicial
+            // Atualizar preview inicial - PRECISA SER AJUSTADA TAMBÉM
             setTimeout(() => {
                 const select = document.getElementById('observadorAtividade');
                 const preview = document.getElementById('observadoresPreview');
                 const previewContainer = document.querySelector('.multi-select-preview');
                 
                 if (select && preview && previewContainer) {
-                    const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
+                    const selecionados = Array.from(select.selectedOptions).map(opt => opt.text); // AQUI: opt.text já será o login
                     if (selecionados.length > 0) {
                         if (selecionados.length === 1) {
                             preview.textContent = selecionados[0];
@@ -2271,11 +2064,10 @@ async function abrirModalAtividade(tarefaId, tipo = 'execucao', atividadeExisten
 }
 
 async function salvarAtividade(tarefaId, tipo) {
-    console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
+    //console.log(`💾 Salvando atividade para tarefa: ${tarefaId}, tipo: ${tipo}`);
     
     const titulo = document.getElementById('tituloAtividade').value;
     const responsavel = document.getElementById('responsavelAtividade').value;
-    const programaId = document.getElementById('programaAtividade').value;
     
     if (!titulo || !responsavel) {
         alert('Preencha todos os campos obrigatórios');
@@ -2309,8 +2101,7 @@ async function salvarAtividade(tarefaId, tipo) {
         responsavel: responsavel,
         dataPrevista: document.getElementById('dataPrevista').value,
         prioridade: document.getElementById('prioridadeAtividade').value,
-        observadores: observadores,
-        programaId: programaId || null, // ← NOVO CAMPO
+        observadores: observadores, // Array com múltiplos observadores
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
@@ -2328,18 +2119,10 @@ async function salvarAtividade(tarefaId, tipo) {
     
     try {
         let atividadeId;
-        let programaAnteriorId = null;
         
         if (gestorAtividades && gestorAtividades.atividadeEditando) {
             // Se está editando, usar update mantendo status e statusAnterior
             atividadeId = gestorAtividades.atividadeEditando;
-
-            // 0. Buscar atividade anterior para obter o programa anterior
-            const atividadeAntigaDoc = await db.collection('atividades').doc(atividadeId).get();
-            if (atividadeAntigaDoc.exists) {
-                const atividadeAntiga = atividadeAntigaDoc.data();
-                programaAnteriorId = atividadeAntiga.programaId || null;
-            }
             
             // 1. Buscar vínculos antigos para remover
             const atividadeAntiga = await db.collection('atividades').doc(atividadeId).get();
@@ -2379,16 +2162,6 @@ async function salvarAtividade(tarefaId, tipo) {
             });
             atividadeId = docRef.id;
             //console.log(`✅ Nova atividade ${atividadeId} criada com statusAnterior: nao_iniciado`);
-        }
-
-        // ATUALIZAR PROGRAMA COM A TAREFA RELACIONADA
-        if (programaId) {
-            await atualizarProgramaComTarefa(programaId, atividadeId, false);
-        }
-
-        // SE HOUVE MUDANÇA DE PROGRAMA, REMOVER DA LISTA ANTERIOR
-        if (programaAnteriorId && programaAnteriorId !== programaId) {
-            await atualizarProgramaComTarefa(programaAnteriorId, atividadeId, true);
         }
         
         // AGORA: ADICIONAR O VÍNCULO NAS ATIVIDADES SELECIONADAS
@@ -2516,14 +2289,8 @@ async function excluirAtividade(atividadeId) {
         
         if (!confirm('Tem certeza que deseja excluir esta atividade?')) return;
         
-        // REMOVER DA LISTA DE TAREFAS DO PROGRAMA, SE EXISTIR
-        if (atividade.programaId) {
-            await atualizarProgramaComTarefa(atividade.programaId, atividadeId, true);
-        }
-        
-        // Excluir a atividade
         await db.collection('atividades').doc(atividadeId).delete();
-        console.log(`🗑️ Atividade ${atividadeId} excluída`);
+        //console.log(`🗑️ Atividade ${atividadeId} excluída`);
         alert('✅ Atividade excluída com sucesso!');
         
         if (gestorAtividades) {
@@ -2657,6 +2424,7 @@ async function alterarStatusAtividade(atividadeId, novoStatus, tituloAtividade) 
     }
 }
 
+
 // ========== INICIALIZAÇÃO ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2701,8 +2469,6 @@ window.fecharModalObservadores = fecharModalObservadores;
 window.toggleMultiSelect = toggleMultiSelect;
 window.getLabelStatus = getLabelStatus;
 window.salvarAtividade = salvarAtividade;
-window.atualizarProgramaComTarefa = atualizarProgramaComTarefa;
-window.atualizarPreviewTituloComPrograma = atualizarPreviewTituloComPrograma;
 window.fecharModalAtividade = fecharModalAtividade;
 window.manterEstadoExpansaoTarefas = manterEstadoExpansaoTarefas;
 window.restaurarEstadoExpansaoTarefas = restaurarEstadoExpansaoTarefas;
