@@ -2297,10 +2297,10 @@ function atualizarEstatisticas() {
 function atualizarListaTarefas() {
     const container = document.getElementById('lista-tarefas');
     if (!container) {
-        console.error('❌ Container de tarefas não encontrado!');
-        return;
+        console.warn('⚠️ Container de tarefas não encontrado. A página pode não ter carregado completamente.');
+        return; // Sai da função se o container não existir
     }
-    
+
     console.log('📊 Atualizando lista de tarefas...');
     console.log(`📋 Total de tarefas disponíveis: ${tarefas.length}`);
     
