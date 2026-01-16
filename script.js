@@ -1797,41 +1797,83 @@ function preencherFormulario(tarefaId) {
 
 // FUNÇÃO AUXILIAR: Extrair título sem os grupos e programa (para formulário de edição)
 function extrairTituloSemGrupos(tituloCompleto, gruposIds, programaId = null) {
-    if (!gruposIds || !Array.isArray(gruposIds) || gruposIds.length === 0) {
-        return tituloCompleto;
-    }
+    if (!tituloCompleto) return '';
     
-    const nomesGrupos = obterNomesTodosGrupos(gruposIds);
-    let nomePrograma = '';
+    const nomePrograma = programaId ? obterNomePrograma(programaId) : '';
+    const nomesGrupos = gruposIds && Array.isArray(gruposIds) && gruposIds.length > 0 ? 
+        obterNomesTodosGrupos(gruposIds) : '';
     
-    // Obter nome do programa se houver
-    if (programaId) {
-        const programaSelecionado = programas.find(p => p.id === programaId);
-        nomePrograma = programaSelecionado ? programaSelecionado.nome : '';
-    }
+    console.log('🔍 Extraindo título sem prefixos:', {
+        tituloCompleto,
+        nomePrograma,
+        nomesGrupos
+    });
     
-    // Construir prefixos possíveis
-    let prefixosParaRemover = [];
+    let tituloLimpo = tituloCompleto;
     
-    // Prefixo com programa e grupos
+    // Tentar remover todos os padrões possíveis
+    
+    // Padrão 1: "Programa - Tarefa - Grupos"
     if (nomePrograma && nomesGrupos) {
-        prefixosParaRemover.push(`${nomePrograma} - ${nomesGrupos} - `);
-    }
-    
-    // Prefixo apenas com grupos (para tarefas antigas)
-    if (nomesGrupos) {
-        prefixosParaRemover.push(`${nomesGrupos} - `);
-    }
-    
-    // Remover o prefixo mais longo que encontrar
-    for (const prefixo of prefixosParaRemover) {
-        if (tituloCompleto.startsWith(prefixo)) {
-            return tituloCompleto.substring(prefixo.length);
+        const padrao1 = `${nomePrograma} - ${nomesGrupos} - `;
+        const padrao2 = `${nomePrograma} - ${nomesGrupos} -`;
+        const padrao3 = `${nomePrograma} -  - ${nomesGrupos}`;
+        
+        if (tituloCompleto.startsWith(padrao1)) {
+            tituloLimpo = tituloCompleto.substring(padrao1.length);
+        } else if (tituloCompleto.startsWith(padrao2)) {
+            tituloLimpo = tituloCompleto.substring(padrao2.length);
+        } else if (tituloCompleto.includes(padrao3)) {
+            // Se houver espaço extra entre os traços
+            const match = tituloCompleto.match(new RegExp(`^${nomePrograma.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} - (.*?) - ${nomesGrupos.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+            if (match) tituloLimpo = match[1];
         }
     }
     
-    // Se não encontrar prefixo, retorna o título original
-    return tituloCompleto;
+    // Padrão 2: "Programa - Tarefa" (sem grupos no título)
+    if (nomePrograma && tituloLimpo === tituloCompleto) {
+        const padrao = `${nomePrograma} - `;
+        if (tituloCompleto.startsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(padrao.length);
+        }
+    }
+    
+    // Padrão 3: "Tarefa - Grupos" (apenas grupos, sem programa)
+    if (!nomePrograma && nomesGrupos && tituloLimpo === tituloCompleto) {
+        const padrao = ` - ${nomesGrupos}`;
+        if (tituloCompleto.endsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(0, tituloCompleto.length - padrao.length);
+        }
+    }
+    
+    // Padrão 4: "Grupos - Tarefa" (formato antigo - para compatibilidade)
+    if (!nomePrograma && nomesGrupos && tituloLimpo === tituloCompleto) {
+        const padrao = `${nomesGrupos} - `;
+        if (tituloCompleto.startsWith(padrao)) {
+            tituloLimpo = tituloCompleto.substring(padrao.length);
+        }
+    }
+    
+    // Se ainda não limpou, tentar remover qualquer coisa que comece com " - " ou termine com " - "
+    if (tituloLimpo === tituloCompleto) {
+        // Remover prefixos que começam com "X - "
+        const prefixMatch = tituloCompleto.match(/^([^-]+ - )(.*)$/);
+        if (prefixMatch) {
+            tituloLimpo = prefixMatch[2];
+        }
+        
+        // Remover sufixos que terminam com " - X"
+        const suffixMatch = tituloLimpo.match(/^(.*)( - [^-]+)$/);
+        if (suffixMatch) {
+            tituloLimpo = suffixMatch[1];
+        }
+    }
+    
+    // Limpar espaços extras
+    tituloLimpo = tituloLimpo.trim();
+    
+    console.log('✅ Título limpo:', tituloLimpo);
+    return tituloLimpo;
 }
 
 // FUNÇÃO: Obter nome do programa pelo ID
@@ -1950,17 +1992,21 @@ async function salvarTarefa() {
         return;
     }
     
-    // Criar título com o formato: "Nome do Programa - Nome da Tarefa - Grupos"
-    let tituloCompleto = tituloDigitado;
+    // ✅ CORREÇÃO AQUI: Criar título com a ordem sempre correta
+    let tituloCompleto = '';
     
     if (nomePrograma && nomesTodosGrupos) {
+        // 1. COM PROGRAMA E GRUPOS: "Programa - Tarefa - Grupos"
         tituloCompleto = `${nomePrograma} - ${tituloDigitado} - ${nomesTodosGrupos}`;
-    } else if (nomesTodosGrupos) {
-        // Para compatibilidade com tarefas antigas (apenas grupos)
-        tituloCompleto = `${nomesTodosGrupos} - ${tituloDigitado}`;
     } else if (nomePrograma) {
-        // Se tiver programa mas não grupos (menos comum)
+        // 2. APENAS COM PROGRAMA: "Programa - Tarefa"
         tituloCompleto = `${nomePrograma} - ${tituloDigitado}`;
+    } else if (nomesTodosGrupos) {
+        // 3. APENAS COM GRUPOS: "Tarefa - Grupos" (INVERTIDO)
+        tituloCompleto = `${tituloDigitado} - ${nomesTodosGrupos}`;
+    } else {
+        // 4. SEM PROGRAMA NEM GRUPOS (não deveria acontecer, mas previne erro)
+        tituloCompleto = tituloDigitado;
     }
     
     console.log('📝 Formatando título:', {
@@ -1988,7 +2034,7 @@ async function salvarTarefa() {
             await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
             
             // ✨ ATUALIZAR O ARRAY DE TAREFAS_RELACIONADAS NO PROGRAMA
-            if (programaId) {
+            if (programaId && programaEditando?.id !== programaId) {
                 await atualizarTarefasRelacionadasNoPrograma(programaId, editandoTarefaId);
             }
         } else {
@@ -2482,6 +2528,36 @@ function atualizarListaTarefas() {
     
     console.log('✅ Lista de tarefas renderizada!');
 }
+
+// Função para testar a formatação do título
+window.testarFormatacaoTitulo = function(programaId = '', titulo = 'Minha Tarefa', gruposIds = []) {
+    const nomePrograma = programaId ? obterNomePrograma(programaId) : '';
+    const nomesGrupos = gruposIds.length > 0 ? obterNomesTodosGrupos(gruposIds) : '';
+    
+    console.log('🧪 TESTE DE FORMATAÇÃO:');
+    console.log('=====================');
+    console.log('Programa:', nomePrograma);
+    console.log('Título:', titulo);
+    console.log('Grupos:', nomesGrupos);
+    
+    let tituloFormatado = '';
+    
+    if (nomePrograma && nomesGrupos) {
+        tituloFormatado = `${nomePrograma} - ${titulo} - ${nomesGrupos}`;
+        console.log('📝 Formato 1 (Programa + Tarefa + Grupos):', tituloFormatado);
+    } else if (nomePrograma) {
+        tituloFormatado = `${nomePrograma} - ${titulo}`;
+        console.log('📝 Formato 2 (Programa + Tarefa):', tituloFormatado);
+    } else if (nomesGrupos) {
+        tituloFormatado = `${titulo} - ${nomesGrupos}`;
+        console.log('📝 Formato 3 (Tarefa + Grupos):', tituloFormatado);
+    } else {
+        tituloFormatado = titulo;
+        console.log('📝 Formato 4 (Apenas Tarefa):', tituloFormatado);
+    }
+    
+    return tituloFormatado;
+};
 
 // Função para debug dos programas
 window.debugProgramas = function() {
