@@ -409,6 +409,9 @@ function criarCardPrograma(programa) {
                 <button class="btn-icon" title="Editar" onclick="editarPrograma('${programa.id}')">
                     <i class="fas fa-edit"></i>
                 </button>
+                <button class="btn-icon btn-icon-excluir" title="Excluir" onclick="excluirPrograma('${programa.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </div>
         <div class="program-content">
@@ -444,6 +447,39 @@ function criarCardPrograma(programa) {
     `;
     
     return card;
+}
+
+// Função para excluir programa
+async function excluirPrograma(programaId) {
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Verificar se tem tarefas relacionadas
+        const tarefasPrograma = tarefasPorPrograma[programaId] || [];
+        
+        let mensagemConfirmacao = `Tem certeza que deseja excluir o programa "${programa.titulo}"?`;
+        
+        if (tarefasPrograma.length > 0) {
+            mensagemConfirmacao += `\n\nEste programa tem ${tarefasPrograma.length} tarefa(s) relacionada(s). A exclusão NÃO removerá as tarefas, apenas o vínculo com o programa.`;
+        }
+        
+        if (!confirm(mensagemConfirmacao)) {
+            return;
+        }
+        
+        // Excluir do Firebase
+        await programasCollection.doc(programaId).delete();
+        
+        // Mostrar mensagem de sucesso
+        mostrarMensagem('Programa excluído com sucesso!', 'success');
+        
+        // O listener do Firebase vai atualizar automaticamente a lista
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir programa:', error);
+        mostrarMensagem('Erro ao excluir programa: ' + error.message, 'error');
+    }
 }
 
 // MODAL DE PROGRAMA
@@ -782,6 +818,17 @@ async function verDetalhesPrograma(programaId) {
             setTimeout(() => editarPrograma(programaId), 300);
         };
     }
+
+    // Configurar botão de excluir
+    const btnExcluir = document.getElementById('btnExcluirPrograma');
+    if (btnExcluir) {
+        btnExcluir.onclick = () => {
+            if (confirm(`Tem certeza que deseja excluir o programa "${programa.titulo}"?`)) {
+                excluirPrograma(programaId);
+                fecharModalDetalhesPrograma();
+            }
+        };
+    }
     
     // Listar tarefas
     const containerTarefas = document.getElementById('lista-tarefas-detalhes');
@@ -945,6 +992,7 @@ window.abrirModalPrograma = abrirModalPrograma;
 window.fecharModalPrograma = fecharModalPrograma;
 window.salvarPrograma = salvarPrograma;
 window.editarPrograma = editarPrograma;
+window.excluirPrograma = excluirPrograma; // ADICIONE ESTA LINHA
 window.verDetalhesPrograma = verDetalhesPrograma;
 window.fecharModalDetalhesPrograma = fecharModalDetalhesPrograma;
 window.filtrarTarefasSelecao = filtrarTarefasSelecao;
