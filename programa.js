@@ -375,19 +375,20 @@ function criarCardPrograma(programa) {
     
     const progresso = totalTarefas > 0 ? (tarefasConcluidas / totalTarefas) * 100 : 0;
     
-    // Determinar status do programa baseado nas tarefas
-    let statusClass = 'status-planejamento';
-    let statusText = 'Planejamento';
+    // ✅ CORREÇÃO: Determinar status do programa baseado nas tarefas
+    // APENAS 2 STATUS: "Concluído" ou "Em Andamento"
+    let statusHTML = '';
     
     if (totalTarefas > 0) {
         if (tarefasConcluidas === totalTarefas) {
-            statusClass = 'status-concluido';
-            statusText = 'Concluído';
+            // TODAS as tarefas concluídas = Programa CONCLUÍDO
+            statusHTML = '<span class="program-status status-concluido">Concluído</span>';
         } else {
-            statusClass = 'status-ativo';
-            statusText = 'Em Andamento';
+            // Tem tarefas, mas nem todas concluídas = Programa EM ANDAMENTO
+            statusHTML = '<span class="program-status status-ativo">Em Andamento</span>';
         }
     }
+    // Se totalTarefas === 0, NÃO MOSTRA STATUS (sem HTML)
     
     // Formatar data
     const dataCriacao = programa.dataCriacao ? 
@@ -400,7 +401,7 @@ function criarCardPrograma(programa) {
             </div>
             <div class="program-title">
                 <h3>${programa.titulo || 'Programa sem título'}</h3>
-                <span class="program-status ${statusClass}">${statusText}</span>
+                ${statusHTML}
             </div>
             <div class="program-actions">
                 <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
