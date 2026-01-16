@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workyz - Programas (Fluxo de Trabalho)</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Tela de Carregamento -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
+        <div style="text-align: center;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
+            <p id="loadingText">Verificando autenticação...</p>
+        </div>
+    </div>
+
+    <div class="container" id="mainContent" style="display: none;">
+        <!-- CABEÇALHO PROFISSIONAL -->
+        <header class="home-header">
+            <div class="header-full">
+                <!-- Logo à esquerda -->
+                <div class="logo-container">
+                    <img src="images/logo workyz.png" alt="Work Manager" class="site-logo">
+                </div>
+                
+                <!-- Todos os itens organizados à direita -->
+                <div class="header-right">
+                    <!-- Status e informações do usuário -->
+                    <div class="header-status">
+                        <!-- Botões de navegação - PROGRAMA ESTÁ ATIVO -->
+                        <div class="header-actions">
+                            <button class="btn-header active" onclick="window.location.href='programas.html'">
+                                <i class="fas fa-project-diagram"></i> Programas
+                            </button>
+                            <button class="btn-header" onclick="window.location.href='index.html'">
+                                <i class="fas fa-tasks"></i> Tarefas
+                            </button>
+                            <button class="btn-header" onclick="window.location.href='dashboard.html'">
+                                <i class="fas fa-chart-line"></i> Atividades
+                            </button>
+                            <button class="btn-header" onclick="window.location.href='workmanager.html'">
+                                <i class="fas fa-users"></i> Grupos
+                            </button>
+                            <button class="btn-header" onclick="window.location.href='chat.html'">
+                                <i class="fas fa-comment-dots"></i> Chat
+                            </button>
+                        </div>
+                        
+                        <!-- Status de conexão -->
+                        <span class="status-sync" id="status-sincronizacao">
+                            <i class="fas fa-check-circle"></i> Conectado
+                        </span>
+                        
+                        <!-- Informações do usuário logado -->
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="user-details">
+                                <span id="userName" class="username">thiago.barbosa</span>
+                                <button class="btn-logout" onclick="logout()" title="Sair">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal dos Programas -->
+        <div class="programs-container">
+            <!-- Cabeçalho da Página -->
+            <div class="page-header">
+                <h1><i class="fas fa-project-diagram"></i> Programas (Fluxos de Trabalho)</h1>
+                <p class="page-description">Gerencie programas de trabalho, fluxos e processos organizados</p>
+            </div>
+
+            <!-- Estatísticas de Programas -->
+            <div class="stats-grid">
+                <div class="stat-card program-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Programas Ativos</h3>
+                        <div class="number" id="programas-ativos">0</div>
+                    </div>
+                </div>
+                <div class="stat-card program-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Tarefas em Programas</h3>
+                        <div class="number" id="tarefas-programas">0</div>
+                    </div>
+                </div>
+                <div class="stat-card program-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Times Envolvidos</h3>
+                        <div class="number" id="times-programas">0</div>
+                    </div>
+                </div>
+                <div class="stat-card program-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Em Andamento</h3>
+                        <div class="number" id="programas-andamento">0</div>
+                    </div>
+                </div>
+                <div class="stat-card program-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Concluídos</h3>
+                        <div class="number" id="programas-concluidos">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles e Filtros -->
+            <div class="programs-controls">
+                <div class="controls-left">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="program-search" placeholder="Buscar programas...">
+                    </div>
+                    <select id="filter-program-status" class="filter-select">
+                        <option value="">Todos os Status</option>
+                        <option value="planejamento">Em Planejamento</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="pausado">Pausado</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                    <select id="filter-program-category" class="filter-select">
+                        <option value="">Todas as Categorias</option>
+                        <option value="operacional">Operacional</option>
+                        <option value="estrategico">Estratégico</option>
+                        <option value="melhoria">Melhoria Contínua</option>
+                        <option value="projeto">Projeto Especial</option>
+                    </select>
+                </div>
+                <div class="controls-right">
+                    <button class="btn-primary" id="btn-novo-programa">
+                        <i class="fas fa-plus"></i> Novo Programa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid de Programas -->
+            <div class="programs-grid" id="programs-grid">
+                <!-- Programa de Exemplo -->
+                <div class="program-card">
+                    <div class="program-header">
+                        <div class="program-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="program-title">
+                            <h3>Dashboard de Desempenho</h3>
+                            <span class="program-status status-ativo">Ativo</span>
+                        </div>
+                        <div class="program-actions">
+                            <button class="btn-icon" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" title="Configurar">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="program-content">
+                        <p class="program-description">
+                            Desenvolvimento e implementação de dashboard para monitoramento de KPIs e métricas de desempenho.
+                        </p>
+                        <div class="program-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Jan 2024 - Jun 2024</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-users"></i>
+                                <span>3 Times</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tasks"></i>
+                                <span>24 Tarefas</span>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Progresso</span>
+                                <span>65%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 65%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outro Programa -->
+                <div class="program-card">
+                    <div class="program-header">
+                        <div class="program-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="program-title">
+                            <h3>Automação de Processos</h3>
+                            <span class="program-status status-planejamento">Planejamento</span>
+                        </div>
+                        <div class="program-actions">
+                            <button class="btn-icon" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" title="Configurar">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="program-content">
+                        <p class="program-description">
+                            Implementação de automação para processos manuais recorrentes.
+                        </p>
+                        <div class="program-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Mar 2024 - Dez 2024</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-users"></i>
+                                <span>2 Times</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tasks"></i>
+                                <span>18 Tarefas</span>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Progresso</span>
+                                <span>15%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 15%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Programa Concluído -->
+                <div class="program-card">
+                    <div class="program-header">
+                        <div class="program-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="program-title">
+                            <h3>Segurança de Dados</h3>
+                            <span class="program-status status-concluido">Concluído</span>
+                        </div>
+                        <div class="program-actions">
+                            <button class="btn-icon" title="Ver Relatório">
+                                <i class="fas fa-file-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="program-content">
+                        <p class="program-description">
+                            Implementação de políticas e ferramentas de segurança de dados.
+                        </p>
+                        <div class="program-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Set 2023 - Jan 2024</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-users"></i>
+                                <span>4 Times</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-tasks"></i>
+                                <span>32 Tarefas</span>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Progresso</span>
+                                <span>100%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mensagem de estado vazio -->
+            <div class="empty-state" id="empty-programs" style="display: none;">
+                <i class="fas fa-project-diagram"></i>
+                <h3>Nenhum programa encontrado</h3>
+                <p>Crie seu primeiro programa para organizar fluxos de trabalho</p>
+                <button class="btn-primary" id="btn-criar-primeiro-programa">
+                    <i class="fas fa-plus"></i> Criar Primeiro Programa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Novo Programa (será implementado posteriormente) -->
+    <div id="modalPrograma" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Programa</h2>
+                <button class="close" onclick="fecharModalPrograma()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Conteúdo do modal será implementado posteriormente -->
+                <p>Modal para criação de novos programas será implementado em breve.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModalPrograma()">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarPrograma()">Salvar Programa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        // Script específico para programas.html
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar autenticação (mesmo código do index)
+            const loadingScreen = document.getElementById('loadingScreen');
+            const mainContent = document.getElementById('mainContent');
+            
+            setTimeout(() => {
+                // Simulando verificação de autenticação
+                loadingScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+            }, 1000);
+
+            // Botões de ação
+            document.getElementById('btn-novo-programa')?.addEventListener('click', function() {
+                document.getElementById('modalPrograma').style.display = 'block';
+            });
+
+            document.getElementById('btn-criar-primeiro-programa')?.addEventListener('click', function() {
+                document.getElementById('modalPrograma').style.display = 'block';
+            });
+        });
+
+        function fecharModalPrograma() {
+            document.getElementById('modalPrograma').style.display = 'none';
+        }
+
+        function salvarPrograma() {
+            // Implementar lógica de salvamento
+            alert('Funcionalidade de salvar programa será implementada em breve.');
+            fecharModalPrograma();
+        }
+
+        // Função logout 
+        function logout() {
+            if (confirm('Deseja realmente sair do sistema?')) {
+                // Implementar lógica de logout do Firebase
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>
