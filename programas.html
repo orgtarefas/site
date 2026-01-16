@@ -188,29 +188,16 @@
                             <textarea id="programaDescricao" placeholder="Descreva os objetivos deste programa" rows="3"></textarea>
                         </div>
                         
-                        <!-- REMOVIDO: Status, Data Início e Data Fim -->
-                        
-                        <!-- Seção para relacionar tarefas -->
-                        <div class="form-group full-width">
-                            <label for="selecionarTarefas"><i class="fas fa-tasks"></i> Relacionar Tarefas Existentes</label>
-                            <div class="tarefas-container">
-                                <div class="tarefas-pesquisa">
-                                    <input type="text" id="pesquisaTarefas" placeholder="Buscar tarefas..." 
-                                           onkeyup="filtrarTarefasSelecao(this.value)">
-                                    <small>Pesquise e selecione tarefas para adicionar ao programa</small>
+                        <!-- MANTIDA APENAS A VISUALIZAÇÃO DAS TAREFAS -->
+                        <div class="form-group full-width" id="tarefas-exibicao-container" style="display: none;">
+                            <label><i class="fas fa-tasks"></i> Tarefas Vinculadas (apenas visualização)</label>
+                            <div class="tarefas-visualizacao">
+                                <div id="tarefas-visualizacao-lista">
+                                    <!-- Tarefas vinculadas aparecerão aqui -->
                                 </div>
-                                <div class="tarefas-lista" id="lista-tarefas-selecao">
-                                    <!-- Tarefas serão carregadas aqui -->
-                                    <div class="loading-tarefas">
-                                        <i class="fas fa-spinner fa-spin"></i> Carregando tarefas...
-                                    </div>
-                                </div>
-                                <div class="tarefas-selecionadas">
-                                    <h4>Tarefas Selecionadas:</h4>
-                                    <div id="tarefas-selecionadas-container">
-                                        <!-- Tarefas selecionadas aparecerão aqui -->
-                                    </div>
-                                </div>
+                                <small class="form-help">
+                                    Para adicionar ou remover tarefas, utilize a tela de Tarefas (ícone no menu).
+                                </small>
                             </div>
                         </div>
                     </div>
