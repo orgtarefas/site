@@ -8,6 +8,7 @@ let grupos = [];
 let atividadesPorTarefa = {};
 let editandoTarefaId = null;
 let modoEdicao = false;
+let editandoProgramaId = null;
 
 // Estado global dos alertas
 let alertasObservador = [];
@@ -1761,10 +1762,8 @@ function preencherFormulario(tarefaId) {
     
     // Preencher programa
     const selectProgramas = document.getElementById('tarefaPrograma');
-    if (selectProgramas && tarefa.programaId) {
-        selectProgramas.value = tarefa.programaId;
-    } else if (selectProgramas) {
-        selectProgramas.value = ''; // Resetar se não houver programa
+    if (selectProgramas) {
+        selectProgramas.value = tarefa.programaId || '';
     }
     
     // Preencher grupos (múltipla seleção)
@@ -1784,6 +1783,10 @@ function preencherFormulario(tarefaId) {
             });
         }
     }
+    
+    // Armazenar programa atual para verificar mudanças
+    editandoTarefaId = tarefaId;
+    editandoProgramaId = tarefa.programaId; // ← Adicione esta linha
     
     console.log('📝 Formulário preenchido:', {
         tituloOriginal: tituloOriginal,
@@ -1927,9 +1930,11 @@ function limparFormulario() {
     }
 }
 
-// FUNÇÃO: Atualizar array de tarefas_relacionadas no programa
+// Função para atualizar array de tarefas_relacionadas no programa (OPCIONAL)
 async function atualizarTarefasRelacionadasNoPrograma(programaId, tarefaId) {
     try {
+        if (!programaId) return; // Se não tem programa, não faz nada
+        
         const programaRef = db.collection("programas").doc(programaId);
         const programaDoc = await programaRef.get();
         
@@ -1958,18 +1963,13 @@ async function atualizarTarefasRelacionadasNoPrograma(programaId, tarefaId) {
     }
 }
 
-// CRUD Operations
+
 async function salvarTarefa() {
     console.log('💾 Salvando tarefa...');
     
     // Obter programa selecionado
     const programaSelect = document.getElementById('tarefaPrograma');
-    const programaId = programaSelect ? programaSelect.value : '';
-    
-    // Verificar se programa existe na lista carregada
-    if (programaId && !programas.find(p => p.id === programaId)) {
-        console.warn('⚠️ Programa selecionado não encontrado na lista:', programaId);
-    }
+    const novoProgramaId = programaSelect ? programaSelect.value : '';
     
     // Obter grupos selecionados
     const gruposSelect = document.getElementById('tarefaGrupos');
@@ -1983,7 +1983,7 @@ async function salvarTarefa() {
     }
     
     // Obter nomes dos elementos
-    const nomePrograma = obterNomePrograma(programaId);
+    const nomePrograma = obterNomePrograma(novoProgramaId);
     const nomesTodosGrupos = obterNomesTodosGrupos(gruposSelecionados);
     const tituloDigitado = document.getElementById('tarefaTitulo').value.trim();
     
@@ -1992,7 +1992,7 @@ async function salvarTarefa() {
         return;
     }
     
-    // ✅ CORREÇÃO AQUI: Criar título com a ordem sempre correta
+    // ✅ Criar título com a ordem sempre correta
     let tituloCompleto = '';
     
     if (nomePrograma && nomesTodosGrupos) {
@@ -2023,26 +2023,40 @@ async function salvarTarefa() {
         prioridade: document.getElementById('tarefaPrioridade').value,
         dataInicio: document.getElementById('tarefaDataInicio').value || null,
         dataFim: document.getElementById('tarefaDataFim').value,
-        programaId: programaId || null, // Campo do programa
+        programaId: novoProgramaId || null, // Campo do programa
         gruposAcesso: gruposSelecionados,
         dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
     };
     
     try {
+        let tarefaId = editandoTarefaId;
+        
         if (modoEdicao && editandoTarefaId) {
-            // ✏️ Editando tarefa - NÃO atualize o status
-            await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
+            // ✏️ Editando tarefa existente
             
-            // ✨ ATUALIZAR O ARRAY DE TAREFAS_RELACIONADAS NO PROGRAMA
-            if (programaId && programaEditando?.id !== programaId) {
-                await atualizarTarefasRelacionadasNoPrograma(programaId, editandoTarefaId);
+            // ✅ 1. Se mudou de programa, remover do programa antigo
+            if (editandoProgramaId && editandoProgramaId !== novoProgramaId) {
+                console.log(`🔄 Mudando tarefa ${editandoTarefaId} do programa ${editandoProgramaId} para ${novoProgramaId}`);
+                await removerTarefaDePrograma(editandoProgramaId, editandoTarefaId);
             }
+            
+            // ✅ 2. Se removeu o programa, remover do programa antigo
+            if (editandoProgramaId && !novoProgramaId) {
+                console.log(`🔄 Removendo tarefa ${editandoTarefaId} do programa ${editandoProgramaId}`);
+                await removerTarefaDePrograma(editandoProgramaId, editandoTarefaId);
+            }
+            
+            // 3. Atualizar a tarefa no Firestore
+            await db.collection("tarefas").doc(editandoTarefaId).update(tarefa);
+            tarefaId = editandoTarefaId;
+            
+            console.log(`✅ Tarefa ${editandoTarefaId} atualizada`);
+            
         } else {
             // 🆕 Criando nova tarefa
             const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
             
             // Para nova tarefa, pode definir como "nao_iniciado" inicialmente
-            // Será atualizado quando tiver atividades
             const novaTarefa = {
                 ...tarefa,
                 status: 'nao_iniciado', // Status inicial
@@ -2051,21 +2065,30 @@ async function salvarTarefa() {
             };
             
             const tarefaRef = await db.collection("tarefas").add(novaTarefa);
-            const novaTarefaId = tarefaRef.id;
+            tarefaId = tarefaRef.id;
             
-            // ✨ ATUALIZAR O ARRAY DE TAREFAS_RELACIONADAS NO PROGRAMA
-            if (programaId) {
-                await atualizarTarefasRelacionadasNoPrograma(programaId, novaTarefaId);
-            }
+            console.log(`✅ Nova tarefa criada: ${tarefaId}`);
         }
         
+        // ✅ 4. Se tem um programa novo, adicionar ao array de tarefas_relacionadas
+        if (novoProgramaId && tarefaId) {
+            console.log(`🔄 Adicionando tarefa ${tarefaId} ao programa ${novoProgramaId}`);
+            await atualizarTarefasRelacionadasNoPrograma(novoProgramaId, tarefaId);
+        }
+        
+        // 5. Limpar estados de edição
+        editandoProgramaId = null;
+        
+        // 6. Fechar modal e mostrar mensagem
         fecharModalTarefa();
         mostrarNotificacao(modoEdicao ? 'Tarefa atualizada com sucesso!' : 'Tarefa criada com sucesso!', 'success');
+        
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa:', error);
         mostrarNotificacao('Erro ao salvar tarefa: ' + error.message, 'error');
     }
 }
+
 
 async function excluirTarefa(tarefaId) {
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
@@ -2087,19 +2110,29 @@ async function excluirTarefa(tarefaId) {
     }
 }
 
-// FUNÇÃO: Remover tarefa do array de tarefas_relacionadas do programa
+// Função para remover tarefa do array de tarefas_relacionadas do programa
 async function removerTarefaDePrograma(programaId, tarefaId) {
     try {
+        if (!programaId) return; // Se não tem programa, não faz nada
+        
+        console.log(`🔄 Removendo tarefa ${tarefaId} do programa ${programaId}`);
+        
         const programaRef = db.collection("programas").doc(programaId);
         const programaDoc = await programaRef.get();
         
-        if (programaDoc.exists) {
-            const programaData = programaDoc.data();
-            const tarefasRelacionadas = programaData.tarefas_relacionadas || [];
-            
-            // Filtrar para remover a tarefaId
-            const novasTarefasRelacionadas = tarefasRelacionadas.filter(id => id !== tarefaId);
-            
+        if (!programaDoc.exists) {
+            console.warn('⚠️ Programa não encontrado:', programaId);
+            return;
+        }
+        
+        const programaData = programaDoc.data();
+        let tarefasRelacionadas = programaData.tarefas_relacionadas || [];
+        
+        // Filtrar para remover a tarefaId
+        const novasTarefasRelacionadas = tarefasRelacionadas.filter(id => id !== tarefaId);
+        
+        // Se a lista mudou, atualizar
+        if (tarefasRelacionadas.length !== novasTarefasRelacionadas.length) {
             await programaRef.update({
                 tarefas_relacionadas: novasTarefasRelacionadas,
                 dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
@@ -2107,6 +2140,7 @@ async function removerTarefaDePrograma(programaId, tarefaId) {
             
             console.log(`✅ Tarefa ${tarefaId} removida das tarefas_relacionadas do programa ${programaId}`);
         }
+        
     } catch (error) {
         console.error('❌ Erro ao remover tarefa do programa:', error);
     }
