@@ -1153,14 +1153,6 @@ async function verificarAlertasObservador(usuarioAtual) {
         
         // Atualizar interface
         atualizarContadoresAlertas();
-
-        // aqui1
-        // Se houver novos alertas, mostrar notificação
-        //if (alertasObservador.length > 0) {
-        //    setTimeout(() => {
-        //        mostrarNotificacaoRapida(`${alertasObservador.length} atividade(s) tiveram mudança de status`);
-        //    }, 1000);
-        //}
         
     } catch (error) {
         console.error('❌ Erro em alertas de observador:', error);
