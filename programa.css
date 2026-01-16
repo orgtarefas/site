@@ -126,8 +126,491 @@
     font-size: 16px;
 }
 
-.t
+/* Estilos para o modal de seleção de tarefas */
+.tarefas-container {
+    margin-top: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
 
+.tarefas-pesquisa {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+}
+
+.tarefas-pesquisa input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.tarefas-lista {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.tarefa-item-selecao {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background-color: white;
+    transition: all 0.2s;
+}
+
+.tarefa-item-selecao:hover {
+    background-color: #f8f9fa;
+    border-color: #0078d4;
+}
+
+.tarefa-info {
+    flex: 1;
+    margin-right: 15px;
+}
+
+.tarefa-titulo {
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.tarefa-detalhes {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.tarefa-detalhes small {
+    color: #666;
+    font-size: 12px;
+}
+
+.tarefa-detalhes .warning {
+    color: #e74c3c;
+    background-color: #fdeaea;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.btn-add-tarefa {
+    padding: 8px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.2s;
+}
+
+.btn-add-tarefa:hover {
+    background-color: #45a049;
+}
+
+.btn-add-tarefa:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.tarefas-selecionadas {
+    padding: 15px;
+    border-top: 1px solid #ddd;
+    background-color: #f8f9fa;
+}
+
+.tarefas-selecionadas h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 16px;
+}
+
+.tarefa-selecionada-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background-color: white;
+    border: 1px solid #e3e3e3;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.tarefa-selecionada-info {
+    flex: 1;
+}
+
+.tarefa-selecionada-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.tarefa-selecionada-detalhes {
+    margin-top: 5px;
+}
+
+.btn-remover-tarefa {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    padding: 5px;
+    font-size: 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.btn-remover-tarefa:hover {
+    opacity: 1;
+}
+
+.loading-tarefas {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+.no-tarefas {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+/* Estilos para tarefas nos cards de programa */
+.program-tarefas-lista {
+    margin: 15px 0;
+}
+
+.tarefas-lista-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #555;
+}
+
+.tarefas-lista-items {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.tarefa-lista-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tarefa-lista-item:hover {
+    background-color: #f0f7ff;
+    border-color: #0078d4;
+    transform: translateX(5px);
+}
+
+.tarefa-lista-item.concluida {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.tarefa-lista-item.concluida:hover {
+    background-color: #e9ecef;
+}
+
+.tarefa-item-numero {
+    width: 24px;
+    height: 24px;
+    background-color: #e3e3e3;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: #666;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.tarefa-item-info {
+    flex: 1;
+}
+
+.tarefa-item-titulo {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.tarefa-item-detalhes {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.tarefa-item-action {
+    color: #0078d4;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.tarefa-lista-item:hover .tarefa-item-action {
+    opacity: 1;
+}
+
+.tarefas-lista-footer {
+    text-align: center;
+    padding: 8px;
+    color: #666;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.program-sem-tarefas {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    color: #666;
+    font-size: 13px;
+    margin: 15px 0;
+}
+
+/* Estilos para o modal de detalhes */
+.modal-wide .modal-content {
+    max-width: 900px;
+}
+
+.programa-detalhes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.detalhes-info h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.detalhes-info .descricao {
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.detalhes-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #555;
+    font-size: 14px;
+}
+
+.meta-item i {
+    color: #0078d4;
+}
+
+.progress-container {
+    margin-top: 20px;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #45a049);
+    transition: width 0.5s ease;
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+}
+
+.detalhes-tarefas {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    height: fit-content;
+}
+
+.tarefas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.tarefas-header h4 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #333;
+}
+
+.tarefas-summary {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.tarefas-lista-detalhes {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tarefa-detalhe-item {
+    padding: 15px;
+    background-color: white;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.tarefa-detalhe-item:hover {
+    border-color: #0078d4;
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.1);
+}
+
+.tarefa-detalhe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.tarefa-detalhe-titulo {
+    font-weight: 500;
+    color: #333;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tarefa-detalhe-status {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.tarefa-detalhe-descricao {
+    color: #666;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.tarefa-detalhe-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #777;
+}
+
+.tarefa-detalhe-meta small {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .programa-detalhes-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .tarefa-item-selecao {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .tarefa-detalhe-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .tarefa-detalhe-status {
+        width: 100%;
+    }
+}
+
+/* Animações para notificações */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
 .loading-content {
     text-align: center;
 }
