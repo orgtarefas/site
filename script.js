@@ -292,30 +292,40 @@ function criarEstatisticasClicaveis() {
     ];
     
     estatisticas.forEach(estatistica => {
-        const card = document.querySelector(`#${estatistica.id}`).closest('.stat-card');
-        if (card) {
-            // Adicionar cursor pointer
-            card.style.cursor = 'pointer';
-            
-            // Adicionar efeito hover simples
-            card.addEventListener('mouseenter', function() {
-                this.style.opacity = '0.9';
-                this.style.transform = 'translateY(-2px)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.opacity = '1';
-                this.style.transform = 'translateY(0)';
-            });
-            
-            // Adicionar evento de clique DIRETO
-            card.addEventListener('click', function() {
-                aplicarFiltroStatus(estatistica.status);
-            });
+        // PRIMEIRO: Verificar se o elemento existe
+        const elemento = document.getElementById(estatistica.id);
+        if (!elemento) {
+            console.warn(`⚠️ Elemento #${estatistica.id} não encontrado no DOM`);
+            return; // Pular para a próxima estatística
         }
+        
+        // SEGUNDO: Tentar encontrar o .stat-card pai
+        const card = elemento.closest('.stat-card');
+        if (!card) {
+            console.warn(`⚠️ Não encontrou .stat-card pai para #${estatistica.id}`);
+            return;
+        }
+        
+        // Adicionar cursor pointer
+        card.style.cursor = 'pointer';
+        
+        // Adicionar efeito hover simples
+        card.addEventListener('mouseenter', function() {
+            this.style.opacity = '0.9';
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.opacity = '1';
+            this.style.transform = 'translateY(0)';
+        });
+        
+        // Adicionar evento de clique DIRETO
+        card.addEventListener('click', function() {
+            aplicarFiltroStatus(estatistica.status);
+        });
     });
 }
-
 // Função para aplicar filtro por status (SEM NOTIFICAÇÃO)
 function aplicarFiltroStatus(status) {
     // Atualizar o filtro de status no select
