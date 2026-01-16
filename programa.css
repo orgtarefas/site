@@ -174,21 +174,21 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 24px;
+    padding: 10px 20px;
     background: linear-gradient(135deg, #0078d4, #00b4ff);
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
 }
 
 #btn-novo-programa:hover {
+    background: linear-gradient(135deg, #005a9e, #0095e0);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 120, 212, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
 }
 
 /* Grid de programas */
@@ -301,33 +301,81 @@
 
 .program-actions {
     display: flex;
-    gap: 8px;
-    flex-shrink: 0;
+    gap: 6px;
 }
 
 .btn-icon {
-    background: none;
-    border: 1px solid #e0e0e0;
+    background: #0078d4;
+    border: 1px solid #0078d4;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #666;
+    color: white;
     transition: all 0.2s;
-    background: white;
+    font-size: 14px;
 }
 
 .btn-icon:hover {
-    background: #f5f5f5;
-    color: #0078d4;
-    border-color: #0078d4;
+    background: #005a9e;
+    border-color: #005a9e;
+    transform: translateY(-1px);
+}
+
+.btn-icon i {
+    font-size: 16px;
 }
 
 .program-content {
     margin-top: 15px;
+}
+
+.btn-icon-excluir {
+    background: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+/* Estilos para o modal footer */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #e0e0e0;
+    background: #f9f9f9;
+    border-radius: 0 0 10px 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0078d4, #00b4ff);
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #005a9e, #0095e0);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 120, 212, 0.2);
+}
+
+.btn-icon-excluir:hover {
+    background: #c82333;
+    border-color: #c82333;
 }
 
 .program-description {
