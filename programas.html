@@ -5,18 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workyz - Programas (Fluxo de Trabalho)</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="programa.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <!-- Tela de Carregamento -->
-    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; justify-content: center; align-items: center; z-index: 9999;">
-        <div style="text-align: center;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #0078d4; margin-bottom: 20px;"></i>
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin loading-icon"></i>
             <p id="loadingText">Verificando autenticação...</p>
         </div>
     </div>
 
-    <div class="container" id="mainContent" style="display: none;">
+    <div class="container" id="mainContent">
         <!-- CABEÇALHO PROFISSIONAL -->
         <header class="home-header">
             <div class="header-full">
@@ -158,7 +159,7 @@
 
             <!-- Grid de Programas -->
             <div class="programs-grid" id="programs-grid">
-                <!-- Programa de Exemplo -->
+                <!-- Programa de Exemplo 1 -->
                 <div class="program-card">
                     <div class="program-header">
                         <div class="program-icon">
@@ -169,10 +170,10 @@
                             <span class="program-status status-ativo">Ativo</span>
                         </div>
                         <div class="program-actions">
-                            <button class="btn-icon" title="Editar">
+                            <button class="btn-icon" title="Editar" onclick="editarPrograma(1)">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn-icon" title="Configurar">
+                            <button class="btn-icon" title="Configurar" onclick="configurarPrograma(1)">
                                 <i class="fas fa-cog"></i>
                             </button>
                         </div>
@@ -207,7 +208,7 @@
                     </div>
                 </div>
 
-                <!-- Outro Programa -->
+                <!-- Programa de Exemplo 2 -->
                 <div class="program-card">
                     <div class="program-header">
                         <div class="program-icon">
@@ -218,10 +219,10 @@
                             <span class="program-status status-planejamento">Planejamento</span>
                         </div>
                         <div class="program-actions">
-                            <button class="btn-icon" title="Editar">
+                            <button class="btn-icon" title="Editar" onclick="editarPrograma(2)">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn-icon" title="Configurar">
+                            <button class="btn-icon" title="Configurar" onclick="configurarPrograma(2)">
                                 <i class="fas fa-cog"></i>
                             </button>
                         </div>
@@ -256,7 +257,7 @@
                     </div>
                 </div>
 
-                <!-- Programa Concluído -->
+                <!-- Programa de Exemplo 3 -->
                 <div class="program-card">
                     <div class="program-header">
                         <div class="program-icon">
@@ -267,7 +268,7 @@
                             <span class="program-status status-concluido">Concluído</span>
                         </div>
                         <div class="program-actions">
-                            <button class="btn-icon" title="Ver Relatório">
+                            <button class="btn-icon" title="Ver Relatório" onclick="verRelatorio(3)">
                                 <i class="fas fa-file-alt"></i>
                             </button>
                         </div>
@@ -304,7 +305,7 @@
             </div>
 
             <!-- Mensagem de estado vazio -->
-            <div class="empty-state" id="empty-programs" style="display: none;">
+            <div class="empty-state" id="empty-programs">
                 <i class="fas fa-project-diagram"></i>
                 <h3>Nenhum programa encontrado</h3>
                 <p>Crie seu primeiro programa para organizar fluxos de trabalho</p>
@@ -315,20 +316,73 @@
         </div>
     </div>
 
-    <!-- Modal de Novo Programa (será implementado posteriormente) -->
-    <div id="modalPrograma" class="modal" style="display: none;">
+    <!-- Modal de Novo Programa -->
+    <div id="modalPrograma" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Novo Programa</h2>
+                <h2 id="modalProgramaTitle">Novo Programa</h2>
                 <button class="close" onclick="fecharModalPrograma()">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Conteúdo do modal será implementado posteriormente -->
-                <p>Modal para criação de novos programas será implementado em breve.</p>
+                <form id="formPrograma">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="programaNome">Nome do Programa *</label>
+                            <input type="text" id="programaNome" required placeholder="Ex: Dashboard de Desempenho">
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="programaDescricao">Descrição</label>
+                            <textarea id="programaDescricao" placeholder="Descreva os objetivos e escopo deste programa"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="programaCategoria"><i class="fas fa-tag"></i> Categoria *</label>
+                            <select id="programaCategoria" required>
+                                <option value="">Selecione uma categoria</option>
+                                <option value="operacional">Operacional</option>
+                                <option value="estrategico">Estratégico</option>
+                                <option value="melhoria">Melhoria Contínua</option>
+                                <option value="projeto">Projeto Especial</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="programaStatus"><i class="fas fa-circle"></i> Status *</label>
+                            <select id="programaStatus" required>
+                                <option value="planejamento">Em Planejamento</option>
+                                <option value="ativo">Ativo</option>
+                                <option value="pausado">Pausado</option>
+                                <option value="concluido">Concluído</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="programaDataInicio"><i class="fas fa-calendar-plus"></i> Data Início *</label>
+                            <input type="date" id="programaDataInicio" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="programaDataFim"><i class="fas fa-calendar-check"></i> Data Final *</label>
+                            <input type="date" id="programaDataFim" required>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="programaTimes"><i class="fas fa-users"></i> Times Envolvidos</label>
+                            <select id="programaTimes" multiple style="min-height: 100px;">
+                                <option value="time1">Time de Desenvolvimento</option>
+                                <option value="time2">Time de Operações</option>
+                                <option value="time3">Time de QA</option>
+                                <option value="time4">Time de Suporte</option>
+                            </select>
+                            <small class="form-help">Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos times</small>
+                        </div>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-outline" onclick="fecharModalPrograma()">Cancelar</button>
-                <button class="btn btn-primary" onclick="salvarPrograma()">Salvar Programa</button>
+                <button type="button" class="btn btn-outline" onclick="fecharModalPrograma()">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnSalvarPrograma" onclick="salvarPrograma()">Salvar Programa</button>
             </div>
         </div>
     </div>
@@ -339,46 +393,6 @@
     
     <!-- Scripts -->
     <script src="script.js"></script>
-    <script>
-        // Script específico para programas.html
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verificar autenticação (mesmo código do index)
-            const loadingScreen = document.getElementById('loadingScreen');
-            const mainContent = document.getElementById('mainContent');
-            
-            setTimeout(() => {
-                // Simulando verificação de autenticação
-                loadingScreen.style.display = 'none';
-                mainContent.style.display = 'block';
-            }, 1000);
-
-            // Botões de ação
-            document.getElementById('btn-novo-programa')?.addEventListener('click', function() {
-                document.getElementById('modalPrograma').style.display = 'block';
-            });
-
-            document.getElementById('btn-criar-primeiro-programa')?.addEventListener('click', function() {
-                document.getElementById('modalPrograma').style.display = 'block';
-            });
-        });
-
-        function fecharModalPrograma() {
-            document.getElementById('modalPrograma').style.display = 'none';
-        }
-
-        function salvarPrograma() {
-            // Implementar lógica de salvamento
-            alert('Funcionalidade de salvar programa será implementada em breve.');
-            fecharModalPrograma();
-        }
-
-        // Função logout 
-        function logout() {
-            if (confirm('Deseja realmente sair do sistema?')) {
-                // Implementar lógica de logout do Firebase
-                window.location.href = 'login.html';
-            }
-        }
-    </script>
+    <script src="programa.js"></script>
 </body>
 </html>
