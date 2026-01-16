@@ -857,6 +857,77 @@
     }
 }
 
+/* Estilos para o modal de detalhes ajustado */
+.tarefas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.tarefas-header h4 {
+    margin: 0;
+}
+
+.tarefas-summary .badge {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+}
+
+.progress-stats {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.progress-stats small {
+    font-size: 0.85rem;
+}
+
+.detalhes-meta .meta-item:last-child {
+    color: #0078d4;
+    font-weight: 500;
+}
+
+.no-tarefas {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+}
+
+.no-tarefas i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    color: #ddd;
+}
+
+.no-tarefas p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Status automático no cabeçalho das tarefas */
+#detalhesStatusAutomatico.status-ativo {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+#detalhesStatusAutomatico.status-concluido {
+    background: #e8eaf6;
+    color: #3949ab;
+    border: 1px solid #c5cae9;
+}
+
+#detalhesStatusAutomatico.status-planejamento {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffe0b2;
+}
+
 /* Responsividade */
 @media (max-width: 1200px) {
     .programs-grid {
