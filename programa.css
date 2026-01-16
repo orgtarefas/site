@@ -472,6 +472,106 @@
     max-width: 800px;
 }
 
+/* Adicione ao final do seu programa.css */
+
+/* Estatísticas específicas para exibição de tarefas em programas */
+#tarefas-ativas {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #3498db;
+}
+
+.stat-info h3 {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.stat-info .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-top: 5px;
+}
+
+/* Para mostrar formato X / Y */
+.stat-info .number.format-duplo {
+    font-size: 1.6rem;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.stat-info .number.format-duplo .total {
+    color: #2c3e50;
+    font-weight: 700;
+}
+
+.stat-info .number.format-duplo .separator {
+    color: #666;
+    font-weight: 400;
+}
+
+.stat-info .number.format-duplo .programas {
+    color: #7f8c8d;
+    font-size: 1.2rem;
+}
+
+/* Badge para status de programa no card */
+.program-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-ativo {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.status-planejamento {
+    background: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffe0b2;
+}
+
+.status-concluido {
+    background: #e8eaf6;
+    color: #3949ab;
+    border: 1px solid #c5cae9;
+}
+
+.status-pausado {
+    background: #f5f5f5;
+    color: #757575;
+    border: 1px solid #e0e0e0;
+}
+
+/* Ajustes para os cards de programa */
+.program-meta .meta-item small {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+/* Adicionar este ID no seu HTML para a estatística de tarefas ativas */
+#tarefas-ativas {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #e74c3c;
+}
+
+#tarefas-programas {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #3498db;
+}
+
 /* Responsividade */
 @media (max-width: 1200px) {
     .programs-grid {
