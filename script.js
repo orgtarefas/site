@@ -19,6 +19,35 @@ let ultimoStatusNotificado = {};
 // Variável para o banco de logins
 let dbLogins = null;
 
+// Verificar se estamos na página correta
+const isIndexPage = window.location.pathname.includes('index.html') || 
+                    window.location.pathname.endsWith('/') ||
+                    window.location.pathname === '/';
+
+// Se NÃO estamos na página index/home, NÃO inicializar o sistema de tarefas
+if (!isIndexPage) {
+    console.log('📋 Página detectada como não-index, desativando sistema de tarefas');
+    
+    // Sobrescrever as funções principais para evitar erros
+    window.atualizarListaTarefas = function() {
+        console.log('ℹ️ Sistema de tarefas desativado nesta página');
+    };
+    
+    window.atualizarInterface = function() {
+        console.log('ℹ️ Sistema de tarefas desativado nesta página');
+    };
+    
+    // Pular toda a inicialização
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ Script.js carregado em página não-index, apenas funcionalidades básicas');
+        document.getElementById('loadingScreen')?.style.display = 'none';
+        document.getElementById('mainContent')?.style.display = 'block';
+    });
+    
+    // Parar a execução do script aqui
+    throw new Error('Script.js não deve ser executado nesta página');
+}
+
 // Inicialização
 // Configurar event listeners
 document.addEventListener('DOMContentLoaded', async function() {
