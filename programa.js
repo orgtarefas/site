@@ -3,6 +3,7 @@
 // Variáveis globais
 let programas = [];
 let tarefasPorPrograma = {};
+let todasTarefas = []; // ← ADICIONADO: Lista completa de tarefas
 let programasCollection = null;
 let tarefasCollection = null;
 let usuarioLogado = null;
@@ -26,6 +27,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Configurar listeners e carregar dados
         configurarEventListeners();
+        
+        // Carregar tarefas uma vez para usar no modal
+        await carregarTodasTarefas();
         
         // Esconder tela de loading
         setTimeout(() => {
@@ -78,6 +82,8 @@ function configurarListenerProgramas() {
                     ...doc.data()
                 }));
                 
+                console.log('📋 Programas carregados:', programas.length);
+                
                 // Buscar informações das tarefas relacionadas (SEM CACHE)
                 await buscarInformacoesTarefasDireto();
                 
@@ -105,6 +111,22 @@ function configurarListenerProgramas() {
         });
 }
 
+// ADICIONADO: Carregar todas as tarefas uma vez
+async function carregarTodasTarefas() {
+    try {
+        console.log('📥 Carregando todas as tarefas...');
+        const snapshot = await tarefasCollection.get();
+        todasTarefas = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        console.log('✅ Todas as tarefas carregadas:', todasTarefas.length);
+    } catch (error) {
+        console.error('❌ Erro ao carregar tarefas:', error);
+        todasTarefas = [];
+    }
+}
+
 // Buscar informações das tarefas relacionadas - BUSCA DIRETA SEM CACHE
 async function buscarInformacoesTarefasDireto() {
     tarefasPorPrograma = {};
@@ -112,6 +134,8 @@ async function buscarInformacoesTarefasDireto() {
     for (const programa of programas) {
         const tarefasIds = programa.tarefas_relacionadas || [];
         const tarefasDoPrograma = [];
+        
+        console.log(`🔍 Buscando tarefas do programa ${programa.titulo}:`, tarefasIds.length);
         
         if (tarefasIds.length > 0) {
             // Buscar cada tarefa diretamente do Firebase
@@ -130,8 +154,11 @@ async function buscarInformacoesTarefasDireto() {
                             gruposAcesso: tarefaData.gruposAcesso || [],
                             descricao: tarefaData.descricao || '',
                             dataCriacao: tarefaData.dataCriacao,
-                            criadoPor: tarefaData.criadoPor
+                            criadoPor: tarefaData.criadoPor,
+                            programaId: tarefaData.programaId || null // ← ADICIONADO para referência
                         });
+                    } else {
+                        console.warn(`⚠️ Tarefa ${tarefaId} não encontrada no banco`);
                     }
                 } catch (error) {
                     console.error(`❌ Erro ao buscar tarefa ${tarefaId}:`, error);
@@ -140,6 +167,7 @@ async function buscarInformacoesTarefasDireto() {
         }
         
         tarefasPorPrograma[programa.id] = tarefasDoPrograma;
+        console.log(`✅ ${tarefasDoPrograma.length} tarefas encontradas para o programa ${programa.titulo}`);
     }
 }
 
@@ -207,6 +235,15 @@ function atualizarEstatisticasReais() {
                 <span class="programas">${programasEmAndamento}</span>
             `;
         }
+        
+        console.log('📊 Estatísticas atualizadas:', {
+            totalProgramas,
+            programasEmAndamento,
+            programasConcluidos,
+            totalTarefasEmProgramas,
+            tarefasAtivasEmProgramas,
+            programasComTarefas
+        });
         
     } catch (error) {
         console.error('❌ Erro ao calcular estatísticas:', error);
@@ -340,6 +377,8 @@ function criarCardPrograma(programa) {
         } else {
             statusHTML = '<span class="program-status status-ativo">Em Andamento</span>';
         }
+    } else {
+        statusHTML = '<span class="program-status status-planejamento">Planejamento</span>';
     }
     
     // Formatar data
@@ -362,17 +401,19 @@ function criarCardPrograma(programa) {
                         const statusClasse = normalizarStatusParaClasse(tarefa.status);
                         const statusLabel = formatarStatus(tarefa.status);
                         const isConcluida = statusClasse === 'status-concluido';
+                        const tarefaTituloCurto = tarefa.titulo.length > 60 ? 
+                            tarefa.titulo.substring(0, 60) + '...' : tarefa.titulo;
                         
                         return `
                         <div class="tarefa-lista-item ${isConcluida ? 'concluida' : ''}" 
                              onclick="irParaTarefa('${tarefa.id}')" 
-                             title="Clique para ver esta tarefa">
+                             title="${tarefa.titulo}">
                             <div class="tarefa-item-numero">
                                 <span>${index + 1}</span>
                             </div>
                             <div class="tarefa-item-info">
                                 <div class="tarefa-item-titulo">
-                                    ${tarefa.titulo}
+                                    ${tarefaTituloCurto}
                                 </div>
                                 <div class="tarefa-item-detalhes">
                                     <span class="badge ${statusClasse}">
@@ -380,7 +421,7 @@ function criarCardPrograma(programa) {
                                     </span>
                                     ${tarefa.prioridade ? 
                                         `<span class="badge prioridade-${tarefa.prioridade}">
-                                            ${tarefa.prioridade}
+                                            ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
                                         </span>` : ''}
                                 </div>
                             </div>
@@ -465,7 +506,6 @@ function criarCardPrograma(programa) {
     return card;
 }
 
-
 // Função para excluir programa
 async function excluirPrograma(programaId) {
     try {
@@ -479,19 +519,32 @@ async function excluirPrograma(programaId) {
         
         if (tarefasPrograma.length > 0) {
             mensagemConfirmacao += `\n\nEste programa tem ${tarefasPrograma.length} tarefa(s) relacionada(s). A exclusão NÃO removerá as tarefas, apenas o vínculo com o programa.`;
+            
+            // Perguntar se quer remover o campo programaId das tarefas
+            mensagemConfirmacao += `\n\nDeseja também remover a referência a este programa das tarefas relacionadas?`;
+            const removerDeTarefas = confirm(mensagemConfirmacao + "\n\nOK = Remover referência\nCancelar = Manter referência");
+            
+            if (removerDeTarefas) {
+                // Remover programaId das tarefas relacionadas
+                for (const tarefa of tarefasPrograma) {
+                    try {
+                        await tarefasCollection.doc(tarefa.id).update({
+                            programaId: firebase.firestore.FieldValue.delete(),
+                            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        console.log(`✅ Removido programaId da tarefa ${tarefa.id}`);
+                    } catch (error) {
+                        console.error(`❌ Erro ao remover programaId da tarefa ${tarefa.id}:`, error);
+                    }
+                }
+            }
         }
         
-        if (!confirm(mensagemConfirmacao)) {
-            return;
-        }
-        
-        // Excluir do Firebase
+        // Excluir programa do Firebase
         await programasCollection.doc(programaId).delete();
         
         // Mostrar mensagem de sucesso
         mostrarMensagem('Programa excluído com sucesso!', 'success');
-        
-        // O listener do Firebase vai atualizar automaticamente a lista
         
     } catch (error) {
         console.error('❌ Erro ao excluir programa:', error);
@@ -554,15 +607,37 @@ async function carregarTarefasParaSelecao(tarefasSelecionadasIds = []) {
     if (!container) return;
     
     if (todasTarefas.length === 0) {
-        container.innerHTML = '<div class="no-tarefas">Nenhuma tarefa encontrada</div>';
-        return;
+        container.innerHTML = '<div class="loading-tarefas"><i class="fas fa-spinner fa-spin"></i> Carregando tarefas...</div>';
+        await carregarTodasTarefas();
     }
     
     // Limpar container de selecionados
     const containerSelecionados = document.getElementById('tarefas-selecionadas-container');
     if (containerSelecionados) containerSelecionados.innerHTML = '';
     
-    // Adicionar tarefas selecionadas
+    console.log('Tarefas para seleção:', {
+        totalTarefas: todasTarefas.length,
+        selecionadasIds: tarefasSelecionadasIds,
+        programaEditandoId: programaEditando?.id
+    });
+    
+    // ADICIONADO: Filtrar tarefas que já têm outro programa (exceto se for deste programa)
+    const tarefasDisponiveis = todasTarefas.filter(tarefa => {
+        // Se a tarefa já está selecionada para este programa, mostrar
+        if (tarefasSelecionadasIds?.includes(tarefa.id)) {
+            return true;
+        }
+        
+        // Se a tarefa não tem programaId ou tem o mesmo programaId que estamos editando
+        if (!tarefa.programaId || tarefa.programaId === programaEditando?.id) {
+            return true;
+        }
+        
+        // Tarefa já está vinculada a outro programa diferente
+        return false;
+    });
+    
+    // Adicionar tarefas selecionadas ao container
     tarefasSelecionadasIds?.forEach(tarefaId => {
         const tarefa = todasTarefas.find(t => t.id === tarefaId);
         if (tarefa) {
@@ -571,35 +646,45 @@ async function carregarTarefasParaSelecao(tarefasSelecionadasIds = []) {
     });
     
     // Filtrar tarefas que não estão selecionadas
-    const tarefasDisponiveis = todasTarefas.filter(tarefa => 
+    const tarefasParaExibir = tarefasDisponiveis.filter(tarefa => 
         !tarefasSelecionadasIds?.includes(tarefa.id)
     );
     
-    if (tarefasDisponiveis.length === 0) {
-        container.innerHTML = '<div class="no-tarefas">Todas as tarefas já estão selecionadas</div>';
+    if (tarefasParaExibir.length === 0) {
+        container.innerHTML = '<div class="no-tarefas">Não há tarefas disponíveis para seleção</div>';
         return;
     }
     
     // Renderizar tarefas disponíveis
-    container.innerHTML = tarefasDisponiveis.map(tarefa => `
+    container.innerHTML = tarefasParaExibir.map(tarefa => {
+        const tarefaTituloCurto = tarefa.titulo.length > 80 ? 
+            tarefa.titulo.substring(0, 80) + '...' : tarefa.titulo;
+        
+        return `
         <div class="tarefa-item-selecao" data-tarefa-id="${tarefa.id}">
             <div class="tarefa-info">
-                <div class="tarefa-titulo">${tarefa.titulo || 'Tarefa sem título'}</div>
+                <div class="tarefa-titulo" title="${tarefa.titulo}">${tarefaTituloCurto}</div>
                 <div class="tarefa-detalhes">
                     <span class="badge prioridade-${tarefa.prioridade || 'media'}">
-                        ${tarefa.prioridade || 'Média'}
+                        ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
                     </span>
-                    <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                    <span class="badge ${normalizarStatusParaClasse(tarefa.status)}">
                         ${formatarStatus(tarefa.status)}
                     </span>
                     ${tarefa.dataFim ? `<small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>` : ''}
+                    ${tarefa.programaId && tarefa.programaId !== programaEditando?.id ? 
+                        `<small class="warning" title="Esta tarefa já está vinculada a outro programa">
+                            <i class="fas fa-exclamation-triangle"></i> Já tem programa
+                        </small>` : ''}
                 </div>
             </div>
-            <button class="btn-add-tarefa" onclick="selecionarTarefa('${tarefa.id}')">
+            <button class="btn-add-tarefa" onclick="selecionarTarefa('${tarefa.id}')" 
+                    ${tarefa.programaId && tarefa.programaId !== programaEditando?.id ? 'disabled title="Tarefa já tem outro programa"' : ''}>
                 <i class="fas fa-plus"></i> Adicionar
             </button>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Filtrar tarefas na busca
@@ -613,9 +698,9 @@ function filtrarTarefasSelecao(termo) {
     
     items.forEach(item => {
         const titulo = item.querySelector('.tarefa-titulo')?.textContent.toLowerCase() || '';
-        const descricao = item.querySelector('.tarefa-detalhes')?.textContent.toLowerCase() || '';
+        const detalhes = item.querySelector('.tarefa-detalhes')?.textContent.toLowerCase() || '';
         
-        if (titulo.includes(termo) || descricao.includes(termo)) {
+        if (titulo.includes(termo) || detalhes.includes(termo)) {
             item.style.display = 'flex';
         } else {
             item.style.display = 'none';
@@ -627,6 +712,12 @@ function filtrarTarefasSelecao(termo) {
 function selecionarTarefa(tarefaId) {
     const tarefa = todasTarefas.find(t => t.id === tarefaId);
     if (tarefa) {
+        // Verificar se tarefa já tem outro programa
+        if (tarefa.programaId && tarefa.programaId !== programaEditando?.id) {
+            alert('Esta tarefa já está vinculada a outro programa. Remova o vínculo primeiro na página da tarefa.');
+            return;
+        }
+        
         // Adicionar ao container de selecionados
         adicionarTarefaSelecionada(tarefa);
         
@@ -647,14 +738,17 @@ function adicionarTarefaSelecionada(tarefa) {
     tarefaDiv.className = 'tarefa-selecionada-item';
     tarefaDiv.dataset.tarefaId = tarefa.id;
     
+    const tarefaTituloCurto = tarefa.titulo.length > 50 ? 
+        tarefa.titulo.substring(0, 50) + '...' : tarefa.titulo;
+    
     tarefaDiv.innerHTML = `
         <div class="tarefa-selecionada-info">
-            <div class="tarefa-selecionada-titulo">
-                <i class="fas fa-task"></i>
-                ${tarefa.titulo || 'Tarefa sem título'}
+            <div class="tarefa-selecionada-titulo" title="${tarefa.titulo}">
+                <i class="fas fa-tasks"></i>
+                ${tarefaTituloCurto}
             </div>
             <div class="tarefa-selecionada-detalhes">
-                <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                <span class="badge ${normalizarStatusParaClasse(tarefa.status)}">
                     ${formatarStatus(tarefa.status)}
                 </span>
             </div>
@@ -675,22 +769,25 @@ function removerTarefaSelecionada(tarefaId) {
         item.remove();
     }
     
-    // Adicionar de volta à lista de disponíveis
+    // Adicionar de volta à lista de disponíveis (se não estiver vinculada a outro programa)
     const tarefa = todasTarefas.find(t => t.id === tarefaId);
-    if (tarefa) {
+    if (tarefa && (!tarefa.programaId || tarefa.programaId === programaEditando?.id)) {
         const container = document.getElementById('lista-tarefas-selecao');
         if (container) {
+            const tarefaTituloCurto = tarefa.titulo.length > 80 ? 
+                tarefa.titulo.substring(0, 80) + '...' : tarefa.titulo;
+            
             const novoItem = document.createElement('div');
             novoItem.className = 'tarefa-item-selecao';
             novoItem.dataset.tarefaId = tarefa.id;
             novoItem.innerHTML = `
                 <div class="tarefa-info">
-                    <div class="tarefa-titulo">${tarefa.titulo || 'Tarefa sem título'}</div>
+                    <div class="tarefa-titulo" title="${tarefa.titulo}">${tarefaTituloCurto}</div>
                     <div class="tarefa-detalhes">
                         <span class="badge prioridade-${tarefa.prioridade || 'media'}">
-                            ${tarefa.prioridade || 'Média'}
+                            ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
                         </span>
-                        <span class="badge status-${tarefa.status || 'nao_iniciado'}">
+                        <span class="badge ${normalizarStatusParaClasse(tarefa.status)}">
                             ${formatarStatus(tarefa.status)}
                         </span>
                         ${tarefa.dataFim ? `<small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>` : ''}
@@ -742,13 +839,22 @@ async function salvarPrograma() {
         if (programaEditando) {
             // Atualizar programa existente
             await programasCollection.doc(programaEditando.id).update(programaData);
+            
+            // ADICIONADO: Atualizar programaId nas tarefas relacionadas
+            await atualizarProgramaIdNasTarefas(programaEditando.id, tarefasSelecionadas);
+            
             mostrarMensagem('Programa atualizado com sucesso!', 'success');
         } else {
             // Criar novo programa
             programaData.criadoPor = usuarioLogado.usuario;
             programaData.dataCriacao = firebase.firestore.FieldValue.serverTimestamp();
             
-            await programasCollection.add(programaData);
+            const programaRef = await programasCollection.add(programaData);
+            const novoProgramaId = programaRef.id;
+            
+            // ADICIONADO: Atualizar programaId nas tarefas relacionadas
+            await atualizarProgramaIdNasTarefas(novoProgramaId, tarefasSelecionadas);
+            
             mostrarMensagem('Programa criado com sucesso!', 'success');
         }
         
@@ -757,6 +863,43 @@ async function salvarPrograma() {
     } catch (error) {
         console.error('❌ Erro ao salvar programa:', error);
         mostrarMensagem('Erro ao salvar programa: ' + error.message, 'error');
+    }
+}
+
+// ADICIONADO: Atualizar programaId nas tarefas relacionadas
+async function atualizarProgramaIdNasTarefas(programaId, tarefasIds) {
+    try {
+        console.log(`🔄 Atualizando programaId nas tarefas para o programa ${programaId}:`, tarefasIds);
+        
+        // Remover programaId de todas as tarefas que não estão mais na lista
+        const todasTarefasComPrograma = todasTarefas.filter(t => t.programaId === programaId);
+        
+        for (const tarefa of todasTarefasComPrograma) {
+            if (!tarefasIds.includes(tarefa.id)) {
+                // Remover programaId desta tarefa
+                await tarefasCollection.doc(tarefa.id).update({
+                    programaId: firebase.firestore.FieldValue.delete(),
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`✅ Removido programaId da tarefa ${tarefa.id}`);
+            }
+        }
+        
+        // Adicionar programaId às tarefas selecionadas
+        for (const tarefaId of tarefasIds) {
+            try {
+                await tarefasCollection.doc(tarefaId).update({
+                    programaId: programaId,
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`✅ Adicionado programaId à tarefa ${tarefaId}`);
+            } catch (error) {
+                console.error(`❌ Erro ao atualizar tarefa ${tarefaId}:`, error);
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar programaId nas tarefas:', error);
     }
 }
 
@@ -775,42 +918,40 @@ async function verDetalhesPrograma(programaId) {
     const detalhesNome = document.getElementById('detalhesNomePrograma');
     const detalhesDescricao = document.getElementById('detalhesDescricaoPrograma');
     const detalhesCriadoPor = document.getElementById('detalhesCriadoPor');
+    const detalhesStatusAutomatico = document.getElementById('detalhesStatusAutomatico');
     
     if (detalhesTitulo) detalhesTitulo.textContent = programa.titulo;
     if (detalhesNome) detalhesNome.textContent = programa.titulo;
     if (detalhesDescricao) detalhesDescricao.textContent = programa.descricao || 'Sem descrição';
     if (detalhesCriadoPor) detalhesCriadoPor.textContent = programa.criadoPor || 'Não informado';
     
+    // Determinar status automático
+    let statusText = 'Planejamento';
+    if (tarefasPrograma.length > 0) {
+        const todasConcluidas = tarefasPrograma.every(tarefa => {
+            const status = (tarefa.status || '').toLowerCase().trim();
+            return status === 'concluido' || status === 'concluído';
+        });
+        
+        if (todasConcluidas) {
+            statusText = 'Concluído';
+        } else {
+            statusText = 'Em Andamento';
+        }
+    }
+    
+    if (detalhesStatusAutomatico) {
+        detalhesStatusAutomatico.textContent = statusText;
+        detalhesStatusAutomatico.className = 'badge ' + 
+            (statusText === 'Concluído' ? 'status-concluido' : 
+             statusText === 'Em Andamento' ? 'status-ativo' : 'status-planejamento');
+    }
+    
     // Datas
     const dataCriacao = programa.dataCriacao ? 
         formatarDataFirestore(programa.dataCriacao) : 'Não definida';
     const detalhesDatas = document.getElementById('detalhesDatasPrograma');
     if (detalhesDatas) detalhesDatas.textContent = `Criado em: ${dataCriacao}`;
-    
-    // Status
-    const statusElement = document.getElementById('detalhesStatusPrograma');
-    if (statusElement) {
-        let statusClass = 'status-planejamento';
-        let statusText = 'Planejamento';
-        
-        if (tarefasPrograma.length > 0) {
-            const todasConcluidas = tarefasPrograma.every(tarefa => {
-                const status = (tarefa.status || '').toLowerCase().trim();
-                return status === 'concluido' || status === 'concluído';
-            });
-            
-            if (todasConcluidas) {
-                statusClass = 'status-concluido';
-                statusText = 'Concluído';
-            } else {
-                statusClass = 'status-ativo';
-                statusText = 'Em Andamento';
-            }
-        }
-        
-        statusElement.className = `badge ${statusClass}`;
-        statusElement.textContent = statusText;
-    }
     
     // Progresso
     const tarefasConcluidas = tarefasPrograma.filter(tarefa => {
@@ -823,9 +964,15 @@ async function verDetalhesPrograma(programaId) {
     
     const detalhesProgresso = document.getElementById('detalhesProgressoPrograma');
     const detalhesProgressoBarra = document.getElementById('detalhesProgressoBarra');
+    const detalhesTarefasConcluidas = document.getElementById('detalhesTarefasConcluidas');
+    const detalhesTotalTarefasContagem = document.getElementById('detalhesTotalTarefasContagem');
+    const detalhesTotalTarefas = document.getElementById('detalhesTotalTarefas');
     
     if (detalhesProgresso) detalhesProgresso.textContent = `${Math.round(progresso)}%`;
     if (detalhesProgressoBarra) detalhesProgressoBarra.style.width = `${progresso}%`;
+    if (detalhesTarefasConcluidas) detalhesTarefasConcluidas.textContent = `${tarefasConcluidas} concluídas`;
+    if (detalhesTotalTarefasContagem) detalhesTotalTarefasContagem.textContent = `${tarefasPrograma.length} tarefas`;
+    if (detalhesTotalTarefas) detalhesTotalTarefas.textContent = `${tarefasPrograma.length} tarefas`;
     
     // Configurar botão de editar
     const btnEditar = document.getElementById('btnEditarPrograma');
@@ -851,34 +998,45 @@ async function verDetalhesPrograma(programaId) {
     const containerTarefas = document.getElementById('lista-tarefas-detalhes');
     if (containerTarefas) {
         if (tarefasPrograma.length === 0) {
-            containerTarefas.innerHTML = '<div class="no-tarefas">Nenhuma tarefa relacionada</div>';
+            containerTarefas.innerHTML = '<div class="no-tarefas"><i class="fas fa-info-circle"></i><p>Nenhuma tarefa relacionada a este programa</p></div>';
         } else {
-            containerTarefas.innerHTML = tarefasPrograma.map(tarefa => `
-                <div class="tarefa-detalhe-item">
+            containerTarefas.innerHTML = tarefasPrograma.map(tarefa => {
+                const statusLabel = formatarStatus(tarefa.status);
+                const statusClasse = normalizarStatusParaClasse(tarefa.status);
+                const dataFimFormatada = tarefa.dataFim ? formatarData(tarefa.dataFim) : 'Não definida';
+                const tarefaDescricaoCurta = tarefa.descricao && tarefa.descricao.length > 100 ? 
+                    tarefa.descricao.substring(0, 100) + '...' : tarefa.descricao || '';
+                
+                return `
+                <div class="tarefa-detalhe-item" onclick="irParaTarefa('${tarefa.id}')" style="cursor: pointer;">
                     <div class="tarefa-detalhe-header">
                         <div class="tarefa-detalhe-titulo">
-                            <i class="fas fa-task"></i>
+                            <i class="fas fa-tasks"></i>
                             ${tarefa.titulo}
                         </div>
                         <div class="tarefa-detalhe-status">
-                            <span class="badge status-${tarefa.status || 'nao_iniciado'}">
-                                ${formatarStatus(tarefa.status)}
+                            <span class="badge ${statusClasse}">
+                                ${statusLabel}
+                            </span>
+                            <span class="badge prioridade-${tarefa.prioridade || 'media'}">
+                                ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
                             </span>
                         </div>
                     </div>
-                    ${tarefa.descricao ? `
+                    ${tarefaDescricaoCurta ? `
                         <div class="tarefa-detalhe-descricao">
-                            ${tarefa.descricao}
+                            ${tarefaDescricaoCurta}
                         </div>
                     ` : ''}
                     <div class="tarefa-detalhe-meta">
                         ${tarefa.dataFim ? `
-                            <small><i class="fas fa-calendar"></i> Vence: ${formatarData(tarefa.dataFim)}</small>
+                            <small><i class="fas fa-calendar"></i> Vence: ${dataFimFormatada}</small>
                         ` : ''}
-                        <small><i class="fas fa-flag"></i> ${tarefa.prioridade || 'Média'}</small>
+                        <small><i class="fas fa-clock"></i> Criado por: ${tarefa.criadoPor || 'Não informado'}</small>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
     }
     
@@ -978,20 +1136,13 @@ function mostrarMensagem(mensagem, tipo = 'info') {
 
 // ✅ FUNÇÃO: Ir para a tarefa específica
 function irParaTarefa(tarefaId) {
-    // Abrir a página de tarefas em nova aba com scroll para a tarefa específica
-    const url = `index.html#tarefa-${tarefaId}`;
+    // Abrir a página de tarefas em nova aba
+    const url = `index.html`;
     
-    // Verificar se já estamos na página de tarefas
-    if (window.location.pathname.includes('index.html')) {
-        // Se já está na página de tarefas, scroll para a tarefa
-        window.location.hash = `tarefa-${tarefaId}`;
-        
-        // Mostrar mensagem
-        mostrarMensagem('Rolando para a tarefa selecionada...', 'info');
-    } else {
-        // Abrir em nova aba
-        window.open(url, '_blank');
-    }
+    // Usar localStorage para passar a tarefa a ser destacada
+    localStorage.setItem('scrollToTarefa', tarefaId);
+    
+    window.open(url, '_blank');
 }
 
 // ✅ FUNÇÃO AUXILIAR: Normalizar status para classe CSS
@@ -1034,5 +1185,5 @@ window.fecharModalDetalhesPrograma = fecharModalDetalhesPrograma;
 window.filtrarTarefasSelecao = filtrarTarefasSelecao;
 window.selecionarTarefa = selecionarTarefa;
 window.removerTarefaSelecionada = removerTarefaSelecionada;
-window.irParaTarefa = irParaTarefa; // ✅ ADICIONE ESTA LINHA
+window.irParaTarefa = irParaTarefa;
 window.logout = logout;
