@@ -375,24 +375,80 @@ function criarCardPrograma(programa) {
     
     const progresso = totalTarefas > 0 ? (tarefasConcluidas / totalTarefas) * 100 : 0;
     
-    // ✅ CORREÇÃO: Determinar status do programa baseado nas tarefas
-    // APENAS 2 STATUS: "Concluído" ou "Em Andamento"
+    // Determinar status do programa
     let statusHTML = '';
-    
     if (totalTarefas > 0) {
         if (tarefasConcluidas === totalTarefas) {
-            // TODAS as tarefas concluídas = Programa CONCLUÍDO
             statusHTML = '<span class="program-status status-concluido">Concluído</span>';
         } else {
-            // Tem tarefas, mas nem todas concluídas = Programa EM ANDAMENTO
             statusHTML = '<span class="program-status status-ativo">Em Andamento</span>';
         }
     }
-    // Se totalTarefas === 0, NÃO MOSTRA STATUS (sem HTML)
     
     // Formatar data
     const dataCriacao = programa.dataCriacao ? 
         formatarDataFirestore(programa.dataCriacao) : 'Não definida';
+    
+    // ✅ NOVO: Criar lista de tarefas para exibição
+    let listaTarefasHTML = '';
+    if (totalTarefas > 0) {
+        // Limitar a 5 tarefas para não sobrecarregar o card
+        const tarefasParaExibir = tarefasPrograma.slice(0, 5);
+        
+        listaTarefasHTML = `
+            <div class="program-tarefas-lista">
+                <div class="tarefas-lista-header">
+                    <i class="fas fa-list-check"></i>
+                    <strong>Tarefas Relacionadas (${totalTarefas}):</strong>
+                </div>
+                <div class="tarefas-lista-items">
+                    ${tarefasParaExibir.map((tarefa, index) => {
+                        const statusClasse = normalizarStatusParaClasse(tarefa.status);
+                        const statusLabel = formatarStatus(tarefa.status);
+                        const isConcluida = statusClasse === 'status-concluido';
+                        
+                        return `
+                        <div class="tarefa-lista-item ${isConcluida ? 'concluida' : ''}" 
+                             onclick="irParaTarefa('${tarefa.id}')" 
+                             title="Clique para ver esta tarefa">
+                            <div class="tarefa-item-numero">
+                                <span>${index + 1}</span>
+                            </div>
+                            <div class="tarefa-item-info">
+                                <div class="tarefa-item-titulo">
+                                    ${tarefa.titulo}
+                                </div>
+                                <div class="tarefa-item-detalhes">
+                                    <span class="badge ${statusClasse}">
+                                        ${statusLabel}
+                                    </span>
+                                    ${tarefa.prioridade ? 
+                                        `<span class="badge prioridade-${tarefa.prioridade}">
+                                            ${tarefa.prioridade}
+                                        </span>` : ''}
+                                </div>
+                            </div>
+                            <div class="tarefa-item-action">
+                                <i class="fas fa-external-link-alt"></i>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+                ${totalTarefas > 5 ? 
+                    `<div class="tarefas-lista-footer">
+                        <small>+ ${totalTarefas - 5} tarefa(s) restante(s)</small>
+                    </div>` : ''}
+            </div>
+        `;
+    } else {
+        listaTarefasHTML = `
+            <div class="program-sem-tarefas">
+                <i class="fas fa-info-circle"></i>
+                <span>Nenhuma tarefa relacionada a este programa</span>
+            </div>
+        `;
+    }
     
     card.innerHTML = `
         <div class="program-header">
@@ -417,6 +473,10 @@ function criarCardPrograma(programa) {
         </div>
         <div class="program-content">
             <p class="program-description">${programa.descricao || 'Sem descrição'}</p>
+            
+            <!-- ✅ NOVO: Lista de tarefas -->
+            ${listaTarefasHTML}
+            
             <div class="program-meta">
                 <div class="meta-item">
                     <i class="fas fa-calendar-alt"></i>
@@ -437,7 +497,7 @@ function criarCardPrograma(programa) {
             </div>
             <div class="progress-container">
                 <div class="progress-label">
-                    <span>Progresso</span>
+                    <span>Progresso Geral</span>
                     <span>${Math.round(progresso)}%</span>
                 </div>
                 <div class="progress-bar">
@@ -449,6 +509,7 @@ function criarCardPrograma(programa) {
     
     return card;
 }
+
 
 // Função para excluir programa
 async function excluirPrograma(programaId) {
@@ -901,6 +962,7 @@ function formatarDataFirestore(timestamp) {
     }
 }
 
+// ✅ FUNÇÃO AUXILIAR: Formatador de status melhorado
 function formatarStatus(status) {
     if (!status) return 'Não Iniciado';
     const statusNorm = status.toLowerCase().trim();
@@ -959,7 +1021,25 @@ function mostrarMensagem(mensagem, tipo = 'info') {
     }, 3000);
 }
 
-// Função para normalizar status para classe CSS
+// ✅ FUNÇÃO: Ir para a tarefa específica
+function irParaTarefa(tarefaId) {
+    // Abrir a página de tarefas em nova aba com scroll para a tarefa específica
+    const url = `index.html#tarefa-${tarefaId}`;
+    
+    // Verificar se já estamos na página de tarefas
+    if (window.location.pathname.includes('index.html')) {
+        // Se já está na página de tarefas, scroll para a tarefa
+        window.location.hash = `tarefa-${tarefaId}`;
+        
+        // Mostrar mensagem
+        mostrarMensagem('Rolando para a tarefa selecionada...', 'info');
+    } else {
+        // Abrir em nova aba
+        window.open(url, '_blank');
+    }
+}
+
+// ✅ FUNÇÃO AUXILIAR: Normalizar status para classe CSS
 function normalizarStatusParaClasse(status) {
     if (!status) return 'status-nao_iniciado';
     const statusNorm = status.toLowerCase().trim();
@@ -993,10 +1073,11 @@ window.abrirModalPrograma = abrirModalPrograma;
 window.fecharModalPrograma = fecharModalPrograma;
 window.salvarPrograma = salvarPrograma;
 window.editarPrograma = editarPrograma;
-window.excluirPrograma = excluirPrograma; // ADICIONE ESTA LINHA
+window.excluirPrograma = excluirPrograma;
 window.verDetalhesPrograma = verDetalhesPrograma;
 window.fecharModalDetalhesPrograma = fecharModalDetalhesPrograma;
 window.filtrarTarefasSelecao = filtrarTarefasSelecao;
 window.selecionarTarefa = selecionarTarefa;
 window.removerTarefaSelecionada = removerTarefaSelecionada;
+window.irParaTarefa = irParaTarefa; // ✅ ADICIONE ESTA LINHA
 window.logout = logout;
