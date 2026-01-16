@@ -698,6 +698,12 @@ class GestorAtividades {
                 ...doc.data()
             }));
             console.log(`✅ ${this.programas.length} programas carregados`);
+            
+            // Adicione este log para ver os programas carregados
+            this.programas.forEach((programa, index) => {
+                console.log(`   ${index + 1}. ${programa.titulo} (ID: ${programa.id})`);
+            });
+            
         } catch (error) {
             console.error('❌ Erro ao carregar programas:', error);
             this.programas = [];
@@ -2024,17 +2030,19 @@ class GestorAtividades {
             : `Nova Atividade - ${titulos[tipo]}`;
         
         document.getElementById('modalAtividadeTitulo').textContent = tituloModal;
-
-        // Gerar opções de programas
+    
+        // Gerar opções de programas - VERIFIQUE SE ESTÁ GERANDO OPÇÕES
         const programasOptions = this.programas.map(programa => {
             return `<option value="${programa.id}">${programa.titulo}</option>`;
         }).join('');
-            
+        
+        console.log(`📊 Programas disponíveis: ${this.programas.length} - Opções: ${programasOptions ? 'SIM' : 'NÃO'}`);
+                
         // Gerar opções de usuários
         const usuariosOptions = this.usuarios.map(user => {
             return `<option value="${user.usuario}">${user.usuario}</option>`;
         }).join('');
-
+    
         // Preparar dados para exibição
         const programaSelecionado = atividadeExistente && atividadeExistente.programaId 
             ? atividadeExistente.programaId 
@@ -2092,6 +2100,7 @@ class GestorAtividades {
             `;
         }
         
+        // VERIFIQUE SE O CAMPO DE PROGRAMA ESTÁ SENDO ADICIONADO AO HTML
         document.getElementById('modalAtividadeBody').innerHTML = `
             <form id="formAtividade" onsubmit="event.preventDefault(); salvarAtividade('${tarefaId}', '${tipo}');">
                 <!-- NOVO CAMPO: Programa -->
@@ -2120,7 +2129,7 @@ class GestorAtividades {
                         <label for="responsavelAtividade">Responsável *</label>
                         <select id="responsavelAtividade" class="form-control" required>
                             <option value="">Selecione um responsável</option>
-                            ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
+                            ${usuariosOptions}
                         </select>
                     </div>
                     <div class="form-group">
@@ -2145,9 +2154,8 @@ class GestorAtividades {
                                 <span id="observadoresPreview">Nenhum observador selecionado</span>
                                 <i class="fas fa-chevron-down"></i>
                             </div>
-                            <!-- AQUI TAMBÉM: mostra apenas logins -->
                             <select id="observadorAtividade" class="form-control multi-select" multiple size="5">
-                                ${usuariosOptions} <!-- AQUI: mostra apenas logins -->
+                                ${usuariosOptions}
                             </select>
                         </div>
                         <small class="form-text">Clique para selecionar múltiplos observadores (Ctrl+Clique para seleção múltipla)</small>
@@ -2176,11 +2184,16 @@ class GestorAtividades {
         setTimeout(() => {
             // Configurar programa selecionado
             const selectPrograma = document.getElementById('programaAtividade');
+            console.log(`🔍 Select programa encontrado: ${selectPrograma ? 'SIM' : 'NÃO'}`);
+            
             if (selectPrograma && programaSelecionado) {
                 selectPrograma.value = programaSelecionado;
+                console.log(`🎯 Programa selecionado: ${programaSelecionado}`);
                 
                 // Atualizar preview do título
                 atualizarPreviewTituloComPrograma();
+            } else if (selectPrograma) {
+                console.log(`ℹ️ Nenhum programa selecionado anteriormente`);
             }
             
             // Configurar responsável
@@ -2205,14 +2218,14 @@ class GestorAtividades {
             // Configurar o multi-select
             configurarMultiSelectBehavior();
             
-            // Atualizar preview inicial - PRECISA SER AJUSTADA TAMBÉM
+            // Atualizar preview inicial
             setTimeout(() => {
                 const select = document.getElementById('observadorAtividade');
                 const preview = document.getElementById('observadoresPreview');
                 const previewContainer = document.querySelector('.multi-select-preview');
                 
                 if (select && preview && previewContainer) {
-                    const selecionados = Array.from(select.selectedOptions).map(opt => opt.text); // AQUI: opt.text já será o login
+                    const selecionados = Array.from(select.selectedOptions).map(opt => opt.text);
                     if (selecionados.length > 0) {
                         if (selecionados.length === 1) {
                             preview.textContent = selecionados[0];
