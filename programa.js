@@ -1,4 +1,4 @@
-// programa.js - Sistema de Programas
+// programa.js - Sistema de Programas com Hierarquia (Estrutura Simplificada)
 
 // Variáveis globais
 let programas = [];
@@ -63,7 +63,7 @@ async function inicializarFirebase() {
         programasCollection = db.collection("programas");
         tarefasCollection = db.collection("tarefas");
         
-        // Configurar listener em tempo real
+        // Configurar listener
         configurarListenerProgramas();
         
     } catch (error) {
@@ -79,12 +79,13 @@ function configurarListenerProgramas() {
             try {
                 programas = snapshot.docs.map(doc => ({
                     id: doc.id,
-                    ...doc.data()
+                    ...doc.data(),
+                    membros: doc.data().membros || {} // Garantir que membros existe
                 }));
                 
                 console.log('📋 Programas carregados:', programas.length);
                 
-                // Buscar informações das tarefas relacionadas (SEM CACHE)
+                // Buscar informações das tarefas relacionadas
                 await buscarInformacoesTarefasDireto();
                 
                 // Atualizar estatísticas
@@ -126,7 +127,7 @@ async function carregarTodasTarefas() {
     }
 }
 
-// Buscar informações das tarefas relacionadas - BUSCA DIRETA SEM CACHE
+// Buscar informações das tarefas relacionadas
 async function buscarInformacoesTarefasDireto() {
     tarefasPorPrograma = {};
     
@@ -137,7 +138,6 @@ async function buscarInformacoesTarefasDireto() {
         console.log(`🔍 Buscando tarefas do programa ${programa.titulo}:`, tarefasIds.length);
         
         if (tarefasIds.length > 0) {
-            // Buscar cada tarefa diretamente do Firebase
             for (const tarefaId of tarefasIds) {
                 try {
                     const tarefaDoc = await tarefasCollection.doc(tarefaId).get();
@@ -168,6 +168,25 @@ async function buscarInformacoesTarefasDireto() {
         tarefasPorPrograma[programa.id] = tarefasDoPrograma;
         console.log(`✅ ${tarefasDoPrograma.length} tarefas encontradas para o programa ${programa.titulo}`);
     }
+}
+
+// Verificar permissões do usuário
+function verificarPermissaoPrograma(programa) {
+    if (!usuarioLogado || !programa) return 'demais';
+    
+    const usuario = usuarioLogado.usuario;
+    
+    // Se for o criador do programa, é admin por padrão
+    if (programa.criadoPor === usuario) {
+        return 'admin';
+    }
+    
+    // Verificar na lista de membros do programa
+    if (programa.membros && programa.membros[usuario]) {
+        return programa.membros[usuario];
+    }
+    
+    return 'demais';
 }
 
 // Calcular estatísticas
@@ -234,15 +253,6 @@ function atualizarEstatisticasReais() {
                 <span class="programas">${programasEmAndamento}</span>
             `;
         }
-        
-        console.log('📊 Estatísticas atualizadas:', {
-            totalProgramas,
-            programasEmAndamento,
-            programasConcluidos,
-            totalTarefasEmProgramas,
-            tarefasAtivasEmProgramas,
-            programasComTarefas
-        });
         
     } catch (error) {
         console.error('❌ Erro ao calcular estatísticas:', error);
@@ -351,20 +361,27 @@ function renderizarProgramas(listaProgramas) {
     });
 }
 
-// Criar card de programa
+// Criar card de programa com controle de permissões
 function criarCardPrograma(programa) {
     const card = document.createElement('div');
     card.className = 'program-card';
     card.dataset.id = programa.id;
     
+    // Verificar permissões do usuário atual
+    const roleUsuario = verificarPermissaoPrograma(programa);
+    const isAdmin = roleUsuario === 'admin';
+    const isMembro = roleUsuario === 'membro';
+    const isDemais = roleUsuario === 'demais';
+    
     const tarefasPrograma = tarefasPorPrograma[programa.id] || [];
     const totalTarefas = tarefasPrograma.length;
     
-    // Calcular progresso
-    const tarefasConcluidas = tarefasPrograma.filter(tarefa => {
-        const status = (tarefa.status || '').toLowerCase().trim();
-        return status === 'concluido' || status === 'concluído';
-    }).length;
+    // Calcular progresso (só se for admin ou membro)
+    const tarefasConcluidas = (isAdmin || isMembro) ? 
+        tarefasPrograma.filter(tarefa => {
+            const status = (tarefa.status || '').toLowerCase().trim();
+            return status === 'concluido' || status === 'concluído';
+        }).length : 0;
     
     const progresso = totalTarefas > 0 ? (tarefasConcluidas / totalTarefas) * 100 : 0;
     
@@ -384,66 +401,125 @@ function criarCardPrograma(programa) {
     const dataCriacao = programa.dataCriacao ? 
         formatarDataFirestore(programa.dataCriacao) : 'Não definida';
     
-    // Criar lista de tarefas
+    // Criar lista de tarefas (só para admin e membro)
     let listaTarefasHTML = '';
-    if (totalTarefas > 0) {
-        const tarefasParaExibir = tarefasPrograma.slice(0, 5);
-        
-        listaTarefasHTML = `
-            <div class="program-tarefas-lista">
-                <div class="tarefas-lista-header">
-                    <i class="fas fa-list-check"></i>
-                    <strong>Tarefas Relacionadas (${totalTarefas}):</strong>
-                </div>
-                <div class="tarefas-lista-items">
-                    ${tarefasParaExibir.map((tarefa, index) => {
-                        const statusClasse = normalizarStatusParaClasse(tarefa.status);
-                        const statusLabel = formatarStatus(tarefa.status);
-                        const isConcluida = statusClasse === 'status-concluido';
-                        const tarefaTituloCurto = tarefa.titulo.length > 60 ? 
-                            tarefa.titulo.substring(0, 60) + '...' : tarefa.titulo;
-                        
-                        return `
-                        <div class="tarefa-lista-item ${isConcluida ? 'concluida' : ''}" 
-                             onclick="irParaTarefa('${tarefa.id}')" 
-                             title="${tarefa.titulo}">
-                            <div class="tarefa-item-numero">
-                                <span>${index + 1}</span>
-                            </div>
-                            <div class="tarefa-item-info">
-                                <div class="tarefa-item-titulo">
-                                    ${tarefaTituloCurto}
+    if (isAdmin || isMembro) {
+        if (totalTarefas > 0) {
+            const tarefasParaExibir = tarefasPrograma.slice(0, 5);
+            
+            listaTarefasHTML = `
+                <div class="program-tarefas-lista">
+                    <div class="tarefas-lista-header">
+                        <i class="fas fa-list-check"></i>
+                        <strong>Tarefas Relacionadas (${totalTarefas}):</strong>
+                    </div>
+                    <div class="tarefas-lista-items">
+                        ${tarefasParaExibir.map((tarefa, index) => {
+                            const statusClasse = normalizarStatusParaClasse(tarefa.status);
+                            const statusLabel = formatarStatus(tarefa.status);
+                            const isConcluida = statusClasse === 'status-concluido';
+                            const tarefaTituloCurto = tarefa.titulo.length > 60 ? 
+                                tarefa.titulo.substring(0, 60) + '...' : tarefa.titulo;
+                            
+                            return `
+                            <div class="tarefa-lista-item ${isConcluida ? 'concluida' : ''}" 
+                                 onclick="irParaTarefa('${tarefa.id}')" 
+                                 title="${tarefa.titulo}">
+                                <div class="tarefa-item-numero">
+                                    <span>${index + 1}</span>
                                 </div>
-                                <div class="tarefa-item-detalhes">
-                                    <span class="badge ${statusClasse}">
-                                        ${statusLabel}
-                                    </span>
-                                    ${tarefa.prioridade ? 
-                                        `<span class="badge prioridade-${tarefa.prioridade}">
-                                            ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
-                                        </span>` : ''}
+                                <div class="tarefa-item-info">
+                                    <div class="tarefa-item-titulo">
+                                        ${tarefaTituloCurto}
+                                    </div>
+                                    <div class="tarefa-item-detalhes">
+                                        <span class="badge ${statusClasse}">
+                                            ${statusLabel}
+                                        </span>
+                                        ${tarefa.prioridade ? 
+                                            `<span class="badge prioridade-${tarefa.prioridade}">
+                                                ${tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
+                                            </span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="tarefa-item-action">
+                                    <i class="fas fa-external-link-alt"></i>
                                 </div>
                             </div>
-                            <div class="tarefa-item-action">
-                                <i class="fas fa-external-link-alt"></i>
-                            </div>
-                        </div>
-                        `;
-                    }).join('')}
+                            `;
+                        }).join('')}
+                    </div>
+                    ${totalTarefas > 5 ? 
+                        `<div class="tarefas-lista-footer">
+                            <small>+ ${totalTarefas - 5} tarefa(s) restante(s)</small>
+                        </div>` : ''}
                 </div>
-                ${totalTarefas > 5 ? 
-                    `<div class="tarefas-lista-footer">
-                        <small>+ ${totalTarefas - 5} tarefa(s) restante(s)</small>
-                    </div>` : ''}
-            </div>
-        `;
+            `;
+        } else {
+            listaTarefasHTML = `
+                <div class="program-sem-tarefas">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Nenhuma tarefa relacionada a este programa</span>
+                </div>
+            `;
+        }
     } else {
+        // Para usuários "Demais", mostrar apenas contagem
         listaTarefasHTML = `
             <div class="program-sem-tarefas">
-                <i class="fas fa-info-circle"></i>
-                <span>Nenhuma tarefa relacionada a este programa</span>
+                <i class="fas fa-lock"></i>
+                <span>Conteúdo restrito para membros</span>
             </div>
         `;
+    }
+    
+    // Botões de ação baseados na role
+    let acoesHTML = '';
+    if (isAdmin) {
+        acoesHTML = `
+            <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn-icon" title="Editar" onclick="editarPrograma('${programa.id}')">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-icon" title="Gerenciar Membros" onclick="gerenciarMembrosPrograma('${programa.id}')">
+                <i class="fas fa-users-cog"></i>
+            </button>
+            <button class="btn-icon btn-icon-excluir" title="Excluir" onclick="excluirPrograma('${programa.id}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+    } else if (isMembro) {
+        acoesHTML = `
+            <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
+                <i class="fas fa-eye"></i>
+            </button>
+        `;
+    } else {
+        // Demais - só pode ver
+        acoesHTML = `
+            <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
+                <i class="fas fa-eye"></i>
+            </button>
+        `;
+    }
+    
+    // Mostrar quem são os admins (para todos)
+    let adminsHTML = '';
+    if (programa.membros) {
+        const admins = Object.entries(programa.membros)
+            .filter(([usuario, role]) => role === 'admin')
+            .map(([usuario, role]) => usuario);
+        
+        if (admins.length > 0) {
+            adminsHTML = `
+                <div class="program-admins">
+                    <i class="fas fa-crown"></i>
+                    <small>Admins: ${admins.join(', ')}</small>
+                </div>
+            `;
+        }
     }
     
     card.innerHTML = `
@@ -454,17 +530,10 @@ function criarCardPrograma(programa) {
             <div class="program-title">
                 <h3>${programa.titulo || 'Programa sem título'}</h3>
                 ${statusHTML}
+                ${isDemais ? '<span class="badge badge-info" style="margin-left: 8px;">Visualização Restrita</span>' : ''}
             </div>
             <div class="program-actions">
-                <button class="btn-icon" title="Ver detalhes" onclick="verDetalhesPrograma('${programa.id}')">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-icon" title="Editar" onclick="editarPrograma('${programa.id}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon btn-icon-excluir" title="Excluir" onclick="excluirPrograma('${programa.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${acoesHTML}
             </div>
         </div>
         <div class="program-content">
@@ -477,6 +546,7 @@ function criarCardPrograma(programa) {
                     <i class="fas fa-calendar-alt"></i>
                     <span>Criado: ${dataCriacao}</span>
                 </div>
+                ${(isAdmin || isMembro) ? `
                 <div class="meta-item">
                     <i class="fas fa-tasks"></i>
                     <span>${totalTarefas} Tarefas</span>
@@ -485,11 +555,14 @@ function criarCardPrograma(programa) {
                             (${tarefasConcluidas} concluídas)
                         </small>` : ''}
                 </div>
+                ` : ''}
                 <div class="meta-item">
                     <i class="fas fa-user"></i>
                     <span>${programa.criadoPor || 'Não informado'}</span>
                 </div>
             </div>
+            ${adminsHTML}
+            ${(isAdmin || isMembro) && totalTarefas > 0 ? `
             <div class="progress-container">
                 <div class="progress-label">
                     <span>Progresso Geral</span>
@@ -499,6 +572,7 @@ function criarCardPrograma(programa) {
                     <div class="progress-fill" style="width: ${progresso}%"></div>
                 </div>
             </div>
+            ` : ''}
         </div>
     `;
     
@@ -510,6 +584,13 @@ async function excluirPrograma(programaId) {
     try {
         const programa = programas.find(p => p.id === programaId);
         if (!programa) return;
+        
+        // Verificar se é admin
+        const roleUsuario = verificarPermissaoPrograma(programa);
+        if (roleUsuario !== 'admin') {
+            mostrarMensagem('Apenas administradores podem excluir programas', 'error');
+            return;
+        }
         
         // Verificar se tem tarefas relacionadas
         const tarefasPrograma = tarefasPorPrograma[programaId] || [];
@@ -559,6 +640,16 @@ async function abrirModalPrograma(programaId = null) {
     const titulo = document.getElementById('modalProgramaTitle');
     if (!titulo) return;
     
+    // Se estiver editando, verificar se é admin
+    if (programaId) {
+        const programa = programas.find(p => p.id === programaId);
+        const roleUsuario = verificarPermissaoPrograma(programa);
+        if (roleUsuario !== 'admin') {
+            mostrarMensagem('Apenas administradores podem editar programas', 'error');
+            return;
+        }
+    }
+    
     programaEditando = programaId ? programas.find(p => p.id === programaId) : null;
     
     if (programaEditando) {
@@ -601,62 +692,25 @@ function limparFormularioPrograma() {
     if (form) form.reset();
 }
 
-// Função para Mostrar tarefas vinculadas (APENAS VISUALIZAÇÃO)
-async function mostrarTarefasVinculadas(programaId) {
-    const container = document.getElementById('tarefas-visualizacao-container');
-    const lista = document.getElementById('tarefas-visualizacao-lista');
-    
-    if (!container || !lista) return;
-    
-    // Buscar tarefas deste programa
-    const tarefasDoPrograma = tarefasPorPrograma[programaId] || [];
-    
-    if (tarefasDoPrograma.length === 0) {
-        container.style.display = 'none';
-        return;
+// Adicionar criador como admin automaticamente (garantir campo membros)
+async function garantirCampoMembros(programaId) {
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Se não tem campo membros, criar com o criador como admin
+        if (!programa.membros) {
+            await programasCollection.doc(programaId).update({
+                membros: {
+                    [programa.criadoPor]: 'admin'
+                },
+                dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`✅ Campo membros criado para ${programaId}`);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao garantir campo membros:', error);
     }
-    
-    container.style.display = 'block';
-    
-    // Limpar lista
-    lista.innerHTML = '';
-    
-    // Adicionar cada tarefa
-    tarefasDoPrograma.forEach(tarefa => {
-        const tarefaItem = document.createElement('div');
-        tarefaItem.className = 'tarefa-visualizacao-item';
-        tarefaItem.innerHTML = `
-            <div class="tarefa-visualizacao-info">
-                <div class="tarefa-visualizacao-titulo">
-                    <i class="fas fa-tasks"></i>
-                    ${tarefa.titulo || 'Tarefa sem título'}
-                </div>
-                <div class="tarefa-visualizacao-detalhes">
-                    <span class="badge ${normalizarStatusParaClasse(tarefa.status)}">
-                        ${formatarStatus(tarefa.status)}
-                    </span>
-                    <span class="badge prioridade-${tarefa.prioridade || 'media'}">
-                        ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
-                    </span>
-                    ${tarefa.dataFim ? `
-                        <small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>
-                    ` : ''}
-                </div>
-            </div>
-            <div class="tarefa-visualizacao-acoes">
-                <button class="btn-link" onclick="irParaTarefa('${tarefa.id}')" title="Ver tarefa">
-                    <i class="fas fa-external-link-alt"></i>
-                </button>
-            </div>
-        `;
-        lista.appendChild(tarefaItem);
-    });
-    
-    // Adicionar contador
-    const contador = document.createElement('div');
-    contador.className = 'tarefas-visualizacao-contador';
-    contador.textContent = `Total: ${tarefasDoPrograma.length} tarefa(s) vinculada(s)`;
-    lista.appendChild(contador);
 }
 
 // Salvar programa
@@ -690,6 +744,11 @@ async function salvarPrograma() {
             programaData.criadoPor = usuarioLogado.usuario;
             programaData.dataCriacao = firebase.firestore.FieldValue.serverTimestamp();
             
+            // Adicionar campo membros com o criador como admin
+            programaData.membros = {
+                [usuarioLogado.usuario]: 'admin'
+            };
+            
             await programasCollection.add(programaData);
             mostrarMensagem('Programa criado com sucesso!', 'success');
         }
@@ -710,7 +769,68 @@ async function verDetalhesPrograma(programaId) {
     const programa = programas.find(p => p.id === programaId);
     if (!programa) return;
     
+    // Verificar permissão
+    const roleUsuario = verificarPermissaoPrograma(programa);
+    const isAdmin = roleUsuario === 'admin';
+    const isMembro = roleUsuario === 'membro';
+    const isDemais = roleUsuario === 'demais';
+    
     const tarefasPrograma = tarefasPorPrograma[programaId] || [];
+    
+    // Se for demais, limitar visualização
+    if (isDemais) {
+        // Mostrar apenas informações básicas
+        document.getElementById('detalhesProgramaTitle').textContent = programa.titulo;
+        document.getElementById('detalhesNomePrograma').textContent = programa.titulo;
+        document.getElementById('detalhesDescricaoPrograma').textContent = programa.descricao || 'Sem descrição';
+        
+        // Mostrar apenas admins
+        let admins = [];
+        if (programa.membros) {
+            admins = Object.entries(programa.membros)
+                .filter(([usuario, role]) => role === 'admin')
+                .map(([usuario, role]) => usuario);
+        }
+        
+        document.getElementById('detalhesCriadoPor').textContent = 
+            `Admins: ${admins.join(', ') || 'Não definidos'}`;
+        
+        // Ocultar seções sensíveis
+        document.getElementById('detalhesDatasPrograma').textContent = '';
+        document.getElementById('detalhesTotalTarefas').style.display = 'none';
+        document.getElementById('detalhesProgressoPrograma').style.display = 'none';
+        document.getElementById('detalhesProgressoBarra').style.display = 'none';
+        document.getElementById('detalhesTarefasConcluidas').style.display = 'none';
+        document.getElementById('detalhesTotalTarefasContagem').style.display = 'none';
+        
+        // Ocultar botões de editar/excluir
+        document.getElementById('btnEditarPrograma').style.display = 'none';
+        document.getElementById('btnExcluirPrograma').style.display = 'none';
+        
+        // Ocultar tarefas
+        document.querySelector('.detalhes-tarefas').style.display = 'none';
+        
+        modal.style.display = 'flex';
+        return;
+    }
+    
+    // Para admin e membro, mostrar tudo
+    // Restaurar visibilidade dos elementos
+    document.getElementById('detalhesTotalTarefas').style.display = 'block';
+    document.getElementById('detalhesProgressoPrograma').style.display = 'block';
+    document.getElementById('detalhesProgressoBarra').style.display = 'block';
+    document.getElementById('detalhesTarefasConcluidas').style.display = 'block';
+    document.getElementById('detalhesTotalTarefasContagem').style.display = 'block';
+    document.querySelector('.detalhes-tarefas').style.display = 'block';
+    
+    // Configurar botões baseados na role
+    if (isAdmin) {
+        document.getElementById('btnEditarPrograma').style.display = 'inline-block';
+        document.getElementById('btnExcluirPrograma').style.display = 'inline-block';
+    } else {
+        document.getElementById('btnEditarPrograma').style.display = 'none';
+        document.getElementById('btnExcluirPrograma').style.display = 'none';
+    }
     
     // Preencher informações básicas
     const detalhesTitulo = document.getElementById('detalhesProgramaTitle');
@@ -775,7 +895,7 @@ async function verDetalhesPrograma(programaId) {
     
     // Configurar botão de editar
     const btnEditar = document.getElementById('btnEditarPrograma');
-    if (btnEditar) {
+    if (btnEditar && isAdmin) {
         btnEditar.onclick = () => {
             fecharModalDetalhesPrograma();
             setTimeout(() => editarPrograma(programaId), 300);
@@ -784,7 +904,7 @@ async function verDetalhesPrograma(programaId) {
 
     // Configurar botão de excluir
     const btnExcluir = document.getElementById('btnExcluirPrograma');
-    if (btnExcluir) {
+    if (btnExcluir && isAdmin) {
         btnExcluir.onclick = () => {
             if (confirm(`Tem certeza que deseja excluir o programa "${programa.titulo}"?`)) {
                 excluirPrograma(programaId);
@@ -849,6 +969,255 @@ function fecharModalDetalhesPrograma() {
     }
 }
 
+// Gerenciamento de Membros
+async function gerenciarMembrosPrograma(programaId) {
+    // Criar modal se não existir
+    if (!document.getElementById('modalGerenciarMembros')) {
+        criarModalGerenciarMembros();
+    }
+    
+    const modal = document.getElementById('modalGerenciarMembros');
+    const programa = programas.find(p => p.id === programaId);
+    
+    if (!programa || !modal) return;
+    
+    // Verificar se usuário atual é admin
+    const roleUsuario = verificarPermissaoPrograma(programa);
+    if (roleUsuario !== 'admin') {
+        mostrarMensagem('Apenas administradores podem gerenciar membros', 'error');
+        return;
+    }
+    
+    document.getElementById('gerenciarMembrosTitulo').textContent = `Gerenciar Membros - ${programa.titulo}`;
+    document.getElementById('gerenciarMembrosProgramaId').value = programaId;
+    
+    // Carregar lista de membros
+    await carregarListaMembros(programa);
+    
+    modal.style.display = 'flex';
+}
+
+// Criar modal de gerenciamento de membros
+function criarModalGerenciarMembros() {
+    const modalHTML = `
+    <div id="modalGerenciarMembros" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="gerenciarMembrosTitulo">Gerenciar Membros</h2>
+                <button class="close" onclick="fecharModalGerenciarMembros()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="gerenciarMembrosProgramaId">
+                
+                <!-- Adicionar novo membro -->
+                <div class="form-group">
+                    <label for="novoMembroUsuario">Adicionar/Editar Membro</label>
+                    <div class="input-group">
+                        <input type="text" id="novoMembroUsuario" placeholder="Nome de usuário (ex: joao.silva)">
+                        <select id="novoMembroRole" class="role-select">
+                            <option value="admin">Admin</option>
+                            <option value="membro">Membro</option>
+                            <option value="demais">Demais</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="adicionarMembro()">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Lista de membros -->
+                <div class="membros-lista-container">
+                    <h4><i class="fas fa-users"></i> Membros do Programa</h4>
+                    <div class="membros-lista" id="listaMembros">
+                        <!-- Membros serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="fecharModalGerenciarMembros()">Fechar</button>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// Carregar lista de membros
+async function carregarListaMembros(programa) {
+    const listaMembros = document.getElementById('listaMembros');
+    if (!listaMembros) return;
+    
+    listaMembros.innerHTML = '<div class="loading-small">Carregando membros...</div>';
+    
+    try {
+        const membros = programa.membros || {};
+        const membrosArray = Object.entries(membros).map(([usuario, role]) => ({
+            usuario,
+            role
+        }));
+        
+        if (membrosArray.length === 0) {
+            listaMembros.innerHTML = '<div class="empty-state-small">Nenhum membro adicionado ainda</div>';
+            return;
+        }
+        
+        let html = '';
+        membrosArray.forEach(membro => {
+            const roleIcon = membro.role === 'admin' ? 'fa-crown' : 
+                            membro.role === 'membro' ? 'fa-user-check' : 'fa-user';
+            const roleColor = membro.role === 'admin' ? '#ff9800' : 
+                             membro.role === 'membro' ? '#2196F3' : '#757575';
+            
+            html += `
+            <div class="membro-item" data-usuario="${membro.usuario}">
+                <div class="membro-info">
+                    <div class="membro-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="membro-detalhes">
+                        <div class="membro-nome">${membro.usuario}</div>
+                        <div class="membro-role" style="color: ${roleColor}">
+                            <i class="fas ${roleIcon}"></i>
+                            ${membro.role === 'admin' ? 'Administrador' : 
+                              membro.role === 'membro' ? 'Membro' : 'Demais'}
+                        </div>
+                    </div>
+                </div>
+                <div class="membro-acoes">
+                    <select class="role-select" onchange="atualizarRoleMembro('${membro.usuario}', this.value)">
+                        <option value="admin" ${membro.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        <option value="membro" ${membro.role === 'membro' ? 'selected' : ''}>Membro</option>
+                        <option value="demais" ${membro.role === 'demais' ? 'selected' : ''}>Demais</option>
+                    </select>
+                    <button class="btn-icon btn-icon-danger" onclick="removerMembro('${membro.usuario}')" title="Remover">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            `;
+        });
+        
+        listaMembros.innerHTML = html;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar membros:', error);
+        listaMembros.innerHTML = '<div class="error-state">Erro ao carregar membros</div>';
+    }
+}
+
+// Adicionar/atualizar membro
+async function adicionarMembro() {
+    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
+    const usuario = document.getElementById('novoMembroUsuario').value.trim();
+    const role = document.getElementById('novoMembroRole').value;
+    
+    if (!programaId || !usuario) {
+        mostrarMensagem('Preencha todos os campos', 'error');
+        return;
+    }
+    
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Obter membros atuais
+        const membrosAtuais = programa.membros || {};
+        
+        // Atualizar membro
+        membrosAtuais[usuario] = role;
+        
+        // Salvar no Firebase
+        await programasCollection.doc(programaId).update({
+            membros: membrosAtuais,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        mostrarMensagem(`${usuario} ${programa.membros && programa.membros[usuario] ? 'atualizado' : 'adicionado'} como ${role}`, 'success');
+        
+        // Limpar campo
+        document.getElementById('novoMembroUsuario').value = '';
+        
+        // Atualizar lista
+        await carregarListaMembros(programa);
+        
+    } catch (error) {
+        console.error('❌ Erro ao adicionar membro:', error);
+        mostrarMensagem('Erro ao adicionar membro: ' + error.message, 'error');
+    }
+}
+
+// Atualizar role de membro
+async function atualizarRoleMembro(usuario, novaRole) {
+    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
+    
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Obter membros atuais
+        const membrosAtuais = programa.membros || {};
+        
+        // Atualizar role
+        membrosAtuais[usuario] = novaRole;
+        
+        // Salvar no Firebase
+        await programasCollection.doc(programaId).update({
+            membros: membrosAtuais,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        mostrarMensagem(`Permissão de ${usuario} atualizada para ${novaRole}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar membro:', error);
+        mostrarMensagem('Erro ao atualizar permissão', 'error');
+    }
+}
+
+// Remover membro (tornar "Demais")
+async function removerMembro(usuario) {
+    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
+    
+    if (!confirm(`Tem certeza que deseja remover ${usuario} do programa?`)) {
+        return;
+    }
+    
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Obter membros atuais
+        const membrosAtuais = programa.membros || {};
+        
+        // Mudar role para "demais" ao invés de remover completamente
+        membrosAtuais[usuario] = 'demais';
+        
+        // Salvar no Firebase
+        await programasCollection.doc(programaId).update({
+            membros: membrosAtuais,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        mostrarMensagem(`${usuario} removido do programa (agora é "Demais")`, 'success');
+        
+        // Atualizar lista
+        await carregarListaMembros(programa);
+        
+    } catch (error) {
+        console.error('❌ Erro ao remover membro:', error);
+        mostrarMensagem('Erro ao remover membro', 'error');
+    }
+}
+
+// Fechar modal de membros
+function fecharModalGerenciarMembros() {
+    const modal = document.getElementById('modalGerenciarMembros');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // Funções de ação
 function editarPrograma(programaId) {
     abrirModalPrograma(programaId);
@@ -874,7 +1243,7 @@ function formatarDataFirestore(timestamp) {
     }
 }
 
-// ✅ FUNÇÃO AUXILIAR: Formatador de status melhorado
+// Formatador de status
 function formatarStatus(status) {
     if (!status) return 'Não Iniciado';
     const statusNorm = status.toLowerCase().trim();
@@ -933,18 +1302,14 @@ function mostrarMensagem(mensagem, tipo = 'info') {
     }, 3000);
 }
 
-// ✅ FUNÇÃO: Ir para a tarefa específica
+// Ir para a tarefa específica
 function irParaTarefa(tarefaId) {
-    // Abrir a página de tarefas em nova aba
     const url = `index.html`;
-    
-    // Usar localStorage para passar a tarefa a ser destacada
     localStorage.setItem('scrollToTarefa', tarefaId);
-    
     window.open(url, '_blank');
 }
 
-// ✅ FUNÇÃO AUXILIAR: Normalizar status para classe CSS
+// Normalizar status para classe CSS
 function normalizarStatusParaClasse(status) {
     if (!status) return 'status-nao_iniciado';
     const statusNorm = status.toLowerCase().trim();
@@ -983,3 +1348,8 @@ window.verDetalhesPrograma = verDetalhesPrograma;
 window.fecharModalDetalhesPrograma = fecharModalDetalhesPrograma;
 window.irParaTarefa = irParaTarefa;
 window.logout = logout;
+window.gerenciarMembrosPrograma = gerenciarMembrosPrograma;
+window.fecharModalGerenciarMembros = fecharModalGerenciarMembros;
+window.adicionarMembro = adicionarMembro;
+window.atualizarRoleMembro = atualizarRoleMembro;
+window.removerMembro = removerMembro;
