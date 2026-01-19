@@ -91,6 +91,144 @@
     margin-right: 8px;
 }
 
+/* Estilos para o modal de detalhes */
+.tarefa-detalhe-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.2s;
+}
+
+.tarefa-detalhe-item:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tarefa-detalhe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.tarefa-detalhe-titulo {
+    flex: 1;
+    font-weight: 500;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tarefa-numero {
+    color: #666;
+    font-weight: bold;
+    min-width: 20px;
+}
+
+.tarefa-detalhe-status {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tarefa-detalhe-descricao {
+    margin: 8px 0;
+    padding: 8px;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #2196F3;
+    font-size: 14px;
+    color: #555;
+}
+
+.tarefa-detalhe-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.tarefa-detalhe-meta small {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.no-tarefas {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+}
+
+.no-tarefas i {
+    font-size: 48px;
+    color: #ddd;
+    margin-bottom: 15px;
+}
+
+.no-tarefas p {
+    margin: 10px 0;
+}
+
+.membros-stats {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    border-left: 3px solid #4CAF50;
+}
+
+.membros-stats small {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-concluido {
+    background: #4CAF50;
+    color: white;
+}
+
+.status-ativo {
+    background: #2196F3;
+    color: white;
+}
+
+.status-planejamento {
+    background: #FF9800;
+    color: white;
+}
+
+.prioridade-alta {
+    background: #f44336;
+    color: white;
+}
+
+.prioridade-media {
+    background: #FF9800;
+    color: white;
+}
+
+.prioridade-baixa {
+    background: #4CAF50;
+    color: white;
+}
+
 /* Estilos para o modal de seleção de tarefas */
 .tarefas-container {
     margin-top: 15px;
