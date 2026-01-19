@@ -715,6 +715,72 @@ async function garantirCampoMembros(programaId) {
     }
 }
 
+// Função para mostrar tarefas vinculadas (APENAS VISUALIZAÇÃO)
+async function mostrarTarefasVinculadas(programaId) {
+    const container = document.getElementById('tarefas-exibicao-container');
+    const lista = document.getElementById('tarefas-visualizacao-lista');
+    
+    if (!container || !lista) return;
+    
+    // Verificar permissão
+    const programa = programas.find(p => p.id === programaId);
+    const roleUsuario = verificarPermissaoPrograma(programa);
+    if (roleUsuario === 'demais') {
+        container.style.display = 'none';
+        return;
+    }
+    
+    // Buscar tarefas deste programa
+    const tarefasDoPrograma = tarefasPorPrograma[programaId] || [];
+    
+    if (tarefasDoPrograma.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    
+    // Limpar lista
+    lista.innerHTML = '';
+    
+    // Adicionar cada tarefa
+    tarefasDoPrograma.forEach(tarefa => {
+        const tarefaItem = document.createElement('div');
+        tarefaItem.className = 'tarefa-visualizacao-item';
+        tarefaItem.innerHTML = `
+            <div class="tarefa-visualizacao-info">
+                <div class="tarefa-visualizacao-titulo">
+                    <i class="fas fa-tasks"></i>
+                    ${tarefa.titulo || 'Tarefa sem título'}
+                </div>
+                <div class="tarefa-visualizacao-detalhes">
+                    <span class="badge ${normalizarStatusParaClasse(tarefa.status)}">
+                        ${formatarStatus(tarefa.status)}
+                    </span>
+                    <span class="badge prioridade-${tarefa.prioridade || 'media'}">
+                        ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
+                    </span>
+                    ${tarefa.dataFim ? `
+                        <small><i class="fas fa-calendar"></i> ${formatarData(tarefa.dataFim)}</small>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="tarefa-visualizacao-acoes">
+                <button class="btn-link" onclick="irParaTarefa('${tarefa.id}')" title="Ver tarefa">
+                    <i class="fas fa-external-link-alt"></i>
+                </button>
+            </div>
+        `;
+        lista.appendChild(tarefaItem);
+    });
+    
+    // Adicionar contador
+    const contador = document.createElement('div');
+    contador.className = 'tarefas-visualizacao-contador';
+    contador.textContent = `Total: ${tarefasDoPrograma.length} tarefa(s) vinculada(s)`;
+    lista.appendChild(contador);
+}
+
 // Salvar programa
 async function salvarPrograma() {
     try {
@@ -1561,3 +1627,5 @@ window.fecharModalGerenciarMembros = fecharModalGerenciarMembros;
 window.adicionarMembro = adicionarMembro;
 window.atualizarRoleMembro = atualizarRoleMembro;
 window.removerMembro = removerMembro;
+
+window.mostrarTarefasVinculadas = mostrarTarefasVinculadas;
