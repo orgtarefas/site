@@ -170,22 +170,24 @@ async function buscarInformacoesTarefasDireto() {
     }
 }
 
-// Verificar permissões do usuário
+// Função atualizada para a nova lógica
 function verificarPermissaoPrograma(programa) {
     if (!usuarioLogado || !programa) return 'demais';
     
     const usuario = usuarioLogado.usuario;
     
     // Se for o criador do programa, é admin por padrão
+    // (mesmo se não estiver explicitamente no campo membros)
     if (programa.criadoPor === usuario) {
         return 'admin';
     }
     
-    // Verificar na lista de membros do programa
+    // Verificar se está na lista de membros do programa
     if (programa.membros && programa.membros[usuario]) {
-        return programa.membros[usuario];
+        return programa.membros[usuario]; // Retorna "admin" ou "membro"
     }
     
+    // Se não está na lista de membros, é "demais"
     return 'demais';
 }
 
@@ -777,6 +779,25 @@ async function verDetalhesPrograma(programaId) {
     
     const tarefasPrograma = tarefasPorPrograma[programaId] || [];
     
+    // Garantir que todos os elementos estão visíveis primeiro (para evitar erros)
+    const elementosParaRestaurar = [
+        'detalhesDatasPrograma',
+        'detalhesTotalTarefas',
+        'detalhesProgressoPrograma',
+        'detalhesProgressoBarra',
+        'detalhesTarefasConcluidas',
+        'detalhesTotalTarefasContagem'
+    ];
+    
+    elementosParaRestaurar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    });
+    
+    // Mostrar seção de tarefas
+    const detalhesTarefasSection = document.querySelector('.detalhes-tarefas');
+    if (detalhesTarefasSection) detalhesTarefasSection.style.display = 'block';
+    
     // Se for demais, limitar visualização
     if (isDemais) {
         // Mostrar apenas informações básicas
@@ -784,18 +805,30 @@ async function verDetalhesPrograma(programaId) {
         document.getElementById('detalhesNomePrograma').textContent = programa.titulo;
         document.getElementById('detalhesDescricaoPrograma').textContent = programa.descricao || 'Sem descrição';
         
-        // Mostrar apenas admins
+        // Coletar todos os admins (incluindo criador se não estiver explicitamente no map)
         let admins = [];
-        if (programa.membros) {
-            admins = Object.entries(programa.membros)
-                .filter(([usuario, role]) => role === 'admin')
-                .map(([usuario, role]) => usuario);
+        
+        // O criador sempre é admin
+        if (programa.criadoPor) {
+            admins.push(`${programa.criadoPor} (criador)`);
         }
         
-        document.getElementById('detalhesCriadoPor').textContent = 
-            `Admins: ${admins.join(', ') || 'Não definidos'}`;
+        // Admins do map membros
+        if (programa.membros) {
+            const adminsMap = Object.entries(programa.membros)
+                .filter(([usuario, role]) => role === 'admin')
+                .map(([usuario, role]) => usuario);
+            
+            admins.push(...adminsMap.filter(admin => admin !== programa.criadoPor));
+        }
         
-        // Ocultar seções sensíveis
+        // Remover duplicados (caso criador também esteja no map)
+        admins = [...new Set(admins)];
+        
+        document.getElementById('detalhesCriadoPor').textContent = 
+            `Administradores: ${admins.length > 0 ? admins.join(', ') : 'Não definidos'}`;
+        
+        // Ocultar seções sensíveis para Demais
         document.getElementById('detalhesDatasPrograma').textContent = '';
         document.getElementById('detalhesTotalTarefas').style.display = 'none';
         document.getElementById('detalhesProgressoPrograma').style.display = 'none';
@@ -803,12 +836,24 @@ async function verDetalhesPrograma(programaId) {
         document.getElementById('detalhesTarefasConcluidas').style.display = 'none';
         document.getElementById('detalhesTotalTarefasContagem').style.display = 'none';
         
+        // Ocultar status automático (mostrar apenas para Admin/Membro)
+        const statusAutoEl = document.getElementById('detalhesStatusAutomatico');
+        if (statusAutoEl) {
+            statusAutoEl.style.display = 'none';
+        }
+        
         // Ocultar botões de editar/excluir
         document.getElementById('btnEditarPrograma').style.display = 'none';
         document.getElementById('btnExcluirPrograma').style.display = 'none';
         
-        // Ocultar tarefas
-        document.querySelector('.detalhes-tarefas').style.display = 'none';
+        // Ocultar seção de tarefas
+        if (detalhesTarefasSection) {
+            detalhesTarefasSection.style.display = 'none';
+        }
+        
+        // Mostrar mensagem explicativa
+        document.getElementById('detalhesCriadoPor').innerHTML += 
+            '<br><small style="color: #666; font-style: italic;">(Você tem acesso restrito a este programa)</small>';
         
         modal.style.display = 'flex';
         return;
@@ -821,15 +866,59 @@ async function verDetalhesPrograma(programaId) {
     document.getElementById('detalhesProgressoBarra').style.display = 'block';
     document.getElementById('detalhesTarefasConcluidas').style.display = 'block';
     document.getElementById('detalhesTotalTarefasContagem').style.display = 'block';
-    document.querySelector('.detalhes-tarefas').style.display = 'block';
+    
+    // Mostrar seção de tarefas para Admin/Membro
+    if (detalhesTarefasSection) {
+        detalhesTarefasSection.style.display = 'block';
+    }
+    
+    // Mostrar status automático
+    const statusAutoEl = document.getElementById('detalhesStatusAutomatico');
+    if (statusAutoEl) {
+        statusAutoEl.style.display = 'inline-block';
+    }
     
     // Configurar botões baseados na role
     if (isAdmin) {
         document.getElementById('btnEditarPrograma').style.display = 'inline-block';
         document.getElementById('btnExcluirPrograma').style.display = 'inline-block';
+        
+        // Adicionar botão de gerenciar membros (só para admin)
+        const btnGerenciar = document.getElementById('btnGerenciarMembros');
+        if (!btnGerenciar) {
+            // Criar botão se não existir
+            const footer = document.querySelector('.modal-footer');
+            if (footer) {
+                const btnGerenciarHTML = `
+                    <button type="button" class="btn btn-secondary" id="btnGerenciarMembros">
+                        <i class="fas fa-users-cog"></i> Gerenciar Membros
+                    </button>
+                `;
+                footer.insertAdjacentHTML('afterbegin', btnGerenciarHTML);
+                
+                // Configurar evento
+                document.getElementById('btnGerenciarMembros').onclick = () => {
+                    fecharModalDetalhesPrograma();
+                    setTimeout(() => gerenciarMembrosPrograma(programaId), 300);
+                };
+            }
+        } else {
+            btnGerenciar.style.display = 'inline-block';
+            btnGerenciar.onclick = () => {
+                fecharModalDetalhesPrograma();
+                setTimeout(() => gerenciarMembrosPrograma(programaId), 300);
+            };
+        }
     } else {
+        // Para membro, esconder botões de admin
         document.getElementById('btnEditarPrograma').style.display = 'none';
         document.getElementById('btnExcluirPrograma').style.display = 'none';
+        
+        // Esconder botão de gerenciar membros
+        const btnGerenciar = document.getElementById('btnGerenciarMembros');
+        if (btnGerenciar) {
+            btnGerenciar.style.display = 'none';
+        }
     }
     
     // Preencher informações básicas
@@ -842,35 +931,59 @@ async function verDetalhesPrograma(programaId) {
     if (detalhesTitulo) detalhesTitulo.textContent = programa.titulo;
     if (detalhesNome) detalhesNome.textContent = programa.titulo;
     if (detalhesDescricao) detalhesDescricao.textContent = programa.descricao || 'Sem descrição';
-    if (detalhesCriadoPor) detalhesCriadoPor.textContent = programa.criadoPor || 'Não informado';
     
-    // Determinar status automático
-    let statusText = 'Planejamento';
-    if (tarefasPrograma.length > 0) {
-        const todasConcluidas = tarefasPrograma.every(tarefa => {
-            const status = (tarefa.status || '').toLowerCase().trim();
-            return status === 'concluido' || status === 'concluído';
-        });
+    // Mostrar criador
+    if (detalhesCriadoPor) {
+        let criadorTexto = `Criado por: ${programa.criadoPor || 'Não informado'}`;
         
-        if (todasConcluidas) {
+        // Adicionar role do usuário atual se for admin ou membro
+        if (roleUsuario) {
+            const roleText = roleUsuario === 'admin' ? 'Administrador' : 'Membro';
+            criadorTexto += ` (Você é ${roleText})`;
+        }
+        
+        detalhesCriadoPor.textContent = criadorTexto;
+    }
+    
+    // Determinar status automático baseado nas tarefas
+    let statusText = 'Planejamento';
+    let statusClass = 'status-planejamento';
+    
+    if (tarefasPrograma.length > 0) {
+        const tarefasAtivas = tarefasPrograma.filter(tarefa => {
+            const status = (tarefa.status || '').toLowerCase().trim();
+            return status !== 'concluido' && status !== 'concluído';
+        }).length;
+        
+        const tarefasConcluidas = tarefasPrograma.length - tarefasAtivas;
+        
+        if (tarefasConcluidas === tarefasPrograma.length) {
             statusText = 'Concluído';
-        } else {
+            statusClass = 'status-concluido';
+        } else if (tarefasAtivas > 0) {
             statusText = 'Em Andamento';
+            statusClass = 'status-ativo';
+        } else {
+            statusText = 'Planejamento';
+            statusClass = 'status-planejamento';
         }
     }
     
     if (detalhesStatusAutomatico) {
         detalhesStatusAutomatico.textContent = statusText;
-        detalhesStatusAutomatico.className = 'badge ' + 
-            (statusText === 'Concluído' ? 'status-concluido' : 
-             statusText === 'Em Andamento' ? 'status-ativo' : 'status-planejamento');
+        detalhesStatusAutomatico.className = `badge ${statusClass}`;
     }
     
     // Datas
     const dataCriacao = programa.dataCriacao ? 
         formatarDataFirestore(programa.dataCriacao) : 'Não definida';
+    const dataAtualizacao = programa.dataAtualizacao ? 
+        formatarDataFirestore(programa.dataAtualizacao) : 'Não atualizado';
+    
     const detalhesDatas = document.getElementById('detalhesDatasPrograma');
-    if (detalhesDatas) detalhesDatas.textContent = `Criado em: ${dataCriacao}`;
+    if (detalhesDatas) {
+        detalhesDatas.textContent = `Criado em: ${dataCriacao} | Última atualização: ${dataAtualizacao}`;
+    }
     
     // Progresso
     const tarefasConcluidas = tarefasPrograma.filter(tarefa => {
@@ -893,6 +1006,26 @@ async function verDetalhesPrograma(programaId) {
     if (detalhesTotalTarefasContagem) detalhesTotalTarefasContagem.textContent = `${tarefasPrograma.length} tarefas`;
     if (detalhesTotalTarefas) detalhesTotalTarefas.textContent = `${tarefasPrograma.length} tarefas`;
     
+    // Mostrar estatísticas de membros (só para Admin/Membro)
+    const estatisticasMembros = document.getElementById('estatisticasMembros');
+    if (!estatisticasMembros && (isAdmin || isMembro)) {
+        // Adicionar seção de estatísticas de membros
+        const infoSection = document.querySelector('.detalhes-info');
+        if (infoSection) {
+            const membros = programa.membros || {};
+            const totalMembros = Object.keys(membros).length;
+            const totalAdmins = Object.values(membros).filter(role => role === 'admin').length;
+            const totalMembrosRole = Object.values(membros).filter(role => role === 'membro').length;
+            
+            const statsHTML = `
+                <div class="membros-stats" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 6px;">
+                    <small><i class="fas fa-users"></i> <strong>Integrantes do Programa:</strong> ${totalMembros} (${totalAdmins} admin, ${totalMembrosRole} membro)</small>
+                </div>
+            `;
+            infoSection.insertAdjacentHTML('beforeend', statsHTML);
+        }
+    }
+    
     // Configurar botão de editar
     const btnEditar = document.getElementById('btnEditarPrograma');
     if (btnEditar && isAdmin) {
@@ -906,38 +1039,56 @@ async function verDetalhesPrograma(programaId) {
     const btnExcluir = document.getElementById('btnExcluirPrograma');
     if (btnExcluir && isAdmin) {
         btnExcluir.onclick = () => {
-            if (confirm(`Tem certeza que deseja excluir o programa "${programa.titulo}"?`)) {
+            if (confirm(`Tem certeza que deseja excluir o programa "${programa.titulo}"?\n\nEsta ação não pode ser desfeita.`)) {
                 excluirPrograma(programaId);
                 fecharModalDetalhesPrograma();
             }
         };
     }
     
-    // Listar tarefas
+    // Listar tarefas (só para Admin e Membro)
     const containerTarefas = document.getElementById('lista-tarefas-detalhes');
     if (containerTarefas) {
         if (tarefasPrograma.length === 0) {
-            containerTarefas.innerHTML = '<div class="no-tarefas"><i class="fas fa-info-circle"></i><p>Nenhuma tarefa relacionada a este programa</p></div>';
+            containerTarefas.innerHTML = `
+                <div class="no-tarefas">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Nenhuma tarefa relacionada a este programa</p>
+                    ${isAdmin ? '<small><i class="fas fa-lightbulb"></i> Dica: Vá para a tela de Tarefas para vincular tarefas a este programa</small>' : ''}
+                </div>
+            `;
         } else {
-            containerTarefas.innerHTML = tarefasPrograma.map(tarefa => {
+            containerTarefas.innerHTML = tarefasPrograma.map((tarefa, index) => {
                 const statusLabel = formatarStatus(tarefa.status);
                 const statusClasse = normalizarStatusParaClasse(tarefa.status);
                 const dataFimFormatada = tarefa.dataFim ? formatarData(tarefa.dataFim) : 'Não definida';
                 const tarefaDescricaoCurta = tarefa.descricao && tarefa.descricao.length > 100 ? 
                     tarefa.descricao.substring(0, 100) + '...' : tarefa.descricao || '';
                 
+                // Determinar ícone baseado no status
+                let statusIcon = 'fa-circle';
+                switch(statusClasse) {
+                    case 'status-concluido': statusIcon = 'fa-check-circle'; break;
+                    case 'status-andamento': statusIcon = 'fa-spinner'; break;
+                    case 'status-pendente': statusIcon = 'fa-clock'; break;
+                    default: statusIcon = 'fa-circle';
+                }
+                
                 return `
                 <div class="tarefa-detalhe-item" onclick="irParaTarefa('${tarefa.id}')" style="cursor: pointer;">
                     <div class="tarefa-detalhe-header">
                         <div class="tarefa-detalhe-titulo">
+                            <span class="tarefa-numero">${index + 1}.</span>
                             <i class="fas fa-tasks"></i>
                             ${tarefa.titulo}
                         </div>
                         <div class="tarefa-detalhe-status">
                             <span class="badge ${statusClasse}">
+                                <i class="fas ${statusIcon}"></i>
                                 ${statusLabel}
                             </span>
                             <span class="badge prioridade-${tarefa.prioridade || 'media'}">
+                                <i class="fas fa-flag"></i>
                                 ${tarefa.prioridade?.charAt(0).toUpperCase() + tarefa.prioridade?.slice(1) || 'Média'}
                             </span>
                         </div>
@@ -949,14 +1100,23 @@ async function verDetalhesPrograma(programaId) {
                     ` : ''}
                     <div class="tarefa-detalhe-meta">
                         ${tarefa.dataFim ? `
-                            <small><i class="fas fa-calendar"></i> Vence: ${dataFimFormatada}</small>
+                            <small><i class="fas fa-calendar-alt"></i> Vence: ${dataFimFormatada}</small>
                         ` : ''}
-                        <small><i class="fas fa-clock"></i> Criado por: ${tarefa.criadoPor || 'Não informado'}</small>
+                        <small><i class="fas fa-user"></i> Criado por: ${tarefa.criadoPor || 'Não informado'}</small>
+                        ${tarefa.programaId ? `
+                            <small><i class="fas fa-project-diagram"></i> Vinculado a este programa</small>
+                        ` : ''}
                     </div>
                 </div>
                 `;
             }).join('');
         }
+    }
+    
+    // Adicionar contador de tarefas no header da seção
+    const tarefasHeader = document.querySelector('.tarefas-header h4');
+    if (tarefasHeader && tarefasPrograma.length > 0) {
+        tarefasHeader.innerHTML = `<i class="fas fa-tasks"></i> Tarefas Relacionadas (${tarefasPrograma.length})`;
     }
     
     modal.style.display = 'flex';
@@ -1043,7 +1203,7 @@ function criarModalGerenciarMembros() {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-// Carregar lista de membros
+// Carregar lista de membros (APENAS Admin e Membro - exclui "Demais" da lista)
 async function carregarListaMembros(programa) {
     const listaMembros = document.getElementById('listaMembros');
     if (!listaMembros) return;
@@ -1052,10 +1212,14 @@ async function carregarListaMembros(programa) {
     
     try {
         const membros = programa.membros || {};
-        const membrosArray = Object.entries(membros).map(([usuario, role]) => ({
-            usuario,
-            role
-        }));
+        
+        // Converter map para array, filtrando apenas admin/membro (exclui se houver "demais" no map)
+        const membrosArray = Object.entries(membros)
+            .filter(([usuario, role]) => role === 'admin' || role === 'membro')
+            .map(([usuario, role]) => ({
+                usuario,
+                role
+            }));
         
         if (membrosArray.length === 0) {
             listaMembros.innerHTML = '<div class="empty-state-small">Nenhum membro adicionado ainda</div>';
@@ -1064,10 +1228,9 @@ async function carregarListaMembros(programa) {
         
         let html = '';
         membrosArray.forEach(membro => {
-            const roleIcon = membro.role === 'admin' ? 'fa-crown' : 
-                            membro.role === 'membro' ? 'fa-user-check' : 'fa-user';
-            const roleColor = membro.role === 'admin' ? '#ff9800' : 
-                             membro.role === 'membro' ? '#2196F3' : '#757575';
+            const roleIcon = membro.role === 'admin' ? 'fa-crown' : 'fa-user-check';
+            const roleColor = membro.role === 'admin' ? '#ff9800' : '#2196F3';
+            const roleText = membro.role === 'admin' ? 'Administrador' : 'Membro';
             
             html += `
             <div class="membro-item" data-usuario="${membro.usuario}">
@@ -1079,8 +1242,7 @@ async function carregarListaMembros(programa) {
                         <div class="membro-nome">${membro.usuario}</div>
                         <div class="membro-role" style="color: ${roleColor}">
                             <i class="fas ${roleIcon}"></i>
-                            ${membro.role === 'admin' ? 'Administrador' : 
-                              membro.role === 'membro' ? 'Membro' : 'Demais'}
+                            ${roleText}
                         </div>
                     </div>
                 </div>
@@ -1088,9 +1250,8 @@ async function carregarListaMembros(programa) {
                     <select class="role-select" onchange="atualizarRoleMembro('${membro.usuario}', this.value)">
                         <option value="admin" ${membro.role === 'admin' ? 'selected' : ''}>Admin</option>
                         <option value="membro" ${membro.role === 'membro' ? 'selected' : ''}>Membro</option>
-                        <option value="demais" ${membro.role === 'demais' ? 'selected' : ''}>Demais</option>
                     </select>
-                    <button class="btn-icon btn-icon-danger" onclick="removerMembro('${membro.usuario}')" title="Remover">
+                    <button class="btn-icon btn-icon-danger" onclick="removerMembro('${membro.usuario}')" title="Remover do programa">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1175,11 +1336,10 @@ async function atualizarRoleMembro(usuario, novaRole) {
     }
 }
 
-// Remover membro (tornar "Demais")
 async function removerMembro(usuario) {
     const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
     
-    if (!confirm(`Tem certeza que deseja remover ${usuario} do programa?`)) {
+    if (!confirm(`Tem certeza que deseja remover ${usuario} do programa?\n\nEle se tornará "Demais" (não terá mais acesso).`)) {
         return;
     }
     
@@ -1190,8 +1350,8 @@ async function removerMembro(usuario) {
         // Obter membros atuais
         const membrosAtuais = programa.membros || {};
         
-        // Mudar role para "demais" ao invés de remover completamente
-        membrosAtuais[usuario] = 'demais';
+        // REMOVER COMPLETAMENTE do map (não deixar como "demais")
+        delete membrosAtuais[usuario];
         
         // Salvar no Firebase
         await programasCollection.doc(programaId).update({
@@ -1199,10 +1359,7 @@ async function removerMembro(usuario) {
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        mostrarMensagem(`${usuario} removido do programa (agora é "Demais")`, 'success');
-        
-        // Atualizar lista
-        await carregarListaMembros(programa);
+        mostrarMensagem(`${usuario} removido do programa`, 'success');
         
     } catch (error) {
         console.error('❌ Erro ao remover membro:', error);
