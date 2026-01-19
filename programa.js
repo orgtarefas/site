@@ -1171,25 +1171,35 @@ function criarModalGerenciarMembros() {
                 
                 <!-- Adicionar novo membro -->
                 <div class="form-group">
-                    <label for="novoMembroUsuario">Adicionar/Editar Membro</label>
+                    <label for="novoMembroUsuario">
+                        <i class="fas fa-user-plus"></i> Adicionar Integrante
+                        <small style="color: #666; font-weight: normal;">(usuário terá acesso ao programa)</small>
+                    </label>
                     <div class="input-group">
                         <input type="text" id="novoMembroUsuario" placeholder="Nome de usuário (ex: joao.silva)">
                         <select id="novoMembroRole" class="role-select">
-                            <option value="admin">Admin</option>
-                            <option value="membro">Membro</option>
-                            <option value="demais">Demais</option>
+                            <option value="admin">Administrador</option>
+                            <option value="membro" selected>Membro</option>
                         </select>
                         <button class="btn btn-primary" onclick="adicionarMembro()">
                             <i class="fas fa-plus"></i> Adicionar
                         </button>
                     </div>
+                    <small class="form-help">
+                        <i class="fas fa-info-circle"></i> Administradores podem editar o programa e gerenciar membros.
+                        <br><i class="fas fa-info-circle"></i> Membros podem visualizar todos os detalhes mas não podem editar.
+                    </small>
                 </div>
                 
                 <!-- Lista de membros -->
                 <div class="membros-lista-container">
-                    <h4><i class="fas fa-users"></i> Membros do Programa</h4>
+                    <h4><i class="fas fa-users"></i> Integrantes do Programa</h4>
+                    <small class="form-help" style="display: block; margin-bottom: 10px;">
+                        <i class="fas fa-info-circle"></i> Lista mostra apenas os integrantes (Administradores e Membros) do programa.
+                        <br><i class="fas fa-info-circle"></i> Usuários que não estão nesta lista são considerados "Demais" (acesso restrito).
+                    </small>
                     <div class="membros-lista" id="listaMembros">
-                        <!-- Membros serão carregados aqui -->
+                        <!-- Integrantes serão carregados aqui -->
                     </div>
                 </div>
             </div>
@@ -1278,68 +1288,16 @@ async function adicionarMembro() {
         return;
     }
     
-    try {
-        const programa = programas.find(p => p.id === programaId);
-        if (!programa) return;
-        
-        // Obter membros atuais
-        const membrosAtuais = programa.membros || {};
-        
-        // Atualizar membro
-        membrosAtuais[usuario] = role;
-        
-        // Salvar no Firebase
-        await programasCollection.doc(programaId).update({
-            membros: membrosAtuais,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        mostrarMensagem(`${usuario} ${programa.membros && programa.membros[usuario] ? 'atualizado' : 'adicionado'} como ${role}`, 'success');
-        
-        // Limpar campo
-        document.getElementById('novoMembroUsuario').value = '';
-        
-        // Atualizar lista
-        await carregarListaMembros(programa);
-        
-    } catch (error) {
-        console.error('❌ Erro ao adicionar membro:', error);
-        mostrarMensagem('Erro ao adicionar membro: ' + error.message, 'error');
+    // Validações
+    if (usuario === usuarioLogado.usuario) {
+        mostrarMensagem('Você não pode adicionar/editar a si mesmo', 'error');
+        return;
     }
-}
-
-// Atualizar role de membro
-async function atualizarRoleMembro(usuario, novaRole) {
-    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
     
-    try {
-        const programa = programas.find(p => p.id === programaId);
-        if (!programa) return;
-        
-        // Obter membros atuais
-        const membrosAtuais = programa.membros || {};
-        
-        // Atualizar role
-        membrosAtuais[usuario] = novaRole;
-        
-        // Salvar no Firebase
-        await programasCollection.doc(programaId).update({
-            membros: membrosAtuais,
-            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        mostrarMensagem(`Permissão de ${usuario} atualizada para ${novaRole}`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao atualizar membro:', error);
-        mostrarMensagem('Erro ao atualizar permissão', 'error');
-    }
-}
-
-async function removerMembro(usuario) {
-    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
-    
-    if (!confirm(`Tem certeza que deseja remover ${usuario} do programa?\n\nEle se tornará "Demais" (não terá mais acesso).`)) {
+    // Verificar se o usuário já existe como criador (não pode ser modificado)
+    const programa = programas.find(p => p.id === programaId);
+    if (programa.criadoPor === usuario) {
+        mostrarMensagem('O criador do programa já é administrador por padrão', 'info');
         return;
     }
     
@@ -1350,7 +1308,97 @@ async function removerMembro(usuario) {
         // Obter membros atuais
         const membrosAtuais = programa.membros || {};
         
-        // REMOVER COMPLETAMENTE do map (não deixar como "demais")
+        // Adicionar/atualizar integrante
+        membrosAtuais[usuario] = role;
+        
+        // Salvar no Firebase
+        await programasCollection.doc(programaId).update({
+            membros: membrosAtuais,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        const mensagem = programa.membros && programa.membros[usuario] 
+            ? `${usuario} atualizado para ${role === 'admin' ? 'Administrador' : 'Membro'}`
+            : `${usuario} adicionado como ${role === 'admin' ? 'Administrador' : 'Membro'}`;
+        
+        mostrarMensagem(mensagem, 'success');
+        
+        // Limpar campo
+        document.getElementById('novoMembroUsuario').value = '';
+        
+        // Atualizar lista
+        await carregarListaMembros(programa);
+        
+    } catch (error) {
+        console.error('❌ Erro ao adicionar integrante:', error);
+        mostrarMensagem('Erro ao adicionar integrante: ' + error.message, 'error');
+    }
+}
+
+async function atualizarRoleMembro(usuario, novaRole) {
+    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
+    
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Validações
+        if (usuario === usuarioLogado.usuario) {
+            mostrarMensagem('Você não pode modificar suas próprias permissões', 'error');
+            return;
+        }
+        
+        if (programa.criadoPor === usuario) {
+            mostrarMensagem('Não é possível modificar as permissões do criador do programa', 'error');
+            return;
+        }
+        
+        // Obter membros atuais
+        const membrosAtuais = programa.membros || {};
+        
+        // Atualizar role (só pode ser admin ou membro)
+        membrosAtuais[usuario] = novaRole;
+        
+        // Salvar no Firebase
+        await programasCollection.doc(programaId).update({
+            membros: membrosAtuais,
+            dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        mostrarMensagem(`${usuario} atualizado para ${novaRole === 'admin' ? 'Administrador' : 'Membro'}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar integrante:', error);
+        mostrarMensagem('Erro ao atualizar permissão', 'error');
+    }
+}
+
+async function removerMembro(usuario) {
+    const programaId = document.getElementById('gerenciarMembrosProgramaId').value;
+    
+    if (!confirm(`Tem certeza que deseja remover ${usuario} do programa?\n\nEle perderá acesso e se tornará "Demais" (usuário externo).`)) {
+        return;
+    }
+    
+    try {
+        const programa = programas.find(p => p.id === programaId);
+        if (!programa) return;
+        
+        // Validações
+        if (usuario === usuarioLogado.usuario) {
+            mostrarMensagem('Você não pode remover a si mesmo', 'error');
+            return;
+        }
+        
+        if (programa.criadoPor === usuario) {
+            mostrarMensagem('Não é possível remover o criador do programa', 'error');
+            return;
+        }
+        
+        // Obter membros atuais
+        const membrosAtuais = programa.membros || {};
+        
+        // REMOVER COMPLETAMENTE do map (torna-se "Demais" - usuário externo)
         delete membrosAtuais[usuario];
         
         // Salvar no Firebase
@@ -1359,11 +1407,14 @@ async function removerMembro(usuario) {
             dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        mostrarMensagem(`${usuario} removido do programa`, 'success');
+        mostrarMensagem(`${usuario} removido do programa (agora é usuário externo)`, 'success');
+        
+        // Atualizar lista
+        await carregarListaMembros(programa);
         
     } catch (error) {
-        console.error('❌ Erro ao remover membro:', error);
-        mostrarMensagem('Erro ao remover membro', 'error');
+        console.error('❌ Erro ao remover integrante:', error);
+        mostrarMensagem('Erro ao remover integrante', 'error');
     }
 }
 
